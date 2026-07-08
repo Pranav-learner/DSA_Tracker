@@ -1,0 +1,88 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Dark, premium palette (HSL channels — consumed by tailwind.config.ts) */
+    --background: 224 14% 6%;
+    --surface: 224 12% 8%;
+    --foreground: 210 20% 96%;
+
+    --card: 224 13% 9%;
+    --card-foreground: 210 20% 96%;
+
+    --muted: 223 12% 14%;
+    --muted-foreground: 220 9% 60%;
+
+    --primary: 245 83% 67%;
+    --primary-foreground: 0 0% 100%;
+
+    --accent: 223 13% 15%;
+    --accent-foreground: 210 20% 96%;
+
+    --border: 223 12% 16%;
+    --input: 223 12% 16%;
+    --ring: 245 83% 67%;
+
+    --success: 142 71% 45%;
+    --warning: 38 92% 55%;
+    --danger: 0 72% 58%;
+
+    --radius: 0.85rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Subtle ambient gradient behind the app for depth. */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background:
+      radial-gradient(60rem 40rem at 80% -10%, hsl(var(--primary) / 0.08), transparent 60%),
+      radial-gradient(50rem 30rem at 0% 10%, hsl(200 80% 50% / 0.05), transparent 55%);
+    pointer-events: none;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted rounded-full border-2 border-transparent bg-clip-content;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/30;
+  }
+}
+
+@layer utilities {
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, hsl(var(--foreground) / 0.04), transparent);
+    animation: shimmer 1.6s infinite;
+  }
+}
