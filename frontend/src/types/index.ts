@@ -261,7 +261,10 @@ export type ActivityType =
   | 'phase-completed'
   | 'attempt-started'
   | 'attempt-updated'
-  | 'problem-solved';
+  | 'problem-solved'
+  | 'notebook-created'
+  | 'notebook-updated'
+  | 'problem-documented';
 
 export type ActivityEntityType = 'topic' | 'phase' | 'problem';
 

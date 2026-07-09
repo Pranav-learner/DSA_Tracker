@@ -8,6 +8,7 @@ import recommendationRoutes from './recommendation.routes.js';
 import dashboardRoutes from './dashboard.routes.js';
 import problemRoutes from './problem.routes.js';
 import attemptRoutes from './attempt.routes.js';
+import notebookRoutes from './notebook.routes.js';
 
 /** Root API router — mounts every feature router under /api. */
 const api = Router();
@@ -43,6 +44,10 @@ api.get('/', (_req, res) => {
         'GET /api/problems/:id/summary',
         'POST /api/attempts',
         'GET|PATCH|DELETE /api/attempts/:id',
+        'GET|POST /api/notebook',
+        'GET /api/notebook/search',
+        'GET /api/notebook/facets',
+        'GET|PATCH|DELETE /api/notebook/:id',
       ],
     },
   });
@@ -57,5 +62,6 @@ api.use('/recommendation', recommendationRoutes);
 api.use('/dashboard', dashboardRoutes);
 api.use('/problems', problemRoutes);
 api.use('/attempts', attemptRoutes);
+api.use('/notebook', notebookRoutes);
 
 export default api;

@@ -9,12 +9,14 @@ import { env } from '../config/env.js';
 import { MASTERY_THRESHOLDS } from '../config/mastery.js';
 import type { LadderStage } from '../types/domain.js';
 import { masteryService } from '../services/mastery.service.js';
+import { Types } from 'mongoose';
 import { Problem } from '../models/Problem.js';
 import { topicProgressRepository } from '../repositories/topicProgress.repository.js';
 import { learningRepository } from '../repositories/learning.repository.js';
 import { activityRepository } from '../repositories/activity.repository.js';
 import { problemRepository } from '../repositories/problem.repository.js';
 import { userProblemRepository } from '../repositories/userProblem.repository.js';
+import { notebookRepository } from '../repositories/notebook.repository.js';
 import { roadmapSeed } from './data.js';
 import { buildTopicContent } from './content.js';
 import { DEMO_PROGRESS, DEMO_CURRENT_TITLE } from './progress.js';
@@ -25,6 +27,7 @@ import {
   DEMO_IN_PROGRESS_TOPICS,
   DEMO_FAVORITE_TITLES,
 } from './problems.js';
+import { DEMO_NOTEBOOK } from './notebook.js';
 import type { ProblemStatus } from '../types/domain.js';
 
 /**
@@ -100,9 +103,10 @@ async function seed(): Promise<void> {
   await seedDemoActivity();
   const problemCount = await seedProblems();
   await seedUserProblems();
+  const notebookCount = await seedNotebook();
 
   logger.info(
-    `Seed complete — ${roadmapSeed.length} phases, ${totalTopics} topics, ${problemCount} problems.`,
+    `Seed complete — ${roadmapSeed.length} phases, ${totalTopics} topics, ${problemCount} problems, ${notebookCount} notebook entries.`,
   );
   await disconnectDatabase();
 }
@@ -264,6 +268,74 @@ async function seedUserProblems(): Promise<void> {
   await userProblemRepository.insertMany(docs);
   const favCount = docs.filter((d) => d.favorite).length;
   logger.info(`  ✓ Seeded ${docs.length} user problem states (${favCount} favorites).`);
+}
+
+/**
+ * Module 2 · Sprint 3: seed the demo Pattern Notebook. Two-pass so entries can
+ * reference each other (the Prefix Sum → … → Segment Tree knowledge chain).
+ */
+async function seedNotebook(): Promise<number> {
+  const userId = env.demoUserId;
+  logger.info(`Seeding Pattern Notebook for '${userId}'…`);
+  await notebookRepository.deleteByUser(userId);
+
+  const problems = await Problem.find().exec();
+  const byTitle = new Map(problems.map((p) => [p.title, p]));
+  const now = Date.now();
+  const DAY = 24 * 60 * 60_000;
+
+  // Pass 1 — create entries (relatedEntries linked in pass 2).
+  const entryIdByProblemTitle = new Map<string, string>();
+  for (const n of DEMO_NOTEBOOK) {
+    const problem = byTitle.get(n.problemTitle);
+    if (!problem) {
+      logger.warn(`  ! notebook references unknown problem: ${n.problemTitle}`);
+      continue;
+    }
+    const relatedProblems = (n.relatedProblemTitles ?? [])
+      .map((t) => byTitle.get(t)?._id)
+      .filter((id): id is NonNullable<typeof id> => Boolean(id));
+    const revisionDates = Array.from({ length: n.revisions ?? 0 }, (_, i) => new Date(now - (i + 1) * 5 * DAY));
+
+    const doc = await notebookRepository.create({
+      userId,
+      problemId: problem._id,
+      topicId: problem.topicId,
+      phaseId: problem.phaseId,
+      title: problem.title,
+      pattern: problem.pattern,
+      platform: problem.platform,
+      recognitionKeywords: n.recognitionKeywords,
+      observation: n.observation,
+      coreAlgorithm: n.coreAlgorithm,
+      timeComplexity: n.timeComplexity,
+      spaceComplexity: n.spaceComplexity,
+      alternativeSolutions: n.alternativeSolutions,
+      commonMistakes: n.commonMistakes,
+      lessonsLearned: n.lessonsLearned,
+      personalNotes: n.personalNotes ?? '',
+      confidence: n.confidence,
+      relatedProblems,
+      relatedEntries: [],
+      revisionDates,
+      lastReviewedAt: revisionDates[0] ?? null,
+    });
+    entryIdByProblemTitle.set(n.problemTitle, String(doc._id));
+  }
+
+  // Pass 2 — resolve related-entry titles → ids and link.
+  for (const n of DEMO_NOTEBOOK) {
+    const entryId = entryIdByProblemTitle.get(n.problemTitle);
+    if (!entryId || !n.relatedEntryProblemTitles?.length) continue;
+    const relatedEntries = n.relatedEntryProblemTitles
+      .map((t) => entryIdByProblemTitle.get(t))
+      .filter((id): id is string => Boolean(id))
+      .map((id) => new Types.ObjectId(id));
+    await notebookRepository.updateById(entryId, { relatedEntries });
+  }
+
+  logger.info(`  ✓ Notebook seeded (${entryIdByProblemTitle.size} entries).`);
+  return entryIdByProblemTitle.size;
 }
 
 seed()

@@ -126,6 +126,10 @@ export const ACTIVITY_TYPES = [
   'attempt-started',
   'attempt-updated',
   'problem-solved',
+  // Module 2 · Sprint 3 — pattern notebook
+  'notebook-created',
+  'notebook-updated',
+  'problem-documented',
 ] as const;
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];
 

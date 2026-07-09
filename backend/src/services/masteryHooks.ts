@@ -17,4 +17,15 @@ export const masteryHooks = {
     // TopicProgress mastery signals here.
     logger.debug('masteryHooks.onProblemSolved (placeholder, no-op)', { userId, ...ctx });
   },
+
+  /**
+   * Module 2 · Sprint 3 — exposes a notebook confidence update to Module 1.
+   * Placeholder only: mastery is NOT recalculated from confidence this sprint.
+   */
+  async onNotebookConfidence(
+    userId: string,
+    ctx: { problemId: string; topicId: string; confidence: number },
+  ): Promise<void> {
+    logger.debug('masteryHooks.onNotebookConfidence (placeholder, no-op)', { userId, ...ctx });
+  },
 };

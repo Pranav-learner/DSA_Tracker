@@ -29,6 +29,7 @@ import { activityService } from '../src/services/activity.service.js';
 import { Problem } from '../src/models/Problem.js';
 import { problemService } from '../src/services/problem.service.js';
 import { attemptService } from '../src/services/attempt.service.js';
+import { notebookService } from '../src/services/notebook.service.js';
 import { problemRepository } from '../src/repositories/problem.repository.js';
 import { userProblemRepository } from '../src/repositories/userProblem.repository.js';
 import {
@@ -401,6 +402,83 @@ async function run(): Promise<void> {
     'attempt activity events are generated',
   );
 
+  // --- Module 2 · Sprint 3: Pattern Notebook (Knowledge Engine) ---
+  const nbProblem = await Problem.findOne({ title: 'Two Sum' }).exec();
+  const relProblem = await Problem.findOne({ title: '3Sum' }).exec();
+  const nb2Problem = await Problem.findOne({ title: 'Range Sum Query - Immutable' }).exec();
+  const nbHttpProblem = await Problem.findOne({ title: 'Container With Most Water' }).exec();
+  const nbBadConfProblem = await Problem.findOne({ title: 'Maximum Subarray' }).exec();
+  assert(Boolean(nbProblem && relProblem && nb2Problem && nbHttpProblem && nbBadConfProblem), 'notebook target problems exist');
+  const nbHttpProblemId = String(nbHttpProblem!._id);
+  const nbBadConfProblemId = String(nbBadConfProblem!._id);
+
+  const nb1 = await notebookService.create(DEMO_USER, {
+    problemId: String(nbProblem!._id), confidence: 80, observation: 'hash the complement',
+    coreAlgorithm: 'one pass, map value→index', timeComplexity: 'O(n)', spaceComplexity: 'O(n)',
+    recognitionKeywords: ['pair', 'target', 'complement'], commonMistakes: ['store before check'],
+    relatedProblems: [String(relProblem!._id)],
+  });
+  const nb2 = await notebookService.create(DEMO_USER, {
+    problemId: String(nb2Problem!._id), confidence: 60, pattern: 'Prefix Sum',
+    observation: 'precompute cumulative sums for O(1) range queries',
+  });
+
+  console.log(
+    `notebook: created "${nb1.title}" (${nb1.pattern}, conf ${nb1.confidence}) relProblems=${nb1.relatedProblems.length} ` +
+      `relTopic="${nb1.relatedProblems[0]?.topicTitle}"`,
+  );
+
+  let dupThrew = false;
+  try {
+    await notebookService.create(DEMO_USER, { problemId: String(nbProblem!._id) });
+  } catch {
+    dupThrew = true;
+  }
+
+  const nbUpdated = await notebookService.update(DEMO_USER, nb1.id, {
+    confidence: 88, lessonsLearned: 'hashing beats sorting when indices matter',
+    relatedEntries: [nb2.id], review: true,
+  });
+  const nbDetail = await notebookService.getById(DEMO_USER, nb1.id);
+
+  const allNb = await notebookService.list(DEMO_USER, { page: 1, pageSize: 10, sort: 'recent', order: 'desc' });
+  const byPattern = await notebookService.list(DEMO_USER, { page: 1, pageSize: 10, sort: 'confidence', order: 'desc', pattern: nb1.pattern });
+  const highConf = await notebookService.list(DEMO_USER, { page: 1, pageSize: 10, sort: 'confidence', order: 'desc', confidenceMin: 80 });
+  const searchNb = await notebookService.list(DEMO_USER, { page: 1, pageSize: 10, sort: 'recent', order: 'desc', q: 'complement' });
+  const nbFacets = await notebookService.facets(DEMO_USER);
+
+  console.log(
+    `  update: conf=${nbUpdated.confidence} revisions=${nbUpdated.revisionCount} relEntries=${nbUpdated.relatedEntries.length} | ` +
+      `list total=${allNb.total} pattern=${byPattern.total} highConf=${highConf.total} search('complement')=${searchNb.total} ` +
+      `patterns=${nbFacets.patterns.length}`,
+  );
+
+  assert(nb1.confidence === 80 && nb1.relatedProblems.length === 1, 'create resolves problem + related problems');
+  assert(nb1.relatedProblems[0].topicTitle.length > 0, 'related problem resolves its topic title');
+  assert(nb1.pattern === 'Hashing / Scan' || nb1.pattern.length > 0, 'pattern pre-filled from problem');
+  assert(dupThrew, 'duplicate notebook entry rejected');
+  assert(nbUpdated.confidence === 88 && nbUpdated.revisionCount === 1 && nbUpdated.lastReviewedAt !== null, 'update content + review');
+  assert(nbUpdated.relatedEntries.length === 1 && nbUpdated.relatedEntries[0].id === nb2.id, 'related notebook entry linked');
+  assert(Boolean(nbDetail.topic) && Boolean(nbDetail.phase), 'notebook detail resolves topic + phase refs');
+  assert(allNb.total >= 2, 'notebook list returns entries');
+  assert(byPattern.items.every((i) => i.pattern === nb1.pattern), 'pattern filter works');
+  assert(highConf.items.every((i) => i.confidence >= 80), 'confidence filter works');
+  assert(searchNb.total >= 1, 'full-text search matches');
+  assert(nbFacets.patterns.length >= 1 && nbFacets.platforms.length >= 3, 'notebook facets');
+
+  const nbActivity = await activityService.getRecent(DEMO_USER, 40);
+  assert(
+    nbActivity.some((a) => a.type === 'notebook-created') &&
+      nbActivity.some((a) => a.type === 'problem-documented') &&
+      nbActivity.some((a) => a.type === 'notebook-updated'),
+    'notebook activity events (created + documented + updated)',
+  );
+
+  // Relationship integrity: deleting nb2 unlinks it from nb1.relatedEntries.
+  await notebookService.remove(DEMO_USER, nb2.id);
+  const nb1AfterDelete = await notebookService.getById(DEMO_USER, nb1.id);
+  assert(nb1AfterDelete.relatedEntries.length === 0, 'deleting an entry unlinks it from related entries');
+
   // Mastery weights sanity: all-100 metrics → 100% overall.
   const perfect = masteryService.computeOverall({
     recognition: 100, implementation: 100, standard: 100, variant: 100,
@@ -485,6 +563,20 @@ async function run(): Promise<void> {
     problemId: '64b2f0000000000000000000', status: 'Started', verdict: 'Unknown', language: 'Python',
     startTime: mins(5).toISOString(),
   });
+
+  // Module 2 · Sprint 3 — notebook endpoints over HTTP.
+  const httpNbCreate = await sendJson('POST', '/api/notebook', {
+    problemId: nbHttpProblemId, confidence: 50, observation: 'opposite-end pointers',
+  });
+  const createdNbId = (httpNbCreate.body.data as { id?: string } | undefined)?.id ?? '';
+  const httpNbList = await getJson('/api/notebook?pageSize=5&sort=confidence');
+  const httpNbSearch = await getJson('/api/notebook/search?q=prefix');
+  const httpNbFacets = await getJson('/api/notebook/facets');
+  const httpNbGet = await getJson(`/api/notebook/${createdNbId}`);
+  const httpNbPatch = await sendJson('PATCH', `/api/notebook/${createdNbId}`, { confidence: 75, review: true });
+  const httpNbDelete = await sendJson('DELETE', `/api/notebook/${createdNbId}`);
+  const httpNbMissingProblem = await sendJson('POST', '/api/notebook', { problemId: '64b2f0000000000000000000' });
+  const httpNbBadConf = await sendJson('POST', '/api/notebook', { problemId: nbBadConfProblemId, confidence: 150 });
   server.close();
 
   console.log(
@@ -539,6 +631,21 @@ async function run(): Promise<void> {
   assert(httpAttemptDelete.status === 200, 'DELETE /attempts/:id → 200');
   assert(httpAttemptBadTime.status === 400, 'POST /attempts invalid times → 400');
   assert(httpAttemptMissingProblem.status === 404, 'POST /attempts missing problem → 404');
+  // Module 2 · Sprint 3 HTTP assertions:
+  console.log(
+    `http notebook: create=${httpNbCreate.status} list=${httpNbList.status} search=${httpNbSearch.status} ` +
+      `facets=${httpNbFacets.status} get=${httpNbGet.status} patch=${httpNbPatch.status} delete=${httpNbDelete.status} ` +
+      `missingProblem=${httpNbMissingProblem.status} badConf=${httpNbBadConf.status}`,
+  );
+  assert(httpNbCreate.status === 201 && httpNbCreate.body.success, 'POST /notebook → 201');
+  assert(httpNbList.status === 200, 'GET /notebook → 200');
+  assert(httpNbSearch.status === 200, 'GET /notebook/search → 200');
+  assert(httpNbFacets.status === 200, 'GET /notebook/facets → 200');
+  assert(httpNbGet.status === 200, 'GET /notebook/:id → 200');
+  assert(httpNbPatch.status === 200, 'PATCH /notebook/:id → 200');
+  assert(httpNbDelete.status === 200, 'DELETE /notebook/:id → 200');
+  assert(httpNbMissingProblem.status === 404, 'POST /notebook missing problem → 404');
+  assert(httpNbBadConf.status === 400, 'POST /notebook bad confidence → 400');
 
   console.log('\n✅ ALL ASSERTIONS PASSED');
 

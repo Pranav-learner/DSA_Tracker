@@ -20,6 +20,12 @@ export const problemRepository = {
     return Problem.findOne({ slug }).exec();
   },
 
+  /** Resolve several problems by id in one query (relationship expansion). */
+  findByIds(ids: string[]): Promise<ProblemDocument[]> {
+    if (ids.length === 0) return Promise.resolve([]);
+    return Problem.find({ _id: { $in: ids } }).exec();
+  },
+
   /** Paginated search: matching page + total count for the same filter. */
   async search(
     filter: FilterQuery<IProblem>,
