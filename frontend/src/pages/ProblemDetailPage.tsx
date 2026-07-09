@@ -1,16 +1,17 @@
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, History, NotebookPen, AlertTriangle, Gauge } from 'lucide-react';
+import { ArrowLeft, NotebookPen, AlertTriangle, Gauge } from 'lucide-react';
 import { useProblem } from '@/hooks/useProblems';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { ErrorState } from '@/components/common/ErrorState';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { ProblemHeader, PlaceholderCard } from '@/components/problems';
+import { AttemptSummaryCard, AttemptHistory } from '@/components/attempts';
 
 /**
- * Problem Detail — identity + metadata (ProblemHeader) plus placeholder cards
- * for the features arriving in later sprints (Attempts, Notebook, Mistakes,
- * Confidence). Read-only: no tracking is wired yet.
+ * Problem Detail — identity + metadata (ProblemHeader), the live Attempt
+ * Tracking engine (summary + history), and placeholder cards for the features
+ * still to come (Notebook, Mistakes, Confidence — later sprints).
  */
 export function ProblemDetailPage() {
   const { problemId } = useParams<{ problemId: string }>();
@@ -29,16 +30,16 @@ export function ProblemDetailPage() {
         <>
           <ProblemHeader problem={problem} />
 
+          {/* Attempt Tracking Engine (Sprint 2) */}
+          <AttemptSummaryCard problemId={problem.id} />
+          <AttemptHistory problemId={problem.id} />
+
+          {/* Future workspace features */}
           <div>
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Your Workspace
+              Coming Soon
             </h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <PlaceholderCard
-                title="Attempts"
-                description="Log solve attempts, time taken and verdicts."
-                icon={<History className="size-4" />}
-              />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <PlaceholderCard
                 title="Notebook"
                 description="Capture your approach, code and key insights."
