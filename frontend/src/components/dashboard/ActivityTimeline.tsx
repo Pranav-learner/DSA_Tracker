@@ -14,6 +14,7 @@ import {
   PartyPopper,
   NotebookPen,
   BookMarked,
+  Compass,
   type LucideIcon,
 } from 'lucide-react';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -36,6 +37,7 @@ const EVENT_META: Record<ActivityType, EventMeta> = {
   'notebook-created': { icon: NotebookPen, tile: 'border-primary/40 bg-primary/15 text-primary' },
   'notebook-updated': { icon: PencilLine, tile: 'border-warning/40 bg-warning/15 text-warning' },
   'problem-documented': { icon: BookMarked, tile: 'border-success/40 bg-success/15 text-success' },
+  'recommendation-updated': { icon: Compass, tile: 'border-primary/40 bg-primary/15 text-primary' },
 };
 
 /**

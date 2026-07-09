@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { attemptApi } from '@/api/attempt.api';
 import { queryKeys } from '@/lib/queryClient';
+import { invalidateProblemLearning } from '@/lib/invalidate';
 import type { CreateAttemptInput, UpdateAttemptInput } from '@/types';
 
 /** Full attempt history for a problem (newest first). */
@@ -22,19 +23,13 @@ export function useProblemAttemptSummary(problemId: string | undefined) {
 }
 
 /**
- * Invalidate everything a write to this problem's attempts can affect: the
- * history, its summary, the problem detail (status/solved overlay), the library
- * list, and the dashboard (activity + current state).
+ * A write to a problem's attempts can now trigger the learning integration (a
+ * solve updates mastery/dashboard/recommendation), so it invalidates the full
+ * learning surface via the shared invalidator.
  */
 function useInvalidateAttempts(problemId: string) {
   const qc = useQueryClient();
-  return () => {
-    qc.invalidateQueries({ queryKey: queryKeys.attempts(problemId) });
-    qc.invalidateQueries({ queryKey: queryKeys.attemptSummary(problemId) });
-    qc.invalidateQueries({ queryKey: queryKeys.problem(problemId) });
-    qc.invalidateQueries({ queryKey: queryKeys.problems });
-    qc.invalidateQueries({ queryKey: queryKeys.dashboard });
-  };
+  return () => invalidateProblemLearning(qc, problemId);
 }
 
 export function useCreateAttempt(problemId: string) {

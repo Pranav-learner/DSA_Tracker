@@ -30,6 +30,8 @@ import { Problem } from '../src/models/Problem.js';
 import { problemService } from '../src/services/problem.service.js';
 import { attemptService } from '../src/services/attempt.service.js';
 import { notebookService } from '../src/services/notebook.service.js';
+import { workspaceService } from '../src/services/workspace.service.js';
+import { learningIntegrationService } from '../src/services/learningIntegration.service.js';
 import { problemRepository } from '../src/repositories/problem.repository.js';
 import { userProblemRepository } from '../src/repositories/userProblem.repository.js';
 import {
@@ -479,6 +481,69 @@ async function run(): Promise<void> {
   const nb1AfterDelete = await notebookService.getById(DEMO_USER, nb1.id);
   assert(nb1AfterDelete.relatedEntries.length === 0, 'deleting an entry unlinks it from related entries');
 
+  // --- Module 2 · Sprint 4: Learning Integration Engine ---
+  // Kadane's topic was unlocked earlier by completing Sliding Window.
+  const s4Problem = await Problem.findOne({ title: 'Maximum Subarray' }).exec();
+  const s4HttpProblem = await Problem.findOne({ title: 'Maximum Sum Circular Subarray' }).exec();
+  assert(Boolean(s4Problem && s4HttpProblem), 'Sprint 4 target problems exist');
+  const s4ProblemId = String(s4Problem!._id);
+  const s4TopicId = String(s4Problem!.topicId);
+  const s4HttpProblemId = String(s4HttpProblem!._id);
+
+  const s4Before = await progressService.getOverview(DEMO_USER);
+  const s4MasteryBefore = s4Before.topics.find((t) => t.topicId === s4TopicId)?.mastery ?? 0;
+
+  // Solve it → the whole chain runs (attempt → mastery → recommendation → activity).
+  const s4Impact = await workspaceService.completeProblem(DEMO_USER, s4ProblemId, { language: 'C++', durationMinutes: 15 });
+  const s4Up = await userProblemRepository.findByUserAndProblem(DEMO_USER, s4ProblemId);
+  const s4Ws = await workspaceService.getWorkspace(DEMO_USER, s4ProblemId);
+
+  console.log(
+    `integration: solved "${s4Problem!.title}" masteryBefore=${s4MasteryBefore} → after=${s4Impact.currentMastery} ` +
+      `delta=${s4Impact.masteryDelta} topicCompleted=${s4Impact.topicCompleted} ` +
+      `dashMastery=${s4Impact.dashboard.overallMastery}% rec=[${s4Impact.recommendation.type}]`,
+  );
+  console.log(
+    `  workspace: status=${s4Ws.learningStatus} related=${s4Ws.relatedProblems.length} activity=${s4Ws.activity.length} ` +
+      `summarySolved=${s4Ws.attemptSummary.solved}`,
+  );
+
+  assert(s4Impact.alreadyCompleted === false, 'first completion is applied');
+  assert(s4Impact.masteryBefore === s4MasteryBefore, 'impact reports mastery before');
+  assert(s4Impact.masteryDelta !== null && s4Impact.masteryDelta > 0, 'solving an unlocked topic raises mastery');
+  assert(s4Impact.currentMastery > s4MasteryBefore, 'topic mastery increased');
+  assert(s4Impact.topicProgress !== null && s4Impact.dashboard.overallMastery >= 0, 'impact carries topic + dashboard');
+  assert(s4Up !== null && s4Up.solved && s4Up.totalAttempts >= 1, 'UserProblem synced solved via completion');
+  assert(s4Ws.problem.id === s4ProblemId && s4Ws.attemptSummary.solved, 'workspace aggregates the solved problem');
+  assert(s4Ws.learningStatus === 'Solved', 'solved-without-notebook → Solved status');
+  assert(s4Ws.relatedProblems.every((r) => r.id !== s4ProblemId), 'related problems exclude self');
+  assert(Boolean(s4Ws.learningSummary.topic) && Boolean(s4Ws.learningSummary.recommendation), 'workspace learning summary resolved');
+
+  // Idempotent completion — no double mastery bump.
+  const s4Impact2 = await workspaceService.completeProblem(DEMO_USER, s4ProblemId, {});
+  const s4After2 = await progressService.getOverview(DEMO_USER);
+  const s4MasteryAfter2 = s4After2.topics.find((t) => t.topicId === s4TopicId)?.mastery ?? 0;
+  assert(s4Impact2.alreadyCompleted === true, 'duplicate completion is idempotent (no-op)');
+  assert(s4MasteryAfter2 === s4Impact.currentMastery, 'duplicate completion does not double-bump mastery');
+
+  // Solved + documented (with metadata) → Mastered status.
+  await notebookService.create(DEMO_USER, {
+    problemId: s4ProblemId, observation: 'running max ending here', coreAlgorithm: 'best = max(x, best+x)',
+  });
+  const s4WsMastered = await workspaceService.getWorkspace(DEMO_USER, s4ProblemId);
+  assert(s4WsMastered.learningStatus === 'Mastered', 'solved + documented + metadata → Mastered');
+
+  // Read-only impact snapshot.
+  const s4Read = await learningIntegrationService.getLearningImpact(DEMO_USER, s4ProblemId);
+  assert(s4Read.masteryBefore === null && s4Read.currentMastery >= 0, 'learning-impact read snapshot');
+
+  const s4Activity = await activityService.getRecent(DEMO_USER, 40);
+  assert(
+    s4Activity.some((a) => a.type === 'problem-solved') &&
+      s4Activity.some((a) => a.type === 'topic-started' || a.type === 'mastery-updated' || a.type === 'topic-completed'),
+    'completion generates problem + topic-progress activity',
+  );
+
   // Mastery weights sanity: all-100 metrics → 100% overall.
   const perfect = masteryService.computeOverall({
     recognition: 100, implementation: 100, standard: 100, variant: 100,
@@ -577,6 +642,14 @@ async function run(): Promise<void> {
   const httpNbDelete = await sendJson('DELETE', `/api/notebook/${createdNbId}`);
   const httpNbMissingProblem = await sendJson('POST', '/api/notebook', { problemId: '64b2f0000000000000000000' });
   const httpNbBadConf = await sendJson('POST', '/api/notebook', { problemId: nbBadConfProblemId, confidence: 150 });
+
+  // Module 2 · Sprint 4 — workspace + integration endpoints over HTTP.
+  const httpWorkspace = await getJson(`/api/problems/${s4ProblemId}/workspace`);
+  const httpComplete = await sendJson('POST', `/api/problems/${s4HttpProblemId}/complete`, { language: 'Python' });
+  const httpCompleteAgain = await sendJson('POST', `/api/problems/${s4HttpProblemId}/complete`, {});
+  const httpImpact = await getJson(`/api/problems/${s4HttpProblemId}/learning-impact`);
+  const httpWorkspaceBadId = await getJson('/api/problems/not-an-id/workspace');
+  const httpCompleteMissing = await sendJson('POST', '/api/problems/64b2f0000000000000000000/complete', {});
   server.close();
 
   console.log(
@@ -646,6 +719,18 @@ async function run(): Promise<void> {
   assert(httpNbDelete.status === 200, 'DELETE /notebook/:id → 200');
   assert(httpNbMissingProblem.status === 404, 'POST /notebook missing problem → 404');
   assert(httpNbBadConf.status === 400, 'POST /notebook bad confidence → 400');
+  // Module 2 · Sprint 4 HTTP assertions:
+  console.log(
+    `http workspace: workspace=${httpWorkspace.status} complete=${httpComplete.status} ` +
+      `completeAgain=${httpCompleteAgain.status} impact=${httpImpact.status} badId=${httpWorkspaceBadId.status} ` +
+      `missing=${httpCompleteMissing.status}`,
+  );
+  assert(httpWorkspace.status === 200 && httpWorkspace.body.success, 'GET /problems/:id/workspace → 200');
+  assert(httpComplete.status === 200 && httpComplete.body.success, 'POST /problems/:id/complete → 200');
+  assert(httpCompleteAgain.status === 200, 'duplicate complete is graceful → 200');
+  assert(httpImpact.status === 200, 'GET /problems/:id/learning-impact → 200');
+  assert(httpWorkspaceBadId.status === 400, 'workspace invalid id → 400');
+  assert(httpCompleteMissing.status === 404, 'complete missing problem → 404');
 
   console.log('\n✅ ALL ASSERTIONS PASSED');
 

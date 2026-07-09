@@ -130,8 +130,24 @@ export const ACTIVITY_TYPES = [
   'notebook-created',
   'notebook-updated',
   'problem-documented',
+  // Module 2 · Sprint 4 — learning integration
+  'recommendation-updated',
 ] as const;
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];
+
+/**
+ * Derived, workspace-level problem status (richer than the stored 3-state
+ * `ProblemStatus`). Computed by the LearningIntegrationService from attempts +
+ * notebook, never persisted.
+ */
+export const PROBLEM_LEARNING_STATUSES = [
+  'Not Started',
+  'Learning',
+  'Attempting',
+  'Solved',
+  'Mastered',
+] as const;
+export type ProblemLearningStatus = (typeof PROBLEM_LEARNING_STATUSES)[number];
 
 /** The entity an activity refers to. Kept generic so future modules can extend. */
 export const ACTIVITY_ENTITY_TYPES = ['topic', 'phase', 'problem'] as const;

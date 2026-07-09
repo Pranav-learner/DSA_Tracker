@@ -26,6 +26,17 @@ export const problemRepository = {
     return Problem.find({ _id: { $in: ids } }).exec();
   },
 
+  /** Problems related to one (same topic or pattern), excluding itself. */
+  findRelated(topicId: string, pattern: string, excludeId: string, limit: number): Promise<ProblemDocument[]> {
+    return Problem.find({
+      _id: { $ne: excludeId },
+      $or: [{ topicId }, { pattern }],
+    })
+      .sort({ difficultyRank: 1, title: 1 })
+      .limit(limit)
+      .exec();
+  },
+
   /** Paginated search: matching page + total count for the same filter. */
   async search(
     filter: FilterQuery<IProblem>,

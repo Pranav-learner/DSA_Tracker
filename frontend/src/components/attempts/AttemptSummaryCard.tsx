@@ -5,16 +5,18 @@ import { useProblemAttemptSummary } from '@/hooks/useAttempts';
 import { AttemptStatistics } from './AttemptStatistics';
 import { TimeSpentCard } from './TimeSpentCard';
 import { formatDateTime } from '@/lib/attempts';
+import type { AttemptSummary } from '@/types';
 
 /**
- * Attempt Summary — auto-updating aggregates for a problem (totals, solved,
- * time, hint/editorial usage, first/latest). Self-fetches via React Query, so it
- * refreshes whenever an attempt is logged/edited/deleted.
+ * Attempt Summary — aggregates for a problem (totals, solved, time, hint/
+ * editorial usage, first/latest). Self-fetches by default; pass `summary` to
+ * render from already-loaded data (e.g. the workspace payload — no extra request).
  */
-export function AttemptSummaryCard({ problemId }: { problemId: string }) {
-  const { data: summary, isLoading } = useProblemAttemptSummary(problemId);
+export function AttemptSummaryCard({ problemId, summary: provided }: { problemId: string; summary?: AttemptSummary }) {
+  const { data: fetched, isLoading } = useProblemAttemptSummary(provided ? undefined : problemId);
+  const summary = provided ?? fetched;
 
-  if (isLoading) return <Skeleton className="h-44 w-full rounded-lg" />;
+  if (!provided && isLoading) return <Skeleton className="h-44 w-full rounded-lg" />;
   if (!summary) return null;
 
   return (

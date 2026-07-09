@@ -48,6 +48,9 @@ api.get('/', (_req, res) => {
         'GET /api/notebook/search',
         'GET /api/notebook/facets',
         'GET|PATCH|DELETE /api/notebook/:id',
+        'GET /api/problems/:id/workspace',
+        'POST /api/problems/:id/complete',
+        'GET /api/problems/:id/learning-impact',
       ],
     },
   });

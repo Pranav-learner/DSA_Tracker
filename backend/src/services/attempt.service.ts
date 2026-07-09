@@ -45,8 +45,13 @@ export const attemptService = {
       deletedAt: null,
     });
 
-    await this.syncUserProblem(userId, body.problemId);
-    await attemptIntegration.onAttemptCreated(userId, { problem, attempt: doc });
+    // Detect the problem's FIRST solve (not attempt-level) so the learning
+    // integration fires exactly once per problem.
+    const beforeSolved = (await userProblemRepository.findByUserAndProblem(userId, body.problemId))?.solved ?? false;
+    const { solved: afterSolved } = await this.syncUserProblem(userId, body.problemId);
+    const firstSolve = !beforeSolved && afterSolved;
+
+    await attemptIntegration.onAttemptCreated(userId, { problem, attempt: doc, firstSolve });
     return toAttemptDTO(doc);
   },
 
@@ -56,7 +61,6 @@ export const attemptService = {
    */
   async update(userId: string, attemptId: string, body: UpdateAttemptBody): Promise<AttemptDTO> {
     const existing = await requireOwnedAttempt(userId, attemptId);
-    const wasSolved = existing.status === 'Solved';
 
     const startTime = body.startTime ?? existing.startTime;
     const endTime = body.endTime !== undefined ? body.endTime : existing.endTime;
@@ -87,15 +91,17 @@ export const attemptService = {
       }),
     };
 
+    const problemId = String(existing.problemId);
+    const beforeSolved = (await userProblemRepository.findByUserAndProblem(userId, problemId))?.solved ?? false;
+
     const updated = await attemptRepository.updateById(attemptId, patch);
     if (!updated) throw ApiError.notFound(`Attempt '${attemptId}' not found`);
 
-    const problemId = String(existing.problemId);
-    await this.syncUserProblem(userId, problemId);
+    const { solved: afterSolved } = await this.syncUserProblem(userId, problemId);
+    const firstSolve = !beforeSolved && afterSolved;
 
     const problem = await requireProblem(problemId);
-    const becameSolved = !wasSolved && updated.status === 'Solved';
-    await attemptIntegration.onAttemptUpdated(userId, { problem, attempt: updated, becameSolved });
+    await attemptIntegration.onAttemptUpdated(userId, { problem, attempt: updated, firstSolve });
     return toAttemptDTO(updated);
   },
 
@@ -126,7 +132,7 @@ export const attemptService = {
    * Recompute UserProblem's attempt-derived aggregates from the live history —
    * the single place these are written, so they can never drift.
    */
-  async syncUserProblem(userId: string, problemId: string): Promise<void> {
+  async syncUserProblem(userId: string, problemId: string): Promise<{ solved: boolean }> {
     const attempts = await attemptRepository.findByUserAndProblem(userId, problemId);
     const agg = aggregate(attempts);
     const status: ProblemStatus = agg.solved
@@ -145,6 +151,7 @@ export const attemptService = {
       solvedWithoutHint: agg.solvedWithoutHint,
       solvedWithoutEditorial: agg.solvedWithoutEditorial,
     });
+    return { solved: agg.solved };
   },
 };
 

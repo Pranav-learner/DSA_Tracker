@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { notebookApi } from '@/api/notebook.api';
 import { queryKeys } from '@/lib/queryClient';
+import { invalidateProblemLearning } from '@/lib/invalidate';
 import type { CreateNotebookInput, NotebookListItem, NotebookQuery, UpdateNotebookInput } from '@/types';
 
 /** Paginated, filtered notebook index. */
@@ -45,10 +46,15 @@ export function useNotebookForProblem(problemId: string | undefined) {
 function useInvalidateNotebook() {
   const qc = useQueryClient();
   return (id?: string, problemId?: string) => {
-    qc.invalidateQueries({ queryKey: queryKeys.notebook });
-    qc.invalidateQueries({ queryKey: queryKeys.dashboard });
+    // A notebook change affects the problem's workspace (learning status /
+    // confidence), so sync the whole learning surface when we know the problem.
+    if (problemId) {
+      invalidateProblemLearning(qc, problemId);
+    } else {
+      qc.invalidateQueries({ queryKey: queryKeys.notebook });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard });
+    }
     if (id) qc.invalidateQueries({ queryKey: queryKeys.notebookEntry(id) });
-    if (problemId) qc.invalidateQueries({ queryKey: queryKeys.notebookByProblem(problemId) });
   };
 }
 

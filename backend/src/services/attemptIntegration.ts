@@ -1,25 +1,24 @@
 import { activityService } from './activity.service.js';
-import { masteryHooks } from './masteryHooks.js';
 import { learningRepository } from '../repositories/learning.repository.js';
+import { learningIntegrationService } from './learningIntegration.service.js';
 import type { ProblemDocument } from '../models/Problem.js';
 import type { AttemptDocument } from '../models/Attempt.js';
 
 /**
  * AttemptIntegration — the modular seam between the Attempt engine and the rest
- * of the app. It keeps AttemptService free of cross-module concerns:
+ * of the app. Keeps AttemptService free of cross-module concerns:
  *
- *   • Activity events → the Module 1 dashboard timeline (attempt-started /
- *     attempt-updated / problem-solved).
- *   • Dashboard "current activity" → touches LearningState.lastActiveAt.
- *   • Mastery placeholder hook → masteryHooks (no mastery computed this sprint).
+ *   • Activity events → the Module 1 dashboard timeline.
+ *   • On a problem's FIRST solve → hand off to the LearningIntegrationService,
+ *     which drives the full chain (TopicProgress → mastery → recommendation …).
  *
- * All effects are best-effort via activityService.record (which swallows errors),
- * so they never break the core attempt write.
+ * `firstSolve` is problem-level (computed by AttemptService) so the learning
+ * impact fires exactly once per problem, never on later upsolves.
  */
 export const attemptIntegration = {
   async onAttemptCreated(
     userId: string,
-    { problem, attempt }: { problem: ProblemDocument; attempt: AttemptDocument },
+    { problem, attempt, firstSolve }: { problem: ProblemDocument; attempt: AttemptDocument; firstSolve: boolean },
   ): Promise<void> {
     await activityService.record(userId, {
       type: 'attempt-started',
@@ -28,18 +27,14 @@ export const attemptIntegration = {
       title: `Started an attempt on ${problem.title}`,
       description: `Attempt #${attempt.attemptNumber} · ${attempt.language}`,
     });
-    if (attempt.status === 'Solved') await this.onProblemSolved(userId, problem, attempt);
+    if (firstSolve) await this.onProblemSolved(userId, problem, attempt);
   },
 
   async onAttemptUpdated(
     userId: string,
-    {
-      problem,
-      attempt,
-      becameSolved,
-    }: { problem: ProblemDocument; attempt: AttemptDocument; becameSolved: boolean },
+    { problem, attempt, firstSolve }: { problem: ProblemDocument; attempt: AttemptDocument; firstSolve: boolean },
   ): Promise<void> {
-    if (becameSolved) {
+    if (firstSolve) {
       await this.onProblemSolved(userId, problem, attempt);
       return;
     }
@@ -52,11 +47,7 @@ export const attemptIntegration = {
     });
   },
 
-  async onProblemSolved(
-    userId: string,
-    problem: ProblemDocument,
-    attempt: AttemptDocument,
-  ): Promise<void> {
+  async onProblemSolved(userId: string, problem: ProblemDocument, attempt: AttemptDocument): Promise<void> {
     await activityService.record(userId, {
       type: 'problem-solved',
       entityType: 'problem',
@@ -64,13 +55,10 @@ export const attemptIntegration = {
       title: `Solved ${problem.title}`,
       description: `Cracked it in ${attempt.durationMinutes} min on attempt #${attempt.attemptNumber}.`,
     });
-    // Dashboard "current activity": reflect that the learner is active now.
     await learningRepository.upsert(userId, { lastActiveAt: new Date() });
-    // Mastery placeholder — intentionally computes nothing this sprint.
-    await masteryHooks.onProblemSolved(userId, {
-      problemId: String(problem._id),
-      topicId: String(problem.topicId),
-      phaseId: String(problem.phaseId),
-    });
+
+    // Drive the full Learning Integration chain (TopicProgress → mastery →
+    // recommendation → activity). All orchestration lives in that service.
+    await learningIntegrationService.applyLearningImpact(userId, problem);
   },
 };

@@ -264,7 +264,8 @@ export type ActivityType =
   | 'problem-solved'
   | 'notebook-created'
   | 'notebook-updated'
-  | 'problem-documented';
+  | 'problem-documented'
+  | 'recommendation-updated';
 
 export type ActivityEntityType = 'topic' | 'phase' | 'problem';
 
@@ -619,6 +620,80 @@ export interface CreateNotebookInput {
 export type UpdateNotebookInput = Partial<Omit<CreateNotebookInput, 'problemId'>> & {
   review?: boolean;
 };
+
+/* ---- Module 2 · Sprint 4: Learning Integration & Workspace ---- */
+
+export type ProblemLearningStatus =
+  | 'Not Started'
+  | 'Learning'
+  | 'Attempting'
+  | 'Solved'
+  | 'Mastered';
+
+export interface NotebookRefLite {
+  id: string;
+  pattern: string;
+  confidence: number;
+  revisionCount: number;
+  hasMetadata: boolean;
+  updatedAt: string;
+}
+
+export interface LearningSummary {
+  topic: TopicRef | null;
+  phase: PhaseRef | null;
+  topicMastery: number;
+  pattern: string;
+  representative: boolean;
+  confidence: number | null;
+  problemStatus: ProblemLearningStatus;
+  recommendation: Recommendation;
+}
+
+export interface TopicProgressSnapshot {
+  topicId: string;
+  status: string;
+  mastery: number;
+  completionPercent: number;
+  topicsCompleted: number;
+  topicsTotal: number;
+}
+
+export interface DashboardImpact {
+  overallMastery: number;
+  completionPercent: number;
+  topicsCompleted: number;
+  topicsRemaining: number;
+}
+
+export interface LearningImpact {
+  problemId: string;
+  currentMastery: number;
+  masteryBefore: number | null;
+  masteryDelta: number | null;
+  topicCompleted: boolean;
+  topicProgress: TopicProgressSnapshot | null;
+  dashboard: DashboardImpact;
+  recommendation: Recommendation;
+  alreadyCompleted?: boolean;
+}
+
+export interface ProblemWorkspace {
+  problem: ProblemDetail;
+  attemptSummary: AttemptSummary;
+  notebook: NotebookRefLite | null;
+  learningStatus: ProblemLearningStatus;
+  learningSummary: LearningSummary;
+  learningImpact: LearningImpact;
+  relatedProblems: RelatedProblemRef[];
+  activity: ActivityEvent[];
+}
+
+export interface CompleteProblemInput {
+  language?: AttemptLanguage;
+  durationMinutes?: number;
+  notes?: string;
+}
 
 /** Success envelope returned by every backend endpoint. */
 export interface ApiEnvelope<T> {

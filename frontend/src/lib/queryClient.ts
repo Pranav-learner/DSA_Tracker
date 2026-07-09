@@ -46,6 +46,9 @@ export const queryKeys = {
   // --- Module 2 · Sprint 2: attempt tracking ---
   attempts: (problemId: string) => ['problems', problemId, 'attempts'] as const,
   attemptSummary: (problemId: string) => ['problems', problemId, 'summary'] as const,
+  // --- Module 2 · Sprint 4: workspace + integration ---
+  workspace: (problemId: string) => ['problems', problemId, 'workspace'] as const,
+  learningImpact: (problemId: string) => ['problems', problemId, 'learning-impact'] as const,
   // --- Module 2 · Sprint 3: pattern notebook ---
   notebook: ['notebook'] as const,
   notebookList: (query: NotebookQuery) => ['notebook', 'list', query] as const,
