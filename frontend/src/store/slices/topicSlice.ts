@@ -1,32 +1,32 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
-/** Sections shown on the Topic page — each becomes a Sprint 2+ module. */
-export type TopicSection =
-  | 'concept'
-  | 'pattern-ladder'
-  | 'problems'
-  | 'assessment'
-  | 'notebook'
-  | 'mastery';
-
+/**
+ * UI-only state for the Topic Workspace. Kept intentionally minimal — server
+ * data lives in React Query. Currently tracks which Pattern Ladder stage the
+ * learner has focused (for the expanded detail panel).
+ */
 interface TopicUiState {
-  /** Which placeholder section is currently active on the topic page. */
-  activeSection: TopicSection;
+  /** Focused Pattern Ladder stage id, or null when none is expanded. */
+  activeStageId: string | null;
 }
 
 const initialState: TopicUiState = {
-  activeSection: 'concept',
+  activeStageId: null,
 };
 
 const topicSlice = createSlice({
   name: 'topic',
   initialState,
   reducers: {
-    setActiveSection(state, action: PayloadAction<TopicSection>) {
-      state.activeSection = action.payload;
+    setActiveStage(state, action: PayloadAction<string | null>) {
+      // Toggle: selecting the active stage again collapses it.
+      state.activeStageId = state.activeStageId === action.payload ? null : action.payload;
+    },
+    resetTopicUi(state) {
+      state.activeStageId = null;
     },
   },
 });
 
-export const { setActiveSection } = topicSlice.actions;
+export const { setActiveStage, resetTopicUi } = topicSlice.actions;
 export default topicSlice.reducer;

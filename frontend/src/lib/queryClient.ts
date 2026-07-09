@@ -26,4 +26,13 @@ export const queryKeys = {
   phaseTopics: (id: string) => ['phases', id, 'topics'] as const,
   topics: ['topics'] as const,
   topic: (id: string) => ['topics', id] as const,
+  topicRelated: (id: string) => ['topics', id, 'related'] as const,
+  topicProblems: (id: string) => ['topics', id, 'problems'] as const,
+  // --- Sprint 3: learning engine ---
+  learningState: ['learning', 'state'] as const,
+  progress: ['progress'] as const,
+  recommendation: ['recommendation'] as const,
+  unlockedTopics: ['topics', 'unlocked'] as const,
+  topicProgress: (id: string) => ['topics', id, 'progress'] as const,
+  topicMastery: (id: string) => ['topics', id, 'mastery'] as const,
 };

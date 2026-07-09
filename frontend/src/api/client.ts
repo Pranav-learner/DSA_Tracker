@@ -34,6 +34,31 @@ export async function apiGet<T>(path: string, signal?: AbortSignal): Promise<T> 
     throw new ApiError(0, 'Network error — is the API server running?', cause);
   }
 
+  return unwrap<T>(res);
+}
+
+/** Send a JSON body with a mutating method (PATCH/POST/PUT) and unwrap the result. */
+export async function apiSend<T>(
+  method: 'PATCH' | 'POST' | 'PUT' | 'DELETE',
+  path: string,
+  body?: unknown,
+  signal?: AbortSignal,
+): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`${env.apiUrl}${path}`, {
+      method,
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal,
+    });
+  } catch (cause) {
+    throw new ApiError(0, 'Network error — is the API server running?', cause);
+  }
+  return unwrap<T>(res);
+}
+
+async function unwrap<T>(res: Response): Promise<T> {
   const body = (await res.json().catch(() => null)) as ApiEnvelope<T> | BackendError | null;
 
   if (!res.ok || !body || body.success === false) {

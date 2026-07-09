@@ -4,19 +4,30 @@ import { BookOpen, Calendar, Target, ArrowRight } from 'lucide-react';
 import { Icon } from '@/components/ui/Icon';
 import { StatusBadge } from './StatusBadge';
 import { ProgressChip } from './ProgressChip';
+import { Badge } from '@/components/ui/badge';
+import { MasteryBar } from '@/components/learning/MasteryBar';
+import { phaseStatusVariant } from '@/lib/mastery';
 import { cn, plural } from '@/lib/utils';
-import type { Phase } from '@/types';
+import type { Phase, PhaseProgress } from '@/types';
 
 interface PhaseCardProps {
   phase: Phase;
+  /** Per-user progress overlay (Sprint 3). When present, drives status & mastery. */
+  progress?: PhaseProgress;
   /** Zero-based position for staggered entrance animation. */
   index?: number;
 }
 
+const PHASE_STATUS_LABEL = {
+  completed: 'Completed',
+  'in-progress': 'In Progress',
+  locked: 'Locked',
+} as const;
+
 /** Roadmap phase card — the primary navigational unit of the roadmap page. */
-export function PhaseCard({ phase, index = 0 }: PhaseCardProps) {
+export function PhaseCard({ phase, progress, index = 0 }: PhaseCardProps) {
   const navigate = useNavigate();
-  const locked = !phase.isUnlocked;
+  const locked = progress ? progress.status === 'locked' : !phase.isUnlocked;
 
   return (
     <motion.button
@@ -54,7 +65,13 @@ export function PhaseCard({ phase, index = 0 }: PhaseCardProps) {
             <h3 className="font-semibold leading-tight tracking-tight">{phase.title}</h3>
           </div>
         </div>
-        <StatusBadge isUnlocked={phase.isUnlocked} isCompleted={phase.isCompleted} />
+        {progress ? (
+          <Badge variant={phaseStatusVariant(progress.status)}>
+            {PHASE_STATUS_LABEL[progress.status]}
+          </Badge>
+        ) : (
+          <StatusBadge isUnlocked={phase.isUnlocked} isCompleted={phase.isCompleted} />
+        )}
       </div>
 
       <p className="line-clamp-2 text-sm text-muted-foreground">{phase.description}</p>
@@ -71,7 +88,17 @@ export function PhaseCard({ phase, index = 0 }: PhaseCardProps) {
         </span>
       </div>
 
-      <ProgressChip progress={phase.progress} />
+      {progress ? (
+        <div className="space-y-1.5">
+          <MasteryBar value={progress.mastery} label="Mastery" />
+          <p className="text-xs text-muted-foreground">
+            {progress.topicsCompleted}/{progress.topicsTotal} topics · {progress.completionPercent}%
+            complete
+          </p>
+        </div>
+      ) : (
+        <ProgressChip progress={phase.progress} />
+      )}
 
       <span className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100">
         View phase <ArrowRight className="size-3.5" />

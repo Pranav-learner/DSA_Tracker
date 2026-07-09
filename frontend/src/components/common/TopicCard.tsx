@@ -2,18 +2,22 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Clock, Target, ArrowRight, Lock } from 'lucide-react';
 import { DifficultyBadge } from './DifficultyBadge';
+import { CompletionBadge } from '@/components/learning/CompletionBadge';
+import { MasteryBar } from '@/components/learning/MasteryBar';
 import { cn, plural } from '@/lib/utils';
-import type { Topic } from '@/types';
+import type { Topic, TopicOverlay } from '@/types';
 
 interface TopicCardProps {
   topic: Topic;
+  /** Per-user progress overlay (Sprint 3). When present, drives lock/mastery/status. */
+  overlay?: TopicOverlay;
   index?: number;
 }
 
 /** Topic card shown in the phase's topics grid. */
-export function TopicCard({ topic, index = 0 }: TopicCardProps) {
+export function TopicCard({ topic, overlay, index = 0 }: TopicCardProps) {
   const navigate = useNavigate();
-  const locked = !topic.isUnlocked;
+  const locked = overlay ? !overlay.unlocked : !topic.isUnlocked;
 
   return (
     <motion.button
@@ -36,10 +40,18 @@ export function TopicCard({ topic, index = 0 }: TopicCardProps) {
           </span>
           <h3 className="font-medium leading-tight">{topic.title}</h3>
         </div>
-        {locked && <Lock className="size-3.5 shrink-0 text-muted-foreground" />}
+        {locked ? (
+          <Lock className="size-3.5 shrink-0 text-muted-foreground" />
+        ) : (
+          overlay && <CompletionBadge status={overlay.status} className="shrink-0" />
+        )}
       </div>
 
       <p className="line-clamp-2 text-sm text-muted-foreground">{topic.description}</p>
+
+      {overlay && overlay.status !== 'Not Started' && (
+        <MasteryBar value={overlay.mastery} label="Mastery" />
+      )}
 
       <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
         <DifficultyBadge difficulty={topic.difficulty} />

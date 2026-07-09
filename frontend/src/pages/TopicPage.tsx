@@ -1,202 +1,257 @@
-import { useParams, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { useParams } from 'react-router-dom';
 import {
-  Clock,
-  Target,
   Lightbulb,
+  Tags,
   ListOrdered,
+  BookMarked,
   Code2,
-  ClipboardCheck,
-  NotebookPen,
+  Sparkles,
   Trophy,
+  RefreshCw,
+  BarChart3,
+  Bot,
   Lock,
-  ArrowLeft,
 } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
-import { useTopic } from '@/hooks/useTopic';
-import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { setActiveSection, type TopicSection } from '@/store/slices/topicSlice';
+import { useTopic, useTopicRelated, useTopicProblems } from '@/hooks/useTopic';
+import { useTopicMastery, useTopicProgress, useRecommendation } from '@/hooks/useLearning';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
-import { DifficultyBadge } from '@/components/common/DifficultyBadge';
-import { StatusBadge } from '@/components/common/StatusBadge';
+import { WorkspaceSection } from '@/components/common/WorkspaceSection';
 import { CardContainer } from '@/components/common/CardContainer';
-import { StatCard } from '@/components/common/StatCard';
 import { ErrorState } from '@/components/common/ErrorState';
-import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/common/EmptyState';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { cn, plural } from '@/lib/utils';
+import { TopicHeader } from '@/components/topic/TopicHeader';
+import { ConceptCard } from '@/components/topic/ConceptCard';
+import { KeywordChip } from '@/components/topic/KeywordChip';
+import { PatternLadder } from '@/components/topic/PatternLadder';
+import { PatternCard, type PatternCardData } from '@/components/topic/PatternCard';
+import { MetadataPanel } from '@/components/topic/MetadataPanel';
+import { EstimatedTimeCard } from '@/components/topic/EstimatedTimeCard';
+import { LearningResourceCard } from '@/components/topic/LearningResourceCard';
+import { RepresentativeProblemTable } from '@/components/topic/RepresentativeProblemTable';
+import { AssessmentCard } from '@/components/topic/AssessmentCard';
+import { NotebookCard } from '@/components/topic/NotebookCard';
+import { TopicNavigation } from '@/components/topic/TopicNavigation';
+import { MasteryRing } from '@/components/learning/MasteryRing';
+import { StageProgress } from '@/components/learning/StageProgress';
+import { CompletionBadge } from '@/components/learning/CompletionBadge';
+import { UnlockBadge } from '@/components/learning/UnlockBadge';
+import { LearningRecommendationCard } from '@/components/learning/LearningRecommendationCard';
+import { LEARNING_RESOURCES } from '@/lib/learningResources';
+import { STAGE_LABELS } from '@/lib/mastery';
 
-interface SectionDef {
-  key: TopicSection;
-  label: string;
-  icon: LucideIcon;
-  blurb: string;
-  sprint: string;
-}
-
-/** The six future modules, shown as placeholders in Sprint 1. */
-const SECTIONS: SectionDef[] = [
-  {
-    key: 'concept',
-    label: 'Concept',
-    icon: Lightbulb,
-    blurb: 'Curated explanations, intuition and prerequisite links for this topic.',
-    sprint: 'Sprint 2',
-  },
-  {
-    key: 'pattern-ladder',
-    label: 'Pattern Ladder',
-    icon: ListOrdered,
-    blurb: 'A progression of patterns from fundamentals to advanced variations.',
-    sprint: 'Sprint 2',
-  },
-  {
-    key: 'problems',
-    label: 'Problems',
-    icon: Code2,
-    blurb: 'Hand-picked problems mapped to each pattern, with difficulty ramps.',
-    sprint: 'Sprint 3',
-  },
-  {
-    key: 'assessment',
-    label: 'Assessment',
-    icon: ClipboardCheck,
-    blurb: 'Timed checkpoints that gauge readiness before unlocking the next topic.',
-    sprint: 'Sprint 4',
-  },
-  {
-    key: 'notebook',
-    label: 'Notebook',
-    icon: NotebookPen,
-    blurb: 'Your personal notes, templates and reflections for this topic.',
-    sprint: 'Sprint 4',
-  },
-  {
-    key: 'mastery',
-    label: 'Mastery',
-    icon: Trophy,
-    blurb: 'A live mastery score computed from problems solved and retention.',
-    sprint: 'Sprint 5',
-  },
+const FUTURE_MODULES = [
+  { title: 'Mastery Tracking', description: 'Live mastery score from solves & retention.', icon: Trophy },
+  { title: 'Spaced Revision', description: 'Smart review scheduling to fight forgetting.', icon: RefreshCw },
+  { title: 'Analytics', description: 'Insights into strengths, gaps and pace.', icon: BarChart3 },
+  { title: 'AI Mentor', description: 'On-demand hints and guided problem solving.', icon: Bot },
 ];
 
 export function TopicPage() {
   const { topicId } = useParams<{ topicId: string }>();
-  const { data: topic, isLoading, isError, error, refetch } = useTopic(topicId);
-  const dispatch = useAppDispatch();
-  const activeSection = useAppSelector((s) => s.topic.activeSection);
+  const topicQuery = useTopic(topicId);
+  const relatedQuery = useTopicRelated(topicId);
+  const problemsQuery = useTopicProblems(topicId);
+  const masteryQuery = useTopicMastery(topicId);
+  const progressQuery = useTopicProgress(topicId);
+  const recommendationQuery = useRecommendation();
 
-  if (isError) {
+  const crumbs = [
+    { label: 'Roadmap', to: '/roadmap' },
+    ...(topicQuery.data
+      ? [{ label: `Phase ${topicQuery.data.phase.order}`, to: `/roadmap/${topicQuery.data.phaseId}` }]
+      : []),
+    { label: topicQuery.data?.title ?? 'Topic' },
+  ];
+
+  if (topicQuery.isError) {
     return (
       <div className="space-y-6">
-        <Breadcrumb items={[{ label: 'Roadmap', to: '/roadmap' }, { label: 'Topic' }]} />
-        <ErrorState error={error} onRetry={refetch} />
+        <Breadcrumb items={crumbs} />
+        <ErrorState error={topicQuery.error} onRetry={topicQuery.refetch} />
       </div>
     );
   }
 
-  const active = SECTIONS.find((s) => s.key === activeSection) ?? SECTIONS[0];
+  if (topicQuery.isLoading || !topicQuery.data) {
+    return <WorkspaceSkeleton crumbs={crumbs} />;
+  }
+
+  const topic = topicQuery.data;
+
+  const patternData: PatternCardData = {
+    name: `${topic.title} Pattern`,
+    coreIdea: topic.concept.coreIdea,
+    recognitionDifficulty: topic.difficulty,
+    implementationDifficulty: topic.difficulty,
+    relatedTopics: relatedQuery.data?.related.map((t) => t.title) ?? [],
+    estimatedLearningHours: topic.estimatedHours,
+  };
+
+  const mastery = masteryQuery.data;
+  const topicProgress = progressQuery.data;
 
   return (
     <div className="space-y-8">
-      <Breadcrumb
-        items={[
-          { label: 'Roadmap', to: '/roadmap' },
-          ...(topic ? [{ label: 'Phase', to: `/roadmap/${topic.phaseId}` }] : []),
-          { label: topic?.title ?? 'Topic' },
-        ]}
-      />
+      <Breadcrumb items={crumbs} />
+      <TopicHeader topic={topic} status={mastery?.status} currentStage={topicProgress?.currentStage} />
 
-      {/* Header */}
-      {isLoading || !topic ? (
-        <CardContainer className="space-y-4">
-          <Skeleton className="h-7 w-1/2" />
-          <Skeleton className="h-4 w-3/4" />
-          <Skeleton className="h-4 w-2/3" />
-        </CardContainer>
-      ) : (
-        <CardContainer>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <div className="mb-2 flex items-center gap-2">
-                <DifficultyBadge difficulty={topic.difficulty} />
-                <StatusBadge isUnlocked={topic.isUnlocked} isCompleted={topic.isCompleted} />
-              </div>
-              <h1 className="text-2xl font-semibold tracking-tight">{topic.title}</h1>
-              <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">{topic.description}</p>
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+        {/* Main column */}
+        <div className="space-y-10 lg:col-span-2">
+          <WorkspaceSection title="Concept Overview" icon={<Lightbulb className="size-5" />}>
+            <ConceptCard concept={topic.concept} />
+          </WorkspaceSection>
+
+          <WorkspaceSection
+            title="Recognition Keywords"
+            icon={<Tags className="size-5" />}
+            description="Signals in a problem statement that hint this pattern applies."
+          >
+            {topic.recognitionKeywords.length > 0 ? (
+              <CardContainer>
+                <div className="flex flex-wrap gap-2">
+                  {topic.recognitionKeywords.map((kw) => (
+                    <KeywordChip key={kw} label={kw} />
+                  ))}
+                </div>
+              </CardContainer>
+            ) : (
+              <EmptyState title="No keywords yet" />
+            )}
+          </WorkspaceSection>
+
+          <WorkspaceSection
+            title="Pattern Ladder"
+            icon={<ListOrdered className="size-5" />}
+            description="Progress from recognising the pattern to solving contest-grade problems."
+          >
+            <div className="grid grid-cols-1 gap-4">
+              <PatternCard pattern={patternData} />
+              <PatternLadder ladder={mastery?.ladder} />
             </div>
-            <Button variant="secondary" size="sm" asChild>
-              <Link to={`/roadmap/${topic.phaseId}`}>
-                <ArrowLeft className="size-4" /> Back to phase
-              </Link>
-            </Button>
+          </WorkspaceSection>
+
+          <WorkspaceSection
+            title="Learning Resources"
+            icon={<BookMarked className="size-5" />}
+            description="Study material for this topic (markdown-ready, populated in a later sprint)."
+          >
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {LEARNING_RESOURCES.map((resource) => (
+                <LearningResourceCard key={resource.key} resource={resource} />
+              ))}
+            </div>
+          </WorkspaceSection>
+
+          <WorkspaceSection
+            title="Representative Problems"
+            icon={<Code2 className="size-5" />}
+            description="Curated, read-only problems. Full tracking arrives with the Problem Tracker."
+          >
+            <RepresentativeProblemTable
+              topicId={topic.id}
+              problems={problemsQuery.data}
+              isLoading={problemsQuery.isLoading}
+            />
+          </WorkspaceSection>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <AssessmentCard />
+            <NotebookCard />
           </div>
 
-          <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
-            <StatCard label="Difficulty" value={topic.difficulty} />
-            <StatCard
-              label="Est. Hours"
-              value={plural(topic.estimatedHours, 'hr')}
-              icon={<Clock className="size-5" />}
-            />
-            <StatCard
-              label="Est. Problems"
-              value={topic.estimatedProblems}
-              icon={<Target className="size-5" />}
-            />
-          </div>
-        </CardContainer>
-      )}
-
-      {/* Module section tabs */}
-      <div>
-        <div className="flex flex-wrap gap-2">
-          {SECTIONS.map((section) => {
-            const Ico = section.icon;
-            const isActive = section.key === activeSection;
-            return (
-              <button
-                key={section.key}
-                onClick={() => dispatch(setActiveSection(section.key))}
-                className={cn(
-                  'flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors',
-                  isActive
-                    ? 'border-primary/40 bg-primary/10 text-foreground'
-                    : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
-                )}
-              >
-                <Ico className="size-4" />
-                {section.label}
-              </button>
-            );
-          })}
+          <WorkspaceSection
+            title="Future Modules"
+            icon={<Sparkles className="size-5" />}
+            description="What this workspace grows into across the next sprints."
+          >
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {FUTURE_MODULES.map((m) => {
+                const Ico = m.icon;
+                return (
+                  <CardContainer key={m.title} className="flex items-start gap-3">
+                    <span className="flex size-10 items-center justify-center rounded-lg border border-border bg-accent text-primary">
+                      <Ico className="size-5" />
+                    </span>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="font-medium">{m.title}</h3>
+                        <Badge variant="outline">
+                          <Lock className="size-3" /> Soon
+                        </Badge>
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">{m.description}</p>
+                    </div>
+                  </CardContainer>
+                );
+              })}
+            </div>
+          </WorkspaceSection>
         </div>
 
-        {/* Active section — placeholder content only in Sprint 1 */}
-        <motion.div
-          key={active.key}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25 }}
-          className="mt-4"
-        >
-          <CardContainer className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-            <div className="flex size-14 items-center justify-center rounded-full bg-accent text-primary">
-              <active.icon className="size-7" />
-            </div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold">{active.label}</h2>
-              <Badge variant="outline">
-                <Lock className="size-3" /> {active.sprint}
-              </Badge>
-            </div>
-            <p className="max-w-md text-sm text-muted-foreground">{active.blurb}</p>
-            <p className="text-xs text-muted-foreground/70">
-              This module is a placeholder in Sprint 1 and will be built in a future sprint.
-            </p>
-          </CardContainer>
-        </motion.div>
+        {/* Sidebar */}
+        <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
+          {/* Live mastery & ladder progress (Sprint 3) */}
+          {mastery && (
+            <CardContainer className="space-y-5">
+              <div className="flex items-center gap-4">
+                <MasteryRing value={mastery.overallMastery} size={88} />
+                <div className="space-y-1.5">
+                  <CompletionBadge status={mastery.status} />
+                  {topicProgress && <UnlockBadge unlocked={topicProgress.unlocked} />}
+                  <p className="text-xs text-muted-foreground">
+                    Stage:{' '}
+                    <span className="text-foreground">
+                      {STAGE_LABELS[topicProgress?.currentStage ?? 'recognition']}
+                    </span>
+                  </p>
+                </div>
+              </div>
+              <div>
+                <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Ladder Progress
+                </p>
+                <StageProgress ladder={mastery.ladder} />
+              </div>
+            </CardContainer>
+          )}
+
+          {recommendationQuery.data && (
+            <LearningRecommendationCard recommendation={recommendationQuery.data} />
+          )}
+
+          <MetadataPanel
+            topic={topic}
+            relations={relatedQuery.data}
+            relationsLoading={relatedQuery.isLoading}
+          />
+          <EstimatedTimeCard
+            hours={topic.estimatedHours}
+            hint={`${topic.estimatedProblems} problems to practice`}
+          />
+        </aside>
+      </div>
+
+      <TopicNavigation navigation={topic.navigation} phaseId={topic.phaseId} />
+    </div>
+  );
+}
+
+function WorkspaceSkeleton({ crumbs }: { crumbs: { label: string; to?: string }[] }) {
+  return (
+    <div className="space-y-8">
+      <Breadcrumb items={crumbs} />
+      <Skeleton className="h-40 w-full rounded-lg" />
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-32 w-full rounded-lg" />
+          <Skeleton className="h-24 w-full rounded-lg" />
+          <Skeleton className="h-48 w-full rounded-lg" />
+        </div>
+        <Skeleton className="h-80 w-full rounded-lg" />
       </div>
     </div>
   );

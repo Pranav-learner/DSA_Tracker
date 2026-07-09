@@ -1,91 +1,78 @@
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { ArrowRight, Play, Map, BookOpen, Calendar, Target, Sparkles } from 'lucide-react';
+import { ArrowRight, Sparkles, CheckCircle2, CircleDashed, HeartHandshake } from 'lucide-react';
 import { useRoadmap } from '@/hooks/useRoadmap';
+import { useLearningState, useProgress } from '@/hooks/useLearning';
 import { SectionHeader } from '@/components/common/SectionHeader';
 import { StatCard } from '@/components/common/StatCard';
-import { CardContainer } from '@/components/common/CardContainer';
 import { PhaseCard } from '@/components/common/PhaseCard';
-import { StatusBadge } from '@/components/common/StatusBadge';
-import { Icon } from '@/components/ui/Icon';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { ErrorState } from '@/components/common/ErrorState';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { plural } from '@/lib/utils';
-import type { Phase } from '@/types';
+import { RoadmapProgressCard } from '@/components/learning/RoadmapProgressCard';
+import { LearningRecommendationCard } from '@/components/learning/LearningRecommendationCard';
+import { CurrentTopicCard } from '@/components/learning/CurrentTopicCard';
+import { ProgressOverviewCard } from '@/components/learning/ProgressOverviewCard';
+import type { PhaseProgress } from '@/types';
 
 export function DashboardPage() {
-  const { data, isLoading, isError, error, refetch } = useRoadmap();
+  const stateQuery = useLearningState();
+  const { data: progress } = useProgress();
+  const { data: roadmap } = useRoadmap();
 
-  // The "current" phase = first unlocked, not-completed phase (placeholder logic).
-  const currentPhase = data?.phases.find((p) => p.isUnlocked && !p.isCompleted) ?? data?.phases[0];
-  const previewPhases = data?.phases.slice(0, 3) ?? [];
+  const progressByPhase = new Map<string, PhaseProgress>(
+    (progress?.phases ?? []).map((p) => [p.phaseId, p]),
+  );
+  const previewPhases = roadmap?.phases.slice(0, 3) ?? [];
 
   return (
     <div className="space-y-8">
       <SectionHeader
         eyebrow="Welcome back"
         title="Your Learning Dashboard"
-        description="Pick up where you left off and keep the momentum going."
+        description="Your live position, mastery and next best action — all driven by the Learning Engine."
         icon={<Sparkles className="size-5" />}
       />
 
-      {isLoading && (
-        <>
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <CardContainer key={i} className="h-20 animate-pulse" />
-            ))}
-          </div>
-          <LoadingSkeleton count={3} layout="grid" />
-        </>
-      )}
-      {isError && <ErrorState error={error} onRetry={refetch} />}
+      {stateQuery.isLoading && <DashboardSkeleton />}
+      {stateQuery.isError && <ErrorState error={stateQuery.error} onRetry={stateQuery.refetch} />}
 
-      {data && (
+      {stateQuery.data && (
         <>
-          {/* Stats */}
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <StatCard
-              label="Phases"
-              value={data.stats.totalPhases}
-              hint={`${data.stats.unlockedPhases} unlocked`}
-              icon={<Map className="size-5" />}
-            />
-            <StatCard label="Topics" value={data.stats.totalTopics} icon={<BookOpen className="size-5" />} />
-            <StatCard
-              label="Roadmap"
-              value={`${data.stats.totalEstimatedWeeks} wks`}
-              icon={<Calendar className="size-5" />}
-            />
-            <StatCard
-              label="Problems"
-              value={data.stats.totalEstimatedProblems}
-              icon={<Target className="size-5" />}
-            />
-          </div>
-
-          {/* Continue learning */}
+          {/* Progress + recommendation */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <ContinueCard phase={currentPhase} />
-            <CardContainer className="flex flex-col justify-between gap-4">
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Current Topic
-                </p>
-                <h3 className="mt-1 text-lg font-semibold">Not started yet</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Open a phase and begin its first topic to see it tracked here.
-                  <span className="text-muted-foreground/60"> (Progress tracking arrives in a later sprint.)</span>
-                </p>
-              </div>
-              <Button variant="secondary" asChild className="w-fit">
-                <Link to="/roadmap">
-                  Browse roadmap <ArrowRight className="size-4" />
-                </Link>
-              </Button>
-            </CardContainer>
+            <RoadmapProgressCard overall={stateQuery.data.overall} />
+            <LearningRecommendationCard recommendation={stateQuery.data.recommendation} />
           </div>
+
+          {/* Current topic + overall figures */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <CurrentTopicCard
+              topic={stateQuery.data.currentTopic}
+              mastery={stateQuery.data.currentMastery}
+              stage={stateQuery.data.currentStage}
+              phaseTitle={stateQuery.data.currentPhase?.title}
+            />
+            <div className="grid grid-cols-3 gap-4">
+              <StatCard
+                label="Completed"
+                value={stateQuery.data.overall.topicsCompleted}
+                icon={<CheckCircle2 className="size-5" />}
+              />
+              <StatCard
+                label="Remaining"
+                value={stateQuery.data.overall.topicsRemaining}
+                icon={<CircleDashed className="size-5" />}
+              />
+              <StatCard
+                label="Confidence"
+                value={`${stateQuery.data.overall.averageConfidence}%`}
+                icon={<HeartHandshake className="size-5" />}
+              />
+            </div>
+          </div>
+
+          <ProgressOverviewCard overall={stateQuery.data.overall} />
 
           {/* Roadmap preview */}
           <div className="space-y-4">
@@ -93,15 +80,24 @@ export function DashboardPage() {
               <h2 className="text-lg font-semibold tracking-tight">Roadmap Preview</h2>
               <Button variant="link" size="sm" asChild>
                 <Link to="/roadmap">
-                  View all {data.stats.totalPhases} phases <ArrowRight className="size-4" />
+                  View full roadmap <ArrowRight className="size-4" />
                 </Link>
               </Button>
             </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {previewPhases.map((phase, i) => (
-                <PhaseCard key={phase.id} phase={phase} index={i} />
-              ))}
-            </div>
+            {previewPhases.length > 0 ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {previewPhases.map((phase, i) => (
+                  <PhaseCard
+                    key={phase.id}
+                    phase={phase}
+                    progress={progressByPhase.get(phase.id)}
+                    index={i}
+                  />
+                ))}
+              </div>
+            ) : (
+              <LoadingSkeleton count={3} layout="grid" />
+            )}
           </div>
         </>
       )}
@@ -109,62 +105,18 @@ export function DashboardPage() {
   );
 }
 
-/** "Continue Learning" hero card pointing at the current phase. */
-function ContinueCard({ phase }: { phase: Phase | undefined }) {
-  if (!phase) {
-    return (
-      <CardContainer className="flex flex-col justify-between gap-4">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Current Phase
-          </p>
-          <h3 className="mt-1 text-lg font-semibold">Nothing here yet</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Seed the backend to populate your roadmap.
-          </p>
-        </div>
-      </CardContainer>
-    );
-  }
-
+function DashboardSkeleton() {
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-      <CardContainer
-        interactive
-        className="relative flex flex-col justify-between gap-4 overflow-hidden"
-      >
-        <span
-          aria-hidden
-          className="absolute inset-y-0 left-0 w-1"
-          style={{ backgroundColor: phase.color }}
-        />
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div
-              className="flex size-11 items-center justify-center rounded-lg border border-border"
-              style={{ backgroundColor: `${phase.color}1a`, color: phase.color }}
-            >
-              <Icon name={phase.icon} className="size-5" />
-            </div>
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Current Phase · Phase {phase.order}
-              </p>
-              <h3 className="text-lg font-semibold leading-tight">{phase.title}</h3>
-            </div>
-          </div>
-          <StatusBadge isUnlocked={phase.isUnlocked} isCompleted={phase.isCompleted} />
-        </div>
-        <p className="text-sm text-muted-foreground">
-          {plural(phase.topicCount, 'topic')} · {plural(phase.estimatedWeeks, 'week')} ·{' '}
-          {plural(phase.estimatedProblems, 'problem')}
-        </p>
-        <Button asChild className="w-fit">
-          <Link to={`/roadmap/${phase.id}`}>
-            <Play className="size-4" /> Continue Learning
-          </Link>
-        </Button>
-      </CardContainer>
-    </motion.div>
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Skeleton className="h-32 w-full rounded-lg" />
+        <Skeleton className="h-32 w-full rounded-lg" />
+      </div>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Skeleton className="h-32 w-full rounded-lg" />
+        <Skeleton className="h-32 w-full rounded-lg" />
+      </div>
+      <Skeleton className="h-40 w-full rounded-lg" />
+    </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useParams } from 'react-router-dom';
 import { BookOpen, Calendar, Target, Clock } from 'lucide-react';
 import { usePhase, usePhaseTopics } from '@/hooks/usePhase';
+import { useProgress } from '@/hooks/useLearning';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setDifficultyFilter } from '@/store/slices/phaseSlice';
 import { Icon } from '@/components/ui/Icon';
@@ -22,8 +23,11 @@ export function PhasePage() {
   const { phaseId } = useParams<{ phaseId: string }>();
   const phaseQuery = usePhase(phaseId);
   const topicsQuery = usePhaseTopics(phaseId);
+  const { data: progress } = useProgress();
   const dispatch = useAppDispatch();
   const difficultyFilter = useAppSelector((s) => s.phase.difficultyFilter);
+
+  const overlayByTopic = new Map((progress?.topics ?? []).map((o) => [o.topicId, o]));
 
   if (phaseQuery.isError) {
     return (
@@ -145,7 +149,7 @@ export function PhasePage() {
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {filtered.map((topic, i) => (
-                <TopicCard key={topic.id} topic={topic} index={i} />
+                <TopicCard key={topic.id} topic={topic} overlay={overlayByTopic.get(topic.id)} index={i} />
               ))}
             </div>
           ))}

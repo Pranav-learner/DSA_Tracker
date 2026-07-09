@@ -1,22 +1,29 @@
 import { motion } from 'framer-motion';
-import { Map, BookOpen, Calendar, Target, LayoutGrid, ListTree, EyeOff, Eye } from 'lucide-react';
+import { Map as MapIcon, BookOpen, Calendar, Target, LayoutGrid, ListTree, EyeOff, Eye } from 'lucide-react';
 import { useRoadmap } from '@/hooks/useRoadmap';
+import { useProgress } from '@/hooks/useLearning';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setView, toggleHideLocked } from '@/store/slices/roadmapSlice';
 import { SectionHeader } from '@/components/common/SectionHeader';
 import { StatCard } from '@/components/common/StatCard';
 import { PhaseCard } from '@/components/common/PhaseCard';
+import { RoadmapProgressCard } from '@/components/learning/RoadmapProgressCard';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import type { Phase } from '@/types';
+import type { Phase, PhaseProgress } from '@/types';
 
 export function RoadmapPage() {
   const { data, isLoading, isError, error, refetch } = useRoadmap();
+  const { data: progress } = useProgress();
   const dispatch = useAppDispatch();
   const { view, hideLocked } = useAppSelector((s) => s.roadmap);
+
+  const progressByPhase = new Map<string, PhaseProgress>(
+    (progress?.phases ?? []).map((p) => [p.phaseId, p]),
+  );
 
   return (
     <div className="space-y-8">
@@ -24,7 +31,7 @@ export function RoadmapPage() {
         eyebrow="Learning Engine"
         title="Competitive Programming Roadmap"
         description="Eleven phases from environment setup to HFT-grade algorithm engineering. Progress unlocks the path ahead."
-        icon={<Map className="size-5" />}
+        icon={<MapIcon className="size-5" />}
         action={
           <div className="flex items-center gap-2">
             <Button
@@ -69,7 +76,7 @@ export function RoadmapPage() {
             label="Phases"
             value={data.stats.totalPhases}
             hint={`${data.stats.unlockedPhases} available`}
-            icon={<Map className="size-5" />}
+            icon={<MapIcon className="size-5" />}
           />
           <StatCard label="Topics" value={data.stats.totalTopics} icon={<BookOpen className="size-5" />} />
           <StatCard
@@ -85,10 +92,20 @@ export function RoadmapPage() {
         </div>
       )}
 
+      {/* Live roadmap mastery (Sprint 3) */}
+      {progress && <RoadmapProgressCard overall={progress.overall} />}
+
       {isLoading && <LoadingSkeleton count={6} layout="grid" />}
       {isError && <ErrorState error={error} onRetry={refetch} />}
 
-      {data && <PhaseList phases={data.phases} view={view} hideLocked={hideLocked} />}
+      {data && (
+        <PhaseList
+          phases={data.phases}
+          view={view}
+          hideLocked={hideLocked}
+          progressByPhase={progressByPhase}
+        />
+      )}
     </div>
   );
 }
@@ -97,12 +114,18 @@ function PhaseList({
   phases,
   view,
   hideLocked,
+  progressByPhase,
 }: {
   phases: Phase[];
   view: 'timeline' | 'grid';
   hideLocked: boolean;
+  progressByPhase: Map<string, PhaseProgress>;
 }) {
-  const visible = hideLocked ? phases.filter((p) => p.isUnlocked) : phases;
+  const isLocked = (p: Phase) => {
+    const overlay = progressByPhase.get(p.id);
+    return overlay ? overlay.status === 'locked' : !p.isUnlocked;
+  };
+  const visible = hideLocked ? phases.filter((p) => !isLocked(p)) : phases;
 
   if (visible.length === 0) {
     return (
@@ -117,7 +140,7 @@ function PhaseList({
     return (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {visible.map((phase, i) => (
-          <PhaseCard key={phase.id} phase={phase} index={i} />
+          <PhaseCard key={phase.id} phase={phase} progress={progressByPhase.get(phase.id)} index={i} />
         ))}
       </div>
     );
@@ -138,7 +161,7 @@ function PhaseList({
             className="absolute left-2 top-6 flex size-5 items-center justify-center rounded-full border-2 border-background sm:left-3"
             style={{ backgroundColor: phase.color }}
           />
-          <PhaseCard phase={phase} index={i} />
+          <PhaseCard phase={phase} progress={progressByPhase.get(phase.id)} index={i} />
         </motion.div>
       ))}
     </div>

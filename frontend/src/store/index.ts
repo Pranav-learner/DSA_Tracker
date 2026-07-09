@@ -2,6 +2,10 @@ import { configureStore } from '@reduxjs/toolkit';
 import roadmapReducer from './slices/roadmapSlice';
 import phaseReducer from './slices/phaseSlice';
 import topicReducer from './slices/topicSlice';
+import learningReducer from './slices/learningSlice';
+import masteryReducer from './slices/masterySlice';
+import recommendationReducer from './slices/recommendationSlice';
+import progressUiReducer from './slices/progressSlice';
 
 /**
  * Redux store — holds **UI state only**. Server data (phases, topics) is owned
@@ -12,6 +16,10 @@ export const store = configureStore({
     roadmap: roadmapReducer,
     phase: phaseReducer,
     topic: topicReducer,
+    learning: learningReducer,
+    mastery: masteryReducer,
+    recommendation: recommendationReducer,
+    progressUi: progressUiReducer,
   },
 });
 

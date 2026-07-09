@@ -63,7 +63,7 @@ connection string in `backend/.env`.
 | 6 | Frontend architecture | `frontend/README.md` |
 | 7 | Pages | `frontend/src/pages` |
 | 8 | Assumptions | this file |
-| 9 | Extension points for Sprint 2 | this file |
+| 9 | Extension points | this file (see Sprint 3 section) |
 
 ---
 
@@ -81,15 +81,95 @@ connection string in `backend/.env`.
 
 ---
 
-## Extension points for Sprint 2
+## Sprint 2 — Topic Workspace & Pattern Ladder ✅
 
-- `Topic → Pattern → Problem` models slot under the existing `Topic` model using the
-  same `phaseId`-style references.
-- `progress` objects are already returned by every roadmap/phase endpoint — wire in
-  the mastery engine without touching the frontend contract.
-- Repositories isolate all Mongo access, so per-user scoping is a repository-layer
-  change only.
-- Redux slices (`roadmap`, `phase`, `topic`) hold UI state and are ready for
-  filters, search and selection state.
-- Topic page already renders placeholder cards for Concept, Pattern Ladder,
-  Problems, Assessment, Notebook and Mastery — each becomes a Sprint 2+ feature.
+Sprint 2 turned the Topic page into the primary **study workspace** (UI + data
+structure only — no mastery, unlock, revision, tracker, analytics or AI).
+
+- **Topic model extended** (`backend/src/models/Topic.ts`): `coreIdea`, when-to /
+  when-not, time/space complexity, `advantages`, `limitations`, `applications`,
+  `examples`, `recognitionKeywords`, `prerequisites`, `relatedTopics`,
+  `representativeProblems`.
+- **New read-only endpoints**: `GET /topics/:id` (full workspace detail with phase
+  ref + prev/next navigation), `GET /topics/:id/related`, `GET /topics/:id/problems`.
+- **Seed content** (`backend/src/seed/content.ts`): authored content for flagship
+  topics + a derivation layer so **every** topic has a complete workspace.
+- **Workspace UI** (`frontend/src/components/topic`): TopicHeader, ConceptCard,
+  KeywordChip, PatternLadder + PatternStageCard, PatternCard, MetadataPanel,
+  EstimatedTimeCard, LearningResourceCard, RepresentativeProblemTable,
+  AssessmentCard, NotebookCard, TopicNavigation (with ← → keyboard nav).
+
+### Sprint 2 assumptions
+
+- **Pattern Ladder** state (locked/progress) and **current stage** are placeholders;
+  real per-user progression is Sprint 3. The 6-stage structure is a shared constant.
+- **PatternCard** is derived from the topic (no separate `Pattern` entity yet); the
+  real entity slots in during Sprint 3.
+- **Prerequisites / related topics** are stored as slugs and resolved server-side, so
+  seeding never depends on generated ObjectIds.
+- **Representative problems** are embedded on the topic and served read-only — this is
+  deliberately **not** the Problem Tracker.
+
+---
+
+## Sprint 3 — Mastery Engine, Progress Engine & Topic Unlock ✅
+
+Sprint 3 makes CP-OS mastery-driven. Progress is measured by **mastery**
+(Recognition → Implementation → Variants → Contest → Assessment → Confidence),
+never by problems solved. Single-user (`DEMO_USER_ID`) until auth lands.
+
+- **New models**: `TopicProgress` (8 weighted metric scores + derived
+  mastery/status/stage) and `LearningState` (current pointer). Phase/Topic gained
+  an optional `masteryThreshold` override.
+- **Isolated services**: `MasteryService` (pure maths), `UnlockService` (sole owner
+  of the unlock rule), `ProgressService` (overlays + phase completion),
+  `RecommendationService` (rule-based, no AI), `LearningStateService`,
+  `TopicProgressService`. Repositories keep all Mongo access out of services.
+- **New APIs**: `GET /learning/state`, `GET /progress`, `GET /recommendation`,
+  `GET /topics/unlocked`, `GET|PATCH /topics/:id/progress`,
+  `GET|PATCH /topics/:id/mastery`, `POST /topics/:id/unlock`.
+- **Live UI**: dashboard (current phase/topic, mastery ring, recommendation,
+  completed/remaining/confidence), roadmap & phase overlays (completed / current /
+  locked / unlocked + mastery), topic workspace (mastery, current stage, ladder
+  progress, recommendation). New reusable components: `MasteryRing`, `MasteryBar`,
+  `StageProgress`, `LearningRecommendationCard`, `ProgressOverviewCard`,
+  `CompletionBadge`, `UnlockBadge`, `CurrentTopicCard`, `RoadmapProgressCard`.
+- **Seed feels alive**: Phase 0 mastered, Phase 1 in progress, current topic
+  Sliding Window ~67% (assessment pending), rest locked.
+
+### Mastery weights (configurable in `backend/src/config/mastery.ts`)
+
+| Recognition | Implementation | Standard | Variant | Mixed | Contest | Assessment | Confidence |
+|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| 20% | 20% | 15% | 15% | 10% | 10% | 5% | 5% |
+
+### Sprint 3 assumptions
+
+- **Single demo user** (`DEMO_USER_ID`); `currentUserId()` is the one seam auth
+  will change. All progress is already keyed by `userId`.
+- **Mastery is always recomputed** from metrics on read; the stored `overallMastery`
+  is a cache. Weights/thresholds are config, not hard-coded in services.
+- **Pattern Ladder stages = the six problem-type metrics**; stage progress/lock is
+  now real (derived from those metrics), replacing the Sprint 2 placeholder.
+- **Phase completion is derived** per user (not stored on the global Phase).
+- **Redux slices** (`learning`, `mastery`, `recommendation`, `progressUi`) hold only
+  UI state; all server data stays in React Query.
+
+---
+
+## Extension points for Sprint 4
+
+- **Auth / multi-user**: every progress record is keyed by `userId` and resolved
+  through `currentUserId()` — the single seam to replace with real auth.
+- **Dashboard refinement (Sprint 4)**: `GET /learning/state`, `GET /progress` and
+  `GET /recommendation` already return everything the dashboard needs; the reusable
+  learning components (`MasteryRing`, `ProgressOverviewCard`, …) are built to be
+  reused in Analytics.
+- **Assessments / problem attempts**: PATCH `assessment` / metric endpoints and the
+  `TopicProgress` model are ready for real assessment and attempt feeds to drive.
+- **Revision engine**: `TopicProgress.lastStudied` + per-stage timestamps are the
+  hooks a spaced-revision scheduler will read.
+- **Configurable mastery**: weights/thresholds live in `config/mastery.ts` and every
+  service accepts overrides — per-user or per-track tuning is a config change.
+- **Pattern / Problem models**: still slot under `Topic`; the representative-problem
+  subdocs and derived `PatternCard` show the target shape.

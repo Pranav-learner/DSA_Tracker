@@ -16,6 +16,12 @@ export const topicRepository = {
     return Topic.find({ phaseId }).sort({ order: 1 }).exec();
   },
 
+  /** Resolve topics by their slugs (used for prerequisites & related topics). */
+  findBySlugs(slugs: string[]): Promise<TopicDocument[]> {
+    if (slugs.length === 0) return Promise.resolve([]);
+    return Topic.find({ slug: { $in: slugs } }).exec();
+  },
+
   /** Topic counts grouped by phase — used to enrich the roadmap response. */
   async countGroupedByPhase(): Promise<Map<string, number>> {
     const rows = await Topic.aggregate<{ _id: unknown; count: number }>([

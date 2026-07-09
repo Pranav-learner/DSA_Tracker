@@ -15,6 +15,8 @@ export interface IPhase {
   color: string;
   isUnlocked: boolean;
   isCompleted: boolean;
+  /** Sprint 3: optional per-phase completion threshold override (falls back to config). */
+  masteryThreshold?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -31,6 +33,7 @@ const phaseSchema = new Schema<IPhase>(
     color: { type: String, required: true, default: '#6366f1' },
     isUnlocked: { type: Boolean, required: true, default: false },
     isCompleted: { type: Boolean, required: true, default: false },
+    masteryThreshold: { type: Number, min: 0, max: 100 },
   },
   {
     timestamps: true,

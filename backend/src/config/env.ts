@@ -22,6 +22,12 @@ export const env = {
     .split(',')
     .map((o) => o.trim())
     .filter(Boolean),
+  /**
+   * Single-user scope for Sprint 3 (auth arrives later). All learning data —
+   * TopicProgress, LearningState — is keyed by this id. Swapping to real
+   * per-user auth becomes a repository-layer change only.
+   */
+  demoUserId: process.env.DEMO_USER_ID ?? 'demo-user',
   get isProd() {
     return this.nodeEnv === 'production';
   },
