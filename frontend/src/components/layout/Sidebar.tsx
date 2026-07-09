@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Map, LibraryBig, BrainCircuit, CalendarClock, Sparkles, Lock } from 'lucide-react';
+import { LayoutDashboard, Map, LibraryBig, BrainCircuit, CalendarClock, Brain, Sparkles, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface NavItem {
@@ -16,6 +16,7 @@ const NAV: NavItem[] = [
   { to: '/problems', label: 'Problems', icon: LibraryBig },
   { to: '/notebook', label: 'Notebook', icon: BrainCircuit },
   { to: '/revision', label: 'Revision', icon: CalendarClock },
+  { to: '/retention', label: 'Retention', icon: Brain },
 ];
 
 const FUTURE: NavItem[] = [{ to: '#', label: 'Analytics', icon: Sparkles, disabled: true }];

@@ -17,9 +17,12 @@ import {
   Lock,
   BarChart3,
   CalendarClock,
+  Brain,
 } from 'lucide-react';
 import { useDashboard } from '@/hooks/useDashboard';
+import { useRetentionOverview } from '@/hooks/useRetention';
 import { DueTodayWidget } from '@/components/revision';
+import { RetentionOverviewCard } from '@/components/retention';
 import { CardContainer } from '@/components/common/CardContainer';
 import { ErrorState } from '@/components/common/ErrorState';
 import { Button } from '@/components/ui/button';
@@ -48,6 +51,7 @@ const ActivityTimeline = lazy(() => import('@/components/dashboard/ActivityTimel
  */
 export function DashboardPage() {
   const { data, isLoading, isError, error, refetch } = useDashboard();
+  const { data: retentionOverview } = useRetentionOverview();
 
   if (isLoading) return <DashboardSkeleton />;
   if (isError) return <ErrorState error={error} onRetry={refetch} />;
@@ -95,6 +99,12 @@ export function DashboardPage() {
           <DashboardSection title="Current Phase" icon={<Layers className="size-4" />}>
             <PhaseProgressCard phase={data.currentPhaseProgress} />
           </DashboardSection>
+
+          {retentionOverview && retentionOverview.totalProfiles > 0 && (
+            <DashboardSection title="Knowledge Retention" icon={<Brain className="size-4" />}>
+              <RetentionOverviewCard overview={retentionOverview} />
+            </DashboardSection>
+          )}
 
           <DashboardSection
             title="Roadmap"

@@ -20,6 +20,10 @@ import {
   AlarmClock,
   Pause,
   Timer,
+  TrendingDown,
+  Gauge,
+  ShieldCheck,
+  ShieldAlert,
   type LucideIcon,
 } from 'lucide-react';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -51,6 +55,11 @@ const EVENT_META: Record<ActivityType, EventMeta> = {
   'revision-resumed': { icon: Play, tile: 'border-primary/40 bg-primary/15 text-primary' },
   'revision-completed': { icon: CheckCircle2, tile: 'border-success/40 bg-success/15 text-success' },
   'revision-notes-updated': { icon: Timer, tile: 'border-warning/40 bg-warning/15 text-warning' },
+  'confidence-increased': { icon: TrendingUp, tile: 'border-success/40 bg-success/15 text-success' },
+  'confidence-decreased': { icon: TrendingDown, tile: 'border-danger/40 bg-danger/15 text-danger' },
+  'retention-updated': { icon: Gauge, tile: 'border-primary/40 bg-primary/15 text-primary' },
+  'knowledge-strengthened': { icon: ShieldCheck, tile: 'border-success/40 bg-success/15 text-success' },
+  'knowledge-at-risk': { icon: ShieldAlert, tile: 'border-danger/40 bg-danger/15 text-danger' },
 };
 
 /**

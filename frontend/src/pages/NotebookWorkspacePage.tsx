@@ -2,6 +2,8 @@ import { useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Hash, Eye, ListTree, Lightbulb, GraduationCap, StickyNote, Network, Trash2 } from 'lucide-react';
 import { useNotebookEntry, useUpdateNotebook, useDeleteNotebook } from '@/hooks/useNotebook';
+import { useRetentionProfile } from '@/hooks/useRetention';
+import { KnowledgeHealthCard } from '@/components/retention';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { CardContainer } from '@/components/common/CardContainer';
 import { ErrorState } from '@/components/common/ErrorState';
@@ -25,6 +27,7 @@ import type { UpdateNotebookInput } from '@/types';
 export function NotebookWorkspacePage() {
   const { notebookId } = useParams<{ notebookId: string }>();
   const { data: entry, isLoading, isError, error, refetch } = useNotebookEntry(notebookId);
+  const retentionQuery = useRetentionProfile(notebookId);
   const updateMutation = useUpdateNotebook();
   const deleteMutation = useDeleteNotebook();
   const navigate = useNavigate();
@@ -141,6 +144,7 @@ export function NotebookWorkspacePage() {
 
               {/* Right column */}
               <aside className="space-y-4">
+                {retentionQuery.data && <KnowledgeHealthCard profile={retentionQuery.data} />}
                 <CardContainer>
                   <ConfidenceSlider value={entry.confidence} readOnly />
                 </CardContainer>

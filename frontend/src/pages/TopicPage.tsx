@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { useTopic, useTopicRelated, useTopicProblems } from '@/hooks/useTopic';
 import { useTopicMastery, useTopicProgress, useRecommendation } from '@/hooks/useLearning';
+import { useRetentionProfile } from '@/hooks/useRetention';
+import { LearningHealthCard } from '@/components/retention';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { WorkspaceSection } from '@/components/common/WorkspaceSection';
 import { CardContainer } from '@/components/common/CardContainer';
@@ -56,6 +58,7 @@ export function TopicPage() {
   const masteryQuery = useTopicMastery(topicId);
   const progressQuery = useTopicProgress(topicId);
   const recommendationQuery = useRecommendation();
+  const retentionQuery = useRetentionProfile(topicId);
 
   const crumbs = [
     { label: 'Roadmap', to: '/roadmap' },
@@ -217,6 +220,8 @@ export function TopicPage() {
               </div>
             </CardContainer>
           )}
+
+          {retentionQuery.data && <LearningHealthCard profile={retentionQuery.data} />}
 
           {recommendationQuery.data && (
             <LearningRecommendationCard recommendation={recommendationQuery.data} />

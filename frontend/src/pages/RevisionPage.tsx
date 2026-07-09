@@ -142,11 +142,11 @@ export function RevisionPage() {
       )}
 
       <p className="text-center text-xs text-muted-foreground">
-        Retention scoring arrives in the next sprint.{' '}
-        <Link to="/problems" className="text-primary hover:underline">
-          Keep solving
+        See how well it's sticking on your{' '}
+        <Link to="/retention" className="text-primary hover:underline">
+          Knowledge Retention
         </Link>{' '}
-        to grow your queue.
+        page.
       </p>
     </div>
   );

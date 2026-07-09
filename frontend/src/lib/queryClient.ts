@@ -67,4 +67,11 @@ export const queryKeys = {
   revisionSession: (id: string) => ['revision', 'session', id] as const,
   revisionHistory: (query: SessionHistoryQuery) => ['revision', 'history', query] as const,
   revisionEntityHistory: (entityId: string) => ['revision', 'history', 'entity', entityId] as const,
+  // --- Module 3 · Sprint 3: retention engine ---
+  retention: ['retention'] as const,
+  retentionList: (params: { entityType?: string }) => ['retention', 'list', params] as const,
+  retentionOverview: ['retention', 'overview'] as const,
+  retentionHistory: (params: { limit?: number }) => ['retention', 'history', params] as const,
+  retentionEntity: (entityId: string) => ['retention', 'entity', entityId] as const,
+  confidence: ['confidence'] as const,
 };

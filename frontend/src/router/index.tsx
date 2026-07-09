@@ -12,6 +12,7 @@ import { NotebookWorkspacePage } from '@/pages/NotebookWorkspacePage';
 import { RevisionPage } from '@/pages/RevisionPage';
 import { RevisionWorkspacePage } from '@/pages/RevisionWorkspacePage';
 import { RevisionHistoryPage } from '@/pages/RevisionHistoryPage';
+import { RetentionPage } from '@/pages/RetentionPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 
 /**
@@ -48,6 +49,7 @@ export const router = createBrowserRouter([
       { path: 'revision', element: <RevisionPage /> },
       { path: 'revision/session', element: <RevisionWorkspacePage /> },
       { path: 'revision/history', element: <RevisionHistoryPage /> },
+      { path: 'retention', element: <RetentionPage /> },
     ],
   },
   { path: '*', element: <NotFoundPage /> },

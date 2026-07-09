@@ -273,7 +273,12 @@ export type ActivityType =
   | 'revision-paused'
   | 'revision-resumed'
   | 'revision-completed'
-  | 'revision-notes-updated';
+  | 'revision-notes-updated'
+  | 'confidence-increased'
+  | 'confidence-decreased'
+  | 'retention-updated'
+  | 'knowledge-strengthened'
+  | 'knowledge-at-risk';
 
 export type ActivityEntityType = 'topic' | 'phase' | 'problem' | 'revision';
 
@@ -323,6 +328,7 @@ export interface Dashboard {
   roadmap: RoadmapSummaryPhase[];
   recentActivity: ActivityEvent[];
   revision: DashboardRevision;
+  retention: DashboardRetention;
 }
 
 export interface RoadmapStats {
@@ -924,6 +930,123 @@ export interface UpdateSessionInput {
   reviewedKnowledgeEntries?: string[];
   reviewedProblems?: string[];
   action?: 'pause' | 'resume' | 'abandon';
+}
+
+/* ---- Module 3 · Sprint 3: Retention Engine, Confidence Decay & Mastery Sync ---- */
+
+export type RetentionLevel =
+  | 'Learning'
+  | 'Familiar'
+  | 'Strong'
+  | 'Mastered'
+  | 'Needs Review'
+  | 'At Risk';
+
+export type ConfidenceTrendDirection = 'rising' | 'falling' | 'stable';
+
+export interface RetentionSnapshot {
+  confidenceScore: number;
+  retentionScore: number;
+  level: RetentionLevel;
+  reason: string;
+  date: string;
+}
+
+export interface ConfidenceTrend {
+  direction: ConfidenceTrendDirection;
+  delta: number;
+  series: { date: string; value: number }[];
+}
+
+export interface RetentionProfile {
+  id: string;
+  entityType: RevisionEntityType;
+  entityId: string;
+  title: string;
+  topicId: string | null;
+  confidenceScore: number;
+  retentionScore: number;
+  decayScore: number;
+  currentLevel: RetentionLevel;
+  reviewCount: number;
+  successfulReviews: number;
+  missedReviews: number;
+  overdueReviews: number;
+  averageReviewInterval: number;
+  successRate: number;
+  lastReviewDate: string | null;
+  nextReviewDate: string | null;
+  daysUntilReview: number | null;
+  isOverdue: boolean;
+  strategy: string;
+  confidenceTrend: ConfidenceTrend;
+  history: RetentionSnapshot[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RetentionProfileRef {
+  entityType: RevisionEntityType;
+  entityId: string;
+  title: string;
+  topicId: string | null;
+  confidenceScore: number;
+  retentionScore: number;
+  currentLevel: RetentionLevel;
+}
+
+export interface RetentionOverview {
+  totalProfiles: number;
+  averageConfidence: number;
+  averageRetention: number;
+  masteredCount: number;
+  strongCount: number;
+  familiarCount: number;
+  learningCount: number;
+  needsReviewCount: number;
+  atRiskCount: number;
+  overdueReviews: number;
+  revisionSuccessRate: number;
+  confidenceTrend: ConfidenceTrend;
+  atRisk: RetentionProfileRef[];
+}
+
+export interface ConfidenceEntry {
+  entityType: RevisionEntityType;
+  entityId: string;
+  title: string;
+  confidenceScore: number;
+  trend: ConfidenceTrendDirection;
+  currentLevel: RetentionLevel;
+}
+
+export interface ConfidenceOverview {
+  averageConfidence: number;
+  trend: ConfidenceTrend;
+  entries: ConfidenceEntry[];
+}
+
+export interface RetentionHistoryRow {
+  entityType: RevisionEntityType;
+  entityId: string;
+  title: string;
+  snapshot: RetentionSnapshot;
+}
+
+export interface DashboardRetention {
+  averageConfidence: number;
+  averageRetention: number;
+  atRiskCount: number;
+  needsReviewCount: number;
+  masteredCount: number;
+  overdueReviews: number;
+  revisionSuccessRate: number;
+  trendDirection: ConfidenceTrendDirection;
+  trendDelta: number;
+}
+
+export interface UpdateRetentionInput {
+  confidenceScore: number;
 }
 
 /** Success envelope returned by every backend endpoint. */
