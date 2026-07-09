@@ -10,6 +10,13 @@ import {
 } from '../controllers/contest.controller.js';
 import { getRatings, getRatingHistory, getCurrentRating } from '../controllers/rating.controller.js';
 import {
+  getIntelligence,
+  getReadiness,
+  getCorrelation,
+  getInsights,
+  getRatingAnalysis,
+} from '../controllers/competitiveIntelligence.controller.js';
+import {
   getWorkspace,
   listProblems,
   addProblem,
@@ -65,6 +72,14 @@ export const ratingRouter = Router();
 ratingRouter.get('/history', getRatingHistory);
 ratingRouter.get('/current', getCurrentRating);
 ratingRouter.get('/', getRatings);
+
+/** /api/contest — competitive intelligence (Sprint 4, singular prefix). */
+export const competitiveRouter = Router();
+competitiveRouter.get('/intelligence', getIntelligence);
+competitiveRouter.get('/readiness', getReadiness);
+competitiveRouter.get('/correlation', getCorrelation);
+competitiveRouter.get('/insights', getInsights);
+competitiveRouter.get('/rating-analysis', getRatingAnalysis);
 
 /** /api/upsolve — the global upsolve queue (Sprint 3). */
 export const upsolveRouter = Router();

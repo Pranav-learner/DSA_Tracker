@@ -100,4 +100,10 @@ export const queryKeys = {
   upsolveList: (query: object) => ['upsolve', 'list', query] as const,
   upsolveQueue: ['upsolve', 'queue'] as const,
   upsolveTask: (id: string) => ['upsolve', 'task', id] as const,
+  // --- Module 5 · Sprint 4: competitive intelligence ---
+  competitiveIntelligence: ['competitive', 'intelligence'] as const,
+  competitiveReadiness: ['competitive', 'readiness'] as const,
+  competitiveCorrelation: ['competitive', 'correlation'] as const,
+  competitiveInsights: ['competitive', 'insights'] as const,
+  competitiveRating: ['competitive', 'rating-analysis'] as const,
 };

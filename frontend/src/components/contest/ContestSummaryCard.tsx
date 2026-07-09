@@ -1,12 +1,23 @@
 import { Link } from 'react-router-dom';
-import { Swords, TrendingUp, Trophy, ArrowRight, Plus, ListTodo } from 'lucide-react';
+import { Swords, TrendingUp, Trophy, ArrowRight, Plus, ListTodo, Gauge } from 'lucide-react';
 import { CardContainer } from '@/components/common/CardContainer';
 import { Button } from '@/components/ui/button';
 import { PlatformBadge } from './PlatformBadge';
 import { RatingDelta } from './RatingDelta';
 import { formatContestDate } from '@/lib/contest';
+import { READINESS_STATUS_META } from '@/lib/competitive';
+import { ANALYTICS_TONE_TEXT } from '@/lib/analytics';
+import { scoreColor } from '@/lib/retention';
 import { cn } from '@/lib/utils';
-import type { DashboardContest } from '@/types';
+import type { DashboardContest, ReadinessStatus } from '@/types';
+
+/** Derive readiness status from a 0–100 score (mirrors backend thresholds). */
+function readinessStatus(score: number): ReadinessStatus {
+  if (score >= 80) return 'ready';
+  if (score >= 60) return 'developing';
+  if (score >= 40) return 'early';
+  return 'not-ready';
+}
 
 /** Compact contest summary for the Home dashboard (rating + latest contest). */
 export function ContestSummaryCard({ contest, className }: { contest: DashboardContest; className?: string }) {
@@ -55,6 +66,20 @@ export function ContestSummaryCard({ contest, className }: { contest: DashboardC
         </div>
       ) : (
         <p className="text-sm text-muted-foreground">No contests logged yet.</p>
+      )}
+
+      {contest.contestReadiness !== null && (
+        <Link to="/contests/intelligence" className="block space-y-1.5 rounded-lg border border-border/60 bg-card/40 px-3 py-2 transition-colors hover:border-primary/40">
+          <div className="flex items-center justify-between gap-2 text-xs">
+            <span className="inline-flex items-center gap-1.5 text-muted-foreground"><Gauge className="size-3.5" /> Contest readiness</span>
+            <span className={cn('font-semibold tabular-nums', ANALYTICS_TONE_TEXT[READINESS_STATUS_META[readinessStatus(contest.contestReadiness)].tone])}>
+              {contest.contestReadiness}% · {READINESS_STATUS_META[readinessStatus(contest.contestReadiness)].label}
+            </span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+            <div className="h-full rounded-full transition-all" style={{ width: `${contest.contestReadiness}%`, background: scoreColor(contest.contestReadiness) }} />
+          </div>
+        </Link>
       )}
 
       {contest.pendingUpsolve > 0 && (

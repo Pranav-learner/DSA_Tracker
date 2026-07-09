@@ -89,6 +89,8 @@ export interface DashboardContestDTO {
   latestPerformance: { totalSolved: number; wrongAttempts: number; penalty: number; averageSolveTime: number } | null;
   /** Sprint 3: pending upsolve tasks across all contests. */
   pendingUpsolve: number;
+  /** Sprint 4: persisted contest-readiness score (null until first computed). */
+  contestReadiness: number | null;
 }
 
 /** Normalised, validated query for the contest list. */

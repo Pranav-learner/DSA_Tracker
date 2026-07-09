@@ -82,6 +82,10 @@ const EVENT_META: Record<ActivityType, EventMeta> = {
   'upsolve-completed': { icon: CheckCircle2, tile: 'border-success/40 bg-success/15 text-success' },
   'contest-knowledge-added': { icon: BookMarked, tile: 'border-success/40 bg-success/15 text-success' },
   'learning-goal-created': { icon: Target, tile: 'border-warning/40 bg-warning/15 text-warning' },
+  'contest-readiness-updated': { icon: Gauge, tile: 'border-primary/40 bg-primary/15 text-primary' },
+  'competitive-insight-generated': { icon: Lightbulb, tile: 'border-primary/40 bg-primary/15 text-primary' },
+  'rating-milestone-reached': { icon: Medal, tile: 'border-success/40 bg-success/15 text-success' },
+  'weak-pattern-detected': { icon: ShieldAlert, tile: 'border-danger/40 bg-danger/15 text-danger' },
 };
 
 /**

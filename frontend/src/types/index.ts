@@ -293,7 +293,11 @@ export type ActivityType =
   | 'upsolve-created'
   | 'upsolve-completed'
   | 'contest-knowledge-added'
-  | 'learning-goal-created';
+  | 'learning-goal-created'
+  | 'contest-readiness-updated'
+  | 'competitive-insight-generated'
+  | 'rating-milestone-reached'
+  | 'weak-pattern-detected';
 
 export type ActivityEntityType = 'topic' | 'phase' | 'problem' | 'revision' | 'contest';
 
@@ -1509,6 +1513,7 @@ export interface DashboardContest {
   averageRank: number;
   latestPerformance: { totalSolved: number; wrongAttempts: number; penalty: number; averageSolveTime: number } | null;
   pendingUpsolve: number;
+  contestReadiness: number | null;
 }
 
 export interface ContestQuery {
@@ -1772,6 +1777,109 @@ export interface UpdateUpsolveInput {
   topicId?: string | null;
   pattern?: string;
   estimatedTime?: number;
+}
+
+/* ---- Module 5 · Sprint 4: Competitive Intelligence Engine ---- */
+
+export type ReadinessStatus = 'ready' | 'developing' | 'early' | 'not-ready';
+export type CorrelationDirection = 'positive' | 'negative' | 'neutral';
+export type CorrelationStrength = 'strong' | 'moderate' | 'weak';
+
+export interface RatingAnalysis {
+  currentRating: number | null;
+  highestRating: number | null;
+  lowestRating: number | null;
+  averageRating: number | null;
+  ratingTrend: 'rising' | 'falling' | 'stable';
+  ratingGrowth: number;
+  averageRatingGain: number;
+  largestGain: number;
+  largestLoss: number;
+  contestConsistency: number;
+  ratedContests: number;
+  timeline: { date: string; rating: number }[];
+  platformStats: { platform: ContestPlatform; current: number | null; highest: number | null; contests: number }[];
+}
+
+export interface ReadinessSubScore {
+  key: string;
+  label: string;
+  score: number;
+  status: ReadinessStatus;
+}
+
+export interface ContestReadiness {
+  overall: number;
+  status: ReadinessStatus;
+  breakdown: ReadinessSubScore[];
+  strongAreas: string[];
+  weakAreas: string[];
+}
+
+export interface CorrelationItem {
+  key: string;
+  label: string;
+  xLabel: string;
+  yLabel: string;
+  xValue: number;
+  yValue: number;
+  direction: CorrelationDirection;
+  strength: CorrelationStrength;
+  insight: string;
+}
+
+export interface ContestCorrelation {
+  items: CorrelationItem[];
+}
+
+export type CompetitiveInsightType = 'strength' | 'weakness' | 'opportunity' | 'improvement' | 'warning' | 'focus';
+
+export interface CompetitiveInsight {
+  id: string;
+  type: CompetitiveInsightType;
+  severity: 'high' | 'medium' | 'low';
+  title: string;
+  reason: string;
+  suggestedAction: string;
+  relatedTopics: { id: string; title: string }[];
+}
+
+export type CompetitiveActionType =
+  | 'practice-contest'
+  | 'virtual-contest'
+  | 'upsolve'
+  | 'revise-patterns'
+  | 'strengthen-topic'
+  | 'improve-speed';
+
+export interface CompetitiveRecommendation {
+  id: string;
+  priority: 'high' | 'medium' | 'low';
+  title: string;
+  reason: string;
+  suggestedAction: string;
+  actionType: CompetitiveActionType;
+  to: string;
+  estimatedTimeMinutes: number;
+  learningImpact: 'high' | 'medium' | 'low';
+}
+
+export interface CompetitiveIntelligence {
+  summary: {
+    headline: string;
+    overallReadiness: number;
+    readinessStatus: ReadinessStatus;
+    currentRating: number | null;
+    ratingTrend: 'rising' | 'falling' | 'stable';
+    pendingUpsolve: number;
+  };
+  strengths: Strength[];
+  weaknesses: Weakness[];
+  insights: CompetitiveInsight[];
+  recommendations: CompetitiveRecommendation[];
+  readiness: ContestReadiness;
+  correlation: ContestCorrelation;
+  ratingAnalysis: RatingAnalysis;
 }
 
 /** Success envelope returned by every backend endpoint. */

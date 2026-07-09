@@ -167,6 +167,11 @@ export const ACTIVITY_TYPES = [
   'upsolve-completed',
   'contest-knowledge-added',
   'learning-goal-created',
+  // Module 5 · Sprint 4 — competitive intelligence
+  'contest-readiness-updated',
+  'competitive-insight-generated',
+  'rating-milestone-reached',
+  'weak-pattern-detected',
 ] as const;
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];
 

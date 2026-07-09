@@ -1,5 +1,6 @@
 import { analyticsAggregationService } from '../analytics/services/analyticsAggregation.service.js';
 import { insightActivityService } from '../analytics/services/insightActivity.service.js';
+import { competitiveActivityService } from '../contests/services/competitiveActivity.service.js';
 import { resolveAnalyticsWindow } from '../analytics/validators/analytics.validator.js';
 import { ANALYTICS_JOB, ANALYTICS_DEFAULT_RANGE } from '../config/analytics.js';
 import { env } from '../config/env.js';
@@ -25,7 +26,9 @@ async function runOnce(): Promise<void> {
     await analyticsAggregationService.overview(env.demoUserId, window);
     // Module 4 · Sprint 3 — surface notable insights into the activity feed (deduped).
     const { emitted } = await insightActivityService.emit(env.demoUserId, window);
-    logger.info(`Analytics refresh job: overview warmed, ${emitted} insight activities emitted`);
+    // Module 5 · Sprint 4 — warm competitive intelligence + emit readiness activities.
+    const competitive = await competitiveActivityService.emit(env.demoUserId, window);
+    logger.info(`Analytics refresh job: overview warmed, ${emitted} insight + ${competitive.emitted} competitive activities emitted`);
   } catch (err) {
     logger.warn('Analytics refresh job run failed', err);
   }

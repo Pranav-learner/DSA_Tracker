@@ -53,6 +53,9 @@ import { postmortemService } from '../src/contests/services/postmortem.service.j
 import { upsolveService } from '../src/contests/services/upsolve.service.js';
 import { contestLearningService } from '../src/contests/services/contestLearning.service.js';
 import { topicProgressService as tpService } from '../src/services/topicProgress.service.js';
+import { competitiveIntelligenceService } from '../src/contests/services/competitiveIntelligence.service.js';
+import { contestReadinessService } from '../src/contests/services/contestReadiness.service.js';
+import { ratingAnalyticsService } from '../src/contests/services/ratingAnalytics.service.js';
 import { problemRepository } from '../src/repositories/problem.repository.js';
 import { userProblemRepository } from '../src/repositories/userProblem.repository.js';
 import {
@@ -1090,6 +1093,43 @@ async function run(): Promise<void> {
     'contest learning activity events generated',
   );
 
+  // --- Module 5 · Sprint 4: Competitive Intelligence Engine ---
+  const anW = resolveAnalyticsWindow({ range: '30d' });
+  const ratingAn = await ratingAnalyticsService.analyze(DEMO_USER);
+  const readiness = await contestReadinessService.compute(DEMO_USER);
+  const intelligence = await competitiveIntelligenceService.overview(DEMO_USER, anW);
+  console.log(
+    `  competitive: rating{current=${ratingAn.currentRating} trend=${ratingAn.ratingTrend} growth=${ratingAn.ratingGrowth} consistency=${ratingAn.contestConsistency}% platforms=${ratingAn.platformStats.length}} ` +
+      `readiness{overall=${readiness.overall}/${readiness.status} sub=${readiness.breakdown.length}} ` +
+      `intel{insights=${intelligence.insights.length} recs=${intelligence.recommendations.length} corr=${intelligence.correlation.items.length}}`,
+  );
+  assert(
+    ratingAn.ratedContests >= 2 && ['rising', 'falling', 'stable'].includes(ratingAn.ratingTrend) && Array.isArray(ratingAn.timeline) && ratingAn.platformStats.length >= 1,
+    'rating analysis computes trend/growth/platform stats',
+  );
+  assert(
+    readiness.overall >= 0 && readiness.overall <= 100 && readiness.breakdown.length === 6 &&
+      readiness.breakdown.every((b) => b.score >= 0 && b.score <= 100 && ['ready', 'developing', 'early', 'not-ready'].includes(b.status)),
+    'contest readiness computes 6 weighted sub-scores',
+  );
+  assert(
+    intelligence.correlation.items.length === 5 &&
+      intelligence.correlation.items.every((c) => ['positive', 'negative', 'neutral'].includes(c.direction) && c.insight.length > 0),
+    'correlation engine produces rule-based relationships',
+  );
+  assert(
+    intelligence.insights.every((i) => ['high', 'medium', 'low'].includes(i.severity) && i.suggestedAction.length > 0) &&
+      intelligence.recommendations.every((r) => r.to.startsWith('/') && r.estimatedTimeMinutes > 0) &&
+      typeof intelligence.summary.overallReadiness === 'number' && intelligence.summary.overallReadiness === readiness.overall,
+    'competitive intelligence orchestrates insights + recommendations + summary',
+  );
+
+  // Readiness persisted (profile) + dashboard exposes it.
+  const profile = await contestReadinessService.getProfile(DEMO_USER);
+  assert(profile.contestReadiness === readiness.overall && profile.hftReadiness >= 0 && profile.interviewReadiness >= 0, 'readiness profile persisted (contest computed; interview/HFT placeholders)');
+  const dashCompetitive = await dashboardService.get(DEMO_USER);
+  assert(dashCompetitive.contest.contestReadiness !== null && dashCompetitive.contest.contestReadiness === readiness.overall, 'dashboard exposes contest readiness');
+
   // Delete removes the rating point too.
   await contestService.remove(DEMO_USER, c2.id);
   const afterDelete = await ratingService.history(DEMO_USER);
@@ -1338,6 +1378,12 @@ async function run(): Promise<void> {
   const httpUpsolveGet = await getJson(`/api/upsolve/${upsolveId}`);
   const httpUpsolvePatch = await sendJson('PATCH', `/api/upsolve/${upsolveId}`, { status: 'In Progress' });
   const httpUpsolveBad = await getJson('/api/upsolve/not-an-id');
+  // Module 5 · Sprint 4 competitive intelligence requests.
+  const httpIntelligence = await getJson('/api/contest/intelligence');
+  const httpReadiness = await getJson('/api/contest/readiness');
+  const httpCorrelation = await getJson('/api/contest/correlation');
+  const httpCompInsights = await getJson('/api/contest/insights');
+  const httpRatingAnalysis = await getJson('/api/contest/rating-analysis');
   const httpContestDelete = await sendJson('DELETE', `/api/contests/${createdContestId}`);
   server.close();
 
@@ -1574,6 +1620,17 @@ async function run(): Promise<void> {
   assert(httpUpsolveGet.status === 200 && httpUpsolveGet.body.success, 'GET /upsolve/:id → 200');
   assert(httpUpsolvePatch.status === 200, 'PATCH /upsolve/:id → 200');
   assert(httpUpsolveBad.status === 400, 'invalid upsolve id → 400');
+
+  // Module 5 · Sprint 4 HTTP assertions:
+  console.log(
+    `http competitive: intelligence=${httpIntelligence.status} readiness=${httpReadiness.status} correlation=${httpCorrelation.status} ` +
+      `insights=${httpCompInsights.status} ratingAnalysis=${httpRatingAnalysis.status}`,
+  );
+  assert(httpIntelligence.status === 200 && httpIntelligence.body.success, 'GET /contest/intelligence → 200');
+  assert(httpReadiness.status === 200 && httpReadiness.body.success, 'GET /contest/readiness → 200');
+  assert(httpCorrelation.status === 200 && httpCorrelation.body.success, 'GET /contest/correlation → 200');
+  assert(httpCompInsights.status === 200 && httpCompInsights.body.success, 'GET /contest/insights → 200');
+  assert(httpRatingAnalysis.status === 200 && httpRatingAnalysis.body.success, 'GET /contest/rating-analysis → 200');
 
   console.log('\n✅ ALL ASSERTIONS PASSED');
 

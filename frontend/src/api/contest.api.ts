@@ -9,9 +9,14 @@ import type {
   ContestStats,
   ContestTimelineEvent,
   ContestWorkspace,
+  CompetitiveIntelligence,
+  CompetitiveInsight,
+  ContestCorrelation,
   ContestLearning,
   ContestPostmortem,
+  ContestReadiness,
   CreateContestInput,
+  RatingAnalysis,
   CreateContestProblemInput,
   CreateTimelineEventInput,
   PaginatedContests,
@@ -64,6 +69,15 @@ export const contestLearningApi = {
   getPostmortem: (id: string, signal?: AbortSignal) => apiGet<ContestPostmortem | null>(`/contests/${id}/postmortem`, signal),
   savePostmortem: (id: string, input: UpsertPostmortemInput) => apiSend<ContestPostmortem>('POST', `/contests/${id}/postmortem`, input),
   generateUpsolve: (id: string) => apiSend<UpsolveTask[]>('POST', `/contests/${id}/upsolve`, {}),
+};
+
+/** Competitive intelligence (Sprint 4) — /api/contest/* (singular). */
+export const competitiveApi = {
+  intelligence: (signal?: AbortSignal) => apiGet<CompetitiveIntelligence>('/contest/intelligence', signal),
+  readiness: (signal?: AbortSignal) => apiGet<ContestReadiness>('/contest/readiness', signal),
+  correlation: (signal?: AbortSignal) => apiGet<ContestCorrelation>('/contest/correlation', signal),
+  insights: (signal?: AbortSignal) => apiGet<CompetitiveInsight[]>('/contest/insights', signal),
+  ratingAnalysis: (signal?: AbortSignal) => apiGet<RatingAnalysis>('/contest/rating-analysis', signal),
 };
 
 export const upsolveApi = {
