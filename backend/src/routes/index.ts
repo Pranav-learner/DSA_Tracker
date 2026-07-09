@@ -5,6 +5,8 @@ import topicRoutes from './topic.routes.js';
 import learningRoutes from './learning.routes.js';
 import progressRoutes from './progress.routes.js';
 import recommendationRoutes from './recommendation.routes.js';
+import dashboardRoutes from './dashboard.routes.js';
+import problemRoutes from './problem.routes.js';
 
 /** Root API router — mounts every feature router under /api. */
 const api = Router();
@@ -31,6 +33,11 @@ api.get('/', (_req, res) => {
         'GET /api/learning/state',
         'GET /api/progress',
         'GET /api/recommendation',
+        'GET /api/dashboard',
+        'GET /api/problems',
+        'GET /api/problems/search',
+        'GET /api/problems/facets',
+        'GET /api/problems/:id',
       ],
     },
   });
@@ -42,5 +49,7 @@ api.use('/topics', topicRoutes);
 api.use('/learning', learningRoutes);
 api.use('/progress', progressRoutes);
 api.use('/recommendation', recommendationRoutes);
+api.use('/dashboard', dashboardRoutes);
+api.use('/problems', problemRoutes);
 
 export default api;

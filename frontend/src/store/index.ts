@@ -6,6 +6,7 @@ import learningReducer from './slices/learningSlice';
 import masteryReducer from './slices/masterySlice';
 import recommendationReducer from './slices/recommendationSlice';
 import progressUiReducer from './slices/progressSlice';
+import problemsReducer from './slices/problemsSlice';
 
 /**
  * Redux store — holds **UI state only**. Server data (phases, topics) is owned
@@ -20,6 +21,7 @@ export const store = configureStore({
     mastery: masteryReducer,
     recommendation: recommendationReducer,
     progressUi: progressUiReducer,
+    problems: problemsReducer,
   },
 });
 

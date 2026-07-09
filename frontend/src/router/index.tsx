@@ -4,6 +4,8 @@ import { DashboardPage } from '@/pages/DashboardPage';
 import { RoadmapPage } from '@/pages/RoadmapPage';
 import { PhasePage } from '@/pages/PhasePage';
 import { TopicPage } from '@/pages/TopicPage';
+import { ProblemsPage } from '@/pages/ProblemsPage';
+import { ProblemDetailPage } from '@/pages/ProblemDetailPage';
 import { ProblemPlaceholderPage } from '@/pages/ProblemPlaceholderPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 
@@ -15,6 +17,8 @@ import { NotFoundPage } from '@/pages/NotFoundPage';
  *   /roadmap/:id    → Phase detail (topics)
  *   /topic/:id      → Topic Workspace (concept, pattern ladder, problems…)
  *   /topic/:id/problem/:pid → Representative-problem placeholder detail
+ *   /problems       → Problem Library (searchable catalog)
+ *   /problems/:id   → Problem Detail
  *   *               → 404
  */
 export const router = createBrowserRouter([
@@ -27,6 +31,8 @@ export const router = createBrowserRouter([
       { path: 'roadmap/:phaseId', element: <PhasePage /> },
       { path: 'topic/:topicId', element: <TopicPage /> },
       { path: 'topic/:topicId/problem/:problemId', element: <ProblemPlaceholderPage /> },
+      { path: 'problems', element: <ProblemsPage /> },
+      { path: 'problems/:problemId', element: <ProblemDetailPage /> },
     ],
   },
   { path: '*', element: <NotFoundPage /> },

@@ -58,6 +58,7 @@ export function useTopicMastery(topicId: string | undefined) {
 function useInvalidateLearning() {
   const qc = useQueryClient();
   return (topicId?: string) => {
+    qc.invalidateQueries({ queryKey: queryKeys.dashboard });
     qc.invalidateQueries({ queryKey: queryKeys.learningState });
     qc.invalidateQueries({ queryKey: queryKeys.progress });
     qc.invalidateQueries({ queryKey: queryKeys.recommendation });

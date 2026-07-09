@@ -104,3 +104,80 @@ export function isCompletedStatus(status: TopicProgressStatus): boolean {
 
 export const PHASE_STATUSES = ['locked', 'in-progress', 'completed'] as const;
 export type PhaseStatus = (typeof PHASE_STATUSES)[number];
+
+/* ------------------------------------------------------------------ *
+ *  Sprint 4 — Activity (recent learning events, NOT analytics)
+ * ------------------------------------------------------------------ */
+
+/**
+ * The kinds of learning events surfaced on the dashboard timeline. This is a
+ * lightweight event log (not analytics) — future modules append their own
+ * event types here as they land.
+ */
+export const ACTIVITY_TYPES = [
+  'topic-started',
+  'topic-completed',
+  'topic-mastered',
+  'topic-unlocked',
+  'mastery-updated',
+  'phase-unlocked',
+  'phase-completed',
+  // Module 2 · Sprint 2 — attempt tracking
+  'attempt-started',
+  'attempt-updated',
+  'problem-solved',
+] as const;
+export type ActivityType = (typeof ACTIVITY_TYPES)[number];
+
+/** The entity an activity refers to. Kept generic so future modules can extend. */
+export const ACTIVITY_ENTITY_TYPES = ['topic', 'phase', 'problem'] as const;
+export type ActivityEntityType = (typeof ACTIVITY_ENTITY_TYPES)[number];
+
+/* ------------------------------------------------------------------ *
+ *  Module 2 · Sprint 1 — Problem Library
+ * ------------------------------------------------------------------ */
+
+/** A user's solve state for a problem (read-only catalog this sprint). */
+export const PROBLEM_STATUSES = ['Not Started', 'In Progress', 'Solved'] as const;
+export type ProblemStatus = (typeof PROBLEM_STATUSES)[number];
+
+/** Numeric rank for a difficulty — enables correct ordering in queries/sorts. */
+export function difficultyRank(difficulty: Difficulty): number {
+  return DIFFICULTIES.indexOf(difficulty);
+}
+
+/* ------------------------------------------------------------------ *
+ *  Module 2 · Sprint 2 — Attempt Tracking Engine
+ * ------------------------------------------------------------------ */
+
+/** Lifecycle state of a single attempt. */
+export const ATTEMPT_STATUSES = ['Started', 'Solved', 'Abandoned'] as const;
+export type AttemptStatus = (typeof ATTEMPT_STATUSES)[number];
+
+/** Judge verdicts an attempt can carry. */
+export const ATTEMPT_VERDICTS = [
+  'Accepted',
+  'Wrong Answer',
+  'TLE',
+  'MLE',
+  'RE',
+  'CE',
+  'Unknown',
+] as const;
+export type AttemptVerdict = (typeof ATTEMPT_VERDICTS)[number];
+
+/** Languages an attempt can be written in (validated set). */
+export const ATTEMPT_LANGUAGES = [
+  'C++',
+  'C',
+  'Python',
+  'Java',
+  'JavaScript',
+  'TypeScript',
+  'Go',
+  'Rust',
+  'Kotlin',
+  'C#',
+  'Other',
+] as const;
+export type AttemptLanguage = (typeof ATTEMPT_LANGUAGES)[number];

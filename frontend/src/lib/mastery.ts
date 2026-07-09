@@ -1,6 +1,16 @@
 import type { LadderStage, MasteryMetric, TopicProgressStatus, PhaseStatus } from '@/types';
 import type { BadgeProps } from '@/components/ui/badge';
 
+/** The six Pattern Ladder stages in progression order. */
+export const LADDER_STAGE_ORDER: LadderStage[] = [
+  'recognition',
+  'implementation',
+  'standard',
+  'variant',
+  'mixed',
+  'contest',
+];
+
 export const STAGE_LABELS: Record<LadderStage, string> = {
   recognition: 'Recognition',
   implementation: 'Implementation',

@@ -9,11 +9,23 @@ import { env } from '../config/env.js';
 import { MASTERY_THRESHOLDS } from '../config/mastery.js';
 import type { LadderStage } from '../types/domain.js';
 import { masteryService } from '../services/mastery.service.js';
+import { Problem } from '../models/Problem.js';
 import { topicProgressRepository } from '../repositories/topicProgress.repository.js';
 import { learningRepository } from '../repositories/learning.repository.js';
+import { activityRepository } from '../repositories/activity.repository.js';
+import { problemRepository } from '../repositories/problem.repository.js';
+import { userProblemRepository } from '../repositories/userProblem.repository.js';
 import { roadmapSeed } from './data.js';
 import { buildTopicContent } from './content.js';
 import { DEMO_PROGRESS, DEMO_CURRENT_TITLE } from './progress.js';
+import { DEMO_ACTIVITY } from './activity.js';
+import {
+  buildProblemSeed,
+  DEMO_SOLVED_TOPICS,
+  DEMO_IN_PROGRESS_TOPICS,
+  DEMO_FAVORITE_TITLES,
+} from './problems.js';
+import type { ProblemStatus } from '../types/domain.js';
 
 /**
  * Idempotent seed: wipes phases & topics, then repopulates the full roadmap.
@@ -85,8 +97,13 @@ async function seed(): Promise<void> {
   }
 
   await seedDemoProgress();
+  await seedDemoActivity();
+  const problemCount = await seedProblems();
+  await seedUserProblems();
 
-  logger.info(`Seed complete — ${roadmapSeed.length} phases, ${totalTopics} topics.`);
+  logger.info(
+    `Seed complete — ${roadmapSeed.length} phases, ${totalTopics} topics, ${problemCount} problems.`,
+  );
   await disconnectDatabase();
 }
 
@@ -148,6 +165,105 @@ async function seedDemoProgress(): Promise<void> {
   });
 
   logger.info(`  ✓ Demo progress seeded (${DEMO_PROGRESS.length} topics), current = ${DEMO_CURRENT_TITLE}.`);
+}
+
+/**
+ * Sprint 4: seed the demo user's recent-activity feed for the dashboard timeline.
+ * Each event's title is resolved to a real topic/phase id and back-dated so the
+ * feed reads newest-first. Purely illustrative — the engine appends real events.
+ */
+async function seedDemoActivity(): Promise<void> {
+  const userId = env.demoUserId;
+  logger.info(`Seeding demo activity feed for '${userId}'…`);
+
+  await activityRepository.deleteByUser(userId);
+
+  const [topics, phases] = await Promise.all([Topic.find().exec(), Phase.find().exec()]);
+  const topicByTitle = new Map(topics.map((t) => [t.title, t]));
+  const phaseByTitle = new Map(phases.map((p) => [p.title, p]));
+  const now = Date.now();
+
+  const docs = DEMO_ACTIVITY.map((event) => {
+    const entity =
+      event.entityType === 'phase'
+        ? phaseByTitle.get(event.entityTitle)
+        : topicByTitle.get(event.entityTitle);
+    if (!entity) {
+      logger.warn(`  ! demo activity references unknown ${event.entityType}: ${event.entityTitle}`);
+    }
+    return {
+      userId,
+      type: event.type,
+      entityType: event.entityType,
+      entityId: entity ? String(entity._id) : null,
+      title: event.title,
+      description: event.description,
+      createdAt: new Date(now - event.minutesAgo * 60_000),
+    };
+  });
+
+  await activityRepository.insertMany(docs);
+  logger.info(`  ✓ Demo activity seeded (${docs.length} events).`);
+}
+
+/**
+ * Module 2 · Sprint 1: seed the Problem Library. Flattens every topic's curated
+ * representative problems and adds curated extras (see seed/problems.ts).
+ * Returns the number of problems seeded.
+ */
+async function seedProblems(): Promise<number> {
+  logger.info('Seeding Problem Library…');
+  await problemRepository.deleteAll();
+
+  const topics = await Topic.find().exec();
+  const docs = buildProblemSeed(topics);
+  await problemRepository.insertMany(docs);
+
+  const representative = docs.filter((d) => d.representative).length;
+  logger.info(
+    `  ✓ Seeded ${docs.length} problems (${representative} representative, ${docs.length - representative} extra).`,
+  );
+  return docs.length;
+}
+
+/**
+ * Seed the demo user's per-problem states (status + favorite) so the library
+ * shows realistic progress. Only non-default states are persisted.
+ */
+async function seedUserProblems(): Promise<void> {
+  const userId = env.demoUserId;
+  logger.info(`Seeding demo problem states for '${userId}'…`);
+  await userProblemRepository.deleteByUser(userId);
+
+  const [problems, topics] = await Promise.all([Problem.find().exec(), Topic.find().exec()]);
+  const topicTitleById = new Map(topics.map((t) => [String(t._id), t.title]));
+  const solved = new Set(DEMO_SOLVED_TOPICS);
+  const inProgress = new Set(DEMO_IN_PROGRESS_TOPICS);
+  const favorites = new Set(DEMO_FAVORITE_TITLES);
+  const now = new Date();
+
+  const docs = problems
+    .map((p) => {
+      const topicTitle = topicTitleById.get(String(p.topicId)) ?? '';
+      const favorite = favorites.has(p.title);
+      let status: ProblemStatus = 'Not Started';
+      if (solved.has(topicTitle)) status = 'Solved';
+      else if (inProgress.has(topicTitle)) status = 'In Progress';
+      // Only persist meaningful (non-default) overlays.
+      if (status === 'Not Started' && !favorite) return null;
+      return {
+        userId,
+        problemId: p._id,
+        status,
+        favorite,
+        lastViewed: status === 'Not Started' ? null : now,
+      };
+    })
+    .filter((d): d is NonNullable<typeof d> => d !== null);
+
+  await userProblemRepository.insertMany(docs);
+  const favCount = docs.filter((d) => d.favorite).length;
+  logger.info(`  ✓ Seeded ${docs.length} user problem states (${favCount} favorites).`);
 }
 
 seed()

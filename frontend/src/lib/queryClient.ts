@@ -1,5 +1,6 @@
 import { QueryClient } from '@tanstack/react-query';
 import { ApiError } from '@/api/client';
+import type { ProblemsQuery } from '@/types';
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -28,6 +29,8 @@ export const queryKeys = {
   topic: (id: string) => ['topics', id] as const,
   topicRelated: (id: string) => ['topics', id, 'related'] as const,
   topicProblems: (id: string) => ['topics', id, 'problems'] as const,
+  // --- Sprint 4: dashboard aggregation ---
+  dashboard: ['dashboard'] as const,
   // --- Sprint 3: learning engine ---
   learningState: ['learning', 'state'] as const,
   progress: ['progress'] as const,
@@ -35,4 +38,9 @@ export const queryKeys = {
   unlockedTopics: ['topics', 'unlocked'] as const,
   topicProgress: (id: string) => ['topics', id, 'progress'] as const,
   topicMastery: (id: string) => ['topics', id, 'mastery'] as const,
+  // --- Module 2 · Sprint 1: problem library ---
+  problems: ['problems'] as const,
+  problemsList: (query: ProblemsQuery) => ['problems', 'list', query] as const,
+  problem: (id: string) => ['problems', 'detail', id] as const,
+  problemFacets: ['problems', 'facets'] as const,
 };

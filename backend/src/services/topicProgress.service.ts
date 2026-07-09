@@ -5,10 +5,13 @@ import { topicProgressRepository } from '../repositories/topicProgress.repositor
 import { learningRepository } from '../repositories/learning.repository.js';
 import { masteryService } from './mastery.service.js';
 import { unlockService } from './unlock.service.js';
+import { activityService } from './activity.service.js';
 import { ApiError } from '../utils/ApiError.js';
 import type { TopicProgressDocument } from '../models/TopicProgress.js';
 import type { ITopic } from '../models/Topic.js';
 import type { HydratedDocument } from 'mongoose';
+import type { ActivityInput } from '../repositories/activity.repository.js';
+import type { TopicProgressStatus } from '../types/domain.js';
 import type { MasteryDTO, TopicProgressDTO } from './learning.dto.js';
 
 type TopicDoc = HydratedDocument<ITopic>;
@@ -89,9 +92,38 @@ export const topicProgressService = {
       lastActiveAt: now,
     });
 
+    // Log a recent-activity event for the transition (best-effort; never blocks).
+    const event = activityFor(topic, existing?.status ?? 'Not Started', status);
+    if (event) await activityService.record(userId, event);
+
     return buildProgressDTO(userId, topic, saved, true);
   },
 };
+
+/**
+ * Derive the single most-significant activity event for a status transition, or
+ * null when nothing noteworthy changed. Orchestration only — no mastery rules.
+ */
+function activityFor(
+  topic: TopicDoc,
+  prev: TopicProgressStatus,
+  next: TopicProgressStatus,
+): ActivityInput | null {
+  const base = { entityType: 'topic' as const, entityId: String(topic._id) };
+  if (next === 'Mastered' && prev !== 'Mastered') {
+    return { ...base, type: 'topic-mastered', title: `Mastered ${topic.title}`, description: 'Reached mastery on this topic.' };
+  }
+  if (isCompletedStatus(next) && !isCompletedStatus(prev)) {
+    return { ...base, type: 'topic-completed', title: `Completed ${topic.title}`, description: 'Marked this topic as completed.' };
+  }
+  if (prev === 'Not Started' && next !== 'Not Started') {
+    return { ...base, type: 'topic-started', title: `Started ${topic.title}`, description: 'Began working through this topic.' };
+  }
+  if (next === 'In Progress') {
+    return { ...base, type: 'mastery-updated', title: `Updated mastery on ${topic.title}`, description: 'Logged new progress on this topic.' };
+  }
+  return null;
+}
 
 async function requireTopic(topicId: string): Promise<TopicDoc> {
   const topic = await topicRepository.findById(topicId);

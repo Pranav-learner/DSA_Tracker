@@ -24,6 +24,19 @@ import { unlockService } from '../src/services/unlock.service.js';
 import { recommendationService } from '../src/services/recommendation.service.js';
 import { learningStateService } from '../src/services/learningState.service.js';
 import { topicProgressService } from '../src/services/topicProgress.service.js';
+import { dashboardService } from '../src/services/dashboard.service.js';
+import { activityService } from '../src/services/activity.service.js';
+import { Problem } from '../src/models/Problem.js';
+import { problemService } from '../src/services/problem.service.js';
+import { problemRepository } from '../src/repositories/problem.repository.js';
+import { userProblemRepository } from '../src/repositories/userProblem.repository.js';
+import {
+  buildProblemSeed,
+  DEMO_SOLVED_TOPICS,
+  DEMO_IN_PROGRESS_TOPICS,
+  DEMO_FAVORITE_TITLES,
+} from '../src/seed/problems.js';
+import type { ProblemStatus } from '../src/types/domain.js';
 import { topicProgressRepository } from '../src/repositories/topicProgress.repository.js';
 import { learningRepository } from '../src/repositories/learning.repository.js';
 import { DEMO_PROGRESS, DEMO_CURRENT_TITLE } from '../src/seed/progress.js';
@@ -204,6 +217,102 @@ async function run(): Promise<void> {
   const swAfter = afterUnlock.topics.find((o) => o.topicId === sw.id)!;
   console.log(`after study: SW=${swAfter.mastery}% (${swAfter.status}) → Kadane unlocked=${kadaneAfter.unlocked}`);
 
+  // --- Sprint 4: Dashboard aggregation + Activity ---
+  // Completing Sliding Window above should have recorded an activity event.
+  const activity = await activityService.getRecent(DEMO_USER, 10);
+  const dashboard = await dashboardService.get(DEMO_USER);
+  console.log(
+    `dashboard: currentTopic=${dashboard.currentTopic?.title ?? '—'} ` +
+      `currentPhase=${dashboard.currentPhase?.title ?? '—'} phases=${dashboard.roadmap.length} ` +
+      `rec=[${dashboard.recommendation.type}] recTopic=${dashboard.recommendedTopic?.title ?? '—'} ` +
+      `activity=${activity.length} phaseRemaining=${dashboard.currentPhaseProgress?.estimatedTimeRemainingHours ?? '—'}h`,
+  );
+  const completedState = dashboard.roadmap.find((p) => p.state === 'completed');
+  const currentState = dashboard.roadmap.find((p) => p.state === 'current');
+
+  assert(dashboard.roadmap.length === 11, 'dashboard roadmap covers all 11 phases');
+  assert(dashboard.overall.topicsTotal === 59, 'dashboard overall aggregates all topics');
+  assert(Boolean(completedState), 'roadmap has a completed phase (Phase 0)');
+  assert(Boolean(currentState), 'roadmap marks the current phase');
+  assert(dashboard.currentPhaseProgress !== null, 'dashboard resolves current phase progress');
+  assert(
+    dashboard.currentPhaseProgress!.estimatedTimeRemainingHours >= 0,
+    'estimated time remaining is non-negative',
+  );
+  assert(dashboard.recentActivity.length >= 1, 'activity feed is populated after study');
+  assert(
+    activity.some((a) => a.type === 'topic-completed' || a.type === 'topic-mastered'),
+    'completing a topic recorded a completion activity',
+  );
+  assert(
+    activity.every((a, i) => i === 0 || activity[i - 1].createdAt >= a.createdAt),
+    'activity feed is newest-first',
+  );
+
+  // --- Module 2 · Sprint 1: Problem Library ---
+  await problemRepository.deleteAll();
+  const topicsForProblems = await Topic.find().exec();
+  await problemRepository.insertMany(buildProblemSeed(topicsForProblems));
+
+  // Seed demo user problem states (mirrors seed.ts).
+  const topicTitleById = new Map(topicsForProblems.map((t) => [String(t._id), t.title]));
+  const solvedSet = new Set(DEMO_SOLVED_TOPICS);
+  const inProgressSet = new Set(DEMO_IN_PROGRESS_TOPICS);
+  const favSet = new Set(DEMO_FAVORITE_TITLES);
+  const seededProblems = await Problem.find().exec();
+  const upDocs = seededProblems
+    .map((p) => {
+      const tt = topicTitleById.get(String(p.topicId)) ?? '';
+      const favorite = favSet.has(p.title);
+      let st: ProblemStatus = 'Not Started';
+      if (solvedSet.has(tt)) st = 'Solved';
+      else if (inProgressSet.has(tt)) st = 'In Progress';
+      if (st === 'Not Started' && !favorite) return null;
+      return { userId: DEMO_USER, problemId: p._id, status: st, favorite, lastViewed: st === 'Not Started' ? null : seedNow };
+    })
+    .filter((d): d is NonNullable<typeof d> => d !== null);
+  await userProblemRepository.insertMany(upDocs);
+
+  const facets = await problemService.facets();
+  const allProblems = await problemService.list(DEMO_USER, { page: 1, pageSize: 20, sort: 'difficulty', order: 'asc' });
+  const swTopicProblems = await problemService.list(DEMO_USER, { page: 1, pageSize: 100, sort: 'difficulty', order: 'asc', topic: sw.id });
+  const solvedList = await problemService.list(DEMO_USER, { page: 1, pageSize: 100, sort: 'title', order: 'asc', status: 'Solved' });
+  const favList = await problemService.list(DEMO_USER, { page: 1, pageSize: 100, sort: 'title', order: 'asc', favorite: true });
+  const searchList = await problemService.list(DEMO_USER, { page: 1, pageSize: 50, sort: 'title', order: 'asc', q: 'subarray' });
+  const extrasList = await problemService.list(DEMO_USER, { page: 1, pageSize: 100, sort: 'title', order: 'asc', representative: false });
+  const titleSorted = await problemService.list(DEMO_USER, { page: 1, pageSize: 10, sort: 'title', order: 'asc' });
+  const problemDetail = await problemService.getById(DEMO_USER, allProblems.items[0].id);
+
+  console.log(
+    `problems: total=${allProblems.total} pages=${allProblems.totalPages} patterns=${facets.patterns.length} ` +
+      `platforms=${facets.platforms.length}`,
+  );
+  console.log(
+    `  filters: topic(SW)=${swTopicProblems.total} solved=${solvedList.total} fav=${favList.total} ` +
+      `search('subarray')=${searchList.total} extras=${extrasList.total}`,
+  );
+  console.log(`  detail: "${problemDetail.title}" topic=${problemDetail.topic?.title} phase=${problemDetail.phase?.title} status=${problemDetail.status}`);
+
+  const titles = titleSorted.items.map((p) => p.title);
+
+  assert(allProblems.total >= 150 && allProblems.total <= 220, 'library holds 150–200ish problems');
+  assert(allProblems.items.length === 20 && allProblems.totalPages > 1 && allProblems.hasNext, 'pagination works');
+  assert(facets.patterns.length > 5 && facets.platforms.length >= 3, 'facets expose patterns + platforms');
+  assert(swTopicProblems.total >= 3 && swTopicProblems.items.every((p) => p.topicId === sw.id), 'topic filter works');
+  assert(solvedList.total >= 1 && solvedList.items.every((p) => p.status === 'Solved'), 'status filter works');
+  assert(favList.total >= 1 && favList.items.every((p) => p.favorite), 'favorite filter works');
+  assert(
+    searchList.total >= 1 &&
+      searchList.items.every(
+        (p) => /subarray/i.test(p.title) || /subarray/i.test(p.pattern) || p.tags.some((t) => /subarray/i.test(t)),
+      ),
+    'search matches title/pattern/tags',
+  );
+  assert(extrasList.total >= 10 && extrasList.items.every((p) => p.representative === false), 'representative filter works');
+  assert(titles.every((t, i) => i === 0 || titles[i - 1].localeCompare(t) <= 0), 'title sort is ascending');
+  assert(Boolean(problemDetail.topic) && Boolean(problemDetail.phase), 'detail resolves topic + phase refs');
+  assert(extrasList.items.some((p) => p.pattern === 'Greedy'), 'Greedy pattern is covered');
+
   // Mastery weights sanity: all-100 metrics → 100% overall.
   const perfect = masteryService.computeOverall({
     recognition: 100, implementation: 100, standard: 100, variant: 100,
@@ -258,6 +367,14 @@ async function run(): Promise<void> {
   const httpMastery = await getJson(`/api/topics/${sw.id}/mastery`);
   const httpBadPatch = await sendJson('PATCH', `/api/topics/${sw.id}/progress`, { recognition: 150 });
   const httpLockedUnlock = await sendJson('POST', `/api/topics/${bsoa.id}/unlock`);
+  const httpDashboard = await getJson('/api/dashboard');
+  const httpLibList = await getJson('/api/problems?pageSize=5&sort=difficulty');
+  const httpProblemsSearch = await getJson('/api/problems/search?q=binary');
+  const httpFacets = await getJson('/api/problems/facets');
+  const httpProblemDetail = await getJson(`/api/problems/${allProblems.items[0].id}`);
+  const httpProblemBadId = await getJson('/api/problems/not-an-id');
+  const httpProblemMissing = await getJson('/api/problems/64b2f0000000000000000000');
+  const httpProblemsBadPage = await getJson('/api/problems?page=abc'); // coerced → 1, still 200
   server.close();
 
   console.log(
@@ -267,7 +384,7 @@ async function run(): Promise<void> {
   console.log(
     `http engine: state=${httpState.status} progress=${httpProgress.status} rec=${httpRec.status} ` +
       `unlocked=${httpUnlocked.status} topicProgress=${httpTopicProgress.status} mastery=${httpMastery.status} ` +
-      `badPatch=${httpBadPatch.status} lockedUnlock=${httpLockedUnlock.status}`,
+      `badPatch=${httpBadPatch.status} lockedUnlock=${httpLockedUnlock.status} dashboard=${httpDashboard.status}`,
   );
 
   assert(httpDetail.status === 200 && httpDetail.body.success, 'GET /topics/:id → 200');
@@ -284,6 +401,20 @@ async function run(): Promise<void> {
   assert(httpMastery.status === 200, 'GET /topics/:id/mastery → 200');
   assert(httpBadPatch.status === 400, 'invalid mastery value → 400');
   assert(httpLockedUnlock.status === 423, 'unlocking a locked topic → 423');
+  assert(httpDashboard.status === 200 && httpDashboard.body.success, 'GET /dashboard → 200');
+  // Module 2 · Sprint 1 HTTP assertions:
+  console.log(
+    `http problems: list=${httpLibList.status} search=${httpProblemsSearch.status} facets=${httpFacets.status} ` +
+      `detail=${httpProblemDetail.status} badId=${httpProblemBadId.status} missing=${httpProblemMissing.status} ` +
+      `badPage=${httpProblemsBadPage.status}`,
+  );
+  assert(httpLibList.status === 200 && httpLibList.body.success, 'GET /problems → 200');
+  assert(httpProblemsSearch.status === 200 && httpProblemsSearch.body.success, 'GET /problems/search → 200');
+  assert(httpFacets.status === 200 && httpFacets.body.success, 'GET /problems/facets → 200');
+  assert(httpProblemDetail.status === 200 && httpProblemDetail.body.success, 'GET /problems/:id → 200');
+  assert(httpProblemBadId.status === 400, 'GET /problems/:id invalid → 400');
+  assert(httpProblemMissing.status === 404, 'GET /problems/:id missing → 404');
+  assert(httpProblemsBadPage.status === 200, 'GET /problems bad page is coerced → 200');
 
   console.log('\n✅ ALL ASSERTIONS PASSED');
 

@@ -249,6 +249,66 @@ export interface LearningState {
   recommendation: Recommendation;
 }
 
+/* ---- Sprint 4: Dashboard aggregation ---- */
+
+export type ActivityType =
+  | 'topic-started'
+  | 'topic-completed'
+  | 'topic-mastered'
+  | 'topic-unlocked'
+  | 'mastery-updated'
+  | 'phase-unlocked'
+  | 'phase-completed';
+
+export type ActivityEntityType = 'topic' | 'phase';
+
+export interface ActivityEvent {
+  id: string;
+  type: ActivityType;
+  entityType: ActivityEntityType;
+  entityId: string | null;
+  title: string;
+  description: string;
+  createdAt: string;
+}
+
+export type RoadmapPhaseState = 'completed' | 'current' | 'unlocked' | 'locked';
+
+export interface RoadmapSummaryPhase {
+  phaseId: string;
+  title: string;
+  slug: string;
+  order: number;
+  color: string;
+  icon: string;
+  state: RoadmapPhaseState;
+  completionPercent: number;
+  topicsCompleted: number;
+  topicsTotal: number;
+  mastery: number;
+}
+
+export interface DashboardPhaseProgress extends PhaseProgress {
+  phase: PhaseRef;
+  estimatedTotalHours: number;
+  estimatedTimeRemainingHours: number;
+}
+
+/** Response of GET /dashboard — the aggregated learner home screen. */
+export interface Dashboard {
+  userId: string;
+  currentPhase: PhaseRef | null;
+  currentTopic: TopicSummary | null;
+  currentStage: LadderStage | null;
+  currentMastery: number;
+  overall: OverallProgress;
+  recommendation: Recommendation;
+  recommendedTopic: TopicSummary | null;
+  currentPhaseProgress: DashboardPhaseProgress | null;
+  roadmap: RoadmapSummaryPhase[];
+  recentActivity: ActivityEvent[];
+}
+
 export interface RoadmapStats {
   totalPhases: number;
   unlockedPhases: number;
@@ -262,6 +322,84 @@ export interface Roadmap {
   phases: Phase[];
   stats: RoadmapStats;
   progress: Progress;
+}
+
+/* ---- Module 2 · Sprint 1: Problem Library ---- */
+
+export type ProblemStatus = 'Not Started' | 'In Progress' | 'Solved';
+
+/** A problem as it appears in the library list/table/grid. */
+export interface ProblemListItem {
+  id: string;
+  title: string;
+  slug: string;
+  platform: Platform;
+  platformProblemId: string;
+  url: string;
+  difficulty: Difficulty;
+  pattern: string;
+  tags: string[];
+  representative: boolean;
+  estimatedSolveTime: number;
+  phaseId: string;
+  topicId: string;
+  editorialUrl?: string;
+  status: ProblemStatus;
+  favorite: boolean;
+}
+
+/** Lightweight topic reference embedded in a problem detail. */
+export interface TopicRef {
+  id: string;
+  title: string;
+  slug: string;
+  phaseId: string;
+}
+
+export interface ProblemDetail extends ProblemListItem {
+  topic: TopicRef | null;
+  phase: PhaseRef | null;
+  lastViewed: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Response of GET /problems — items plus pagination metadata. */
+export interface PaginatedProblems {
+  items: ProblemListItem[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
+export type ProblemSortField = 'difficulty' | 'title' | 'estimatedSolveTime' | 'platform' | 'recent';
+
+/** Query accepted by the library list/search (all fields optional). */
+export interface ProblemsQuery {
+  page?: number;
+  pageSize?: number;
+  q?: string;
+  platform?: Platform;
+  difficulty?: Difficulty;
+  phase?: string;
+  topic?: string;
+  pattern?: string;
+  status?: ProblemStatus;
+  representative?: boolean;
+  favorite?: boolean;
+  sort?: ProblemSortField;
+  order?: 'asc' | 'desc';
+}
+
+/** Available filter values returned by GET /problems/facets. */
+export interface ProblemFacets {
+  platforms: Platform[];
+  difficulties: Difficulty[];
+  patterns: string[];
+  statuses: ProblemStatus[];
 }
 
 /** Success envelope returned by every backend endpoint. */
