@@ -1,6 +1,6 @@
 import { QueryClient } from '@tanstack/react-query';
 import { ApiError } from '@/api/client';
-import type { ProblemsQuery } from '@/types';
+import type { ProblemsQuery, NotebookQuery } from '@/types';
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -46,4 +46,10 @@ export const queryKeys = {
   // --- Module 2 · Sprint 2: attempt tracking ---
   attempts: (problemId: string) => ['problems', problemId, 'attempts'] as const,
   attemptSummary: (problemId: string) => ['problems', problemId, 'summary'] as const,
+  // --- Module 2 · Sprint 3: pattern notebook ---
+  notebook: ['notebook'] as const,
+  notebookList: (query: NotebookQuery) => ['notebook', 'list', query] as const,
+  notebookEntry: (id: string) => ['notebook', 'detail', id] as const,
+  notebookFacets: ['notebook', 'facets'] as const,
+  notebookByProblem: (problemId: string) => ['notebook', 'by-problem', problemId] as const,
 };

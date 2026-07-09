@@ -12,6 +12,8 @@ import {
   Code2,
   PencilLine,
   PartyPopper,
+  NotebookPen,
+  BookMarked,
   type LucideIcon,
 } from 'lucide-react';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -31,6 +33,9 @@ const EVENT_META: Record<ActivityType, EventMeta> = {
   'attempt-started': { icon: Code2, tile: 'border-primary/40 bg-primary/15 text-primary' },
   'attempt-updated': { icon: PencilLine, tile: 'border-warning/40 bg-warning/15 text-warning' },
   'problem-solved': { icon: PartyPopper, tile: 'border-success/40 bg-success/15 text-success' },
+  'notebook-created': { icon: NotebookPen, tile: 'border-primary/40 bg-primary/15 text-primary' },
+  'notebook-updated': { icon: PencilLine, tile: 'border-warning/40 bg-warning/15 text-warning' },
+  'problem-documented': { icon: BookMarked, tile: 'border-success/40 bg-success/15 text-success' },
 };
 
 /**

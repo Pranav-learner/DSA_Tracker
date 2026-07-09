@@ -489,6 +489,137 @@ export interface CreateAttemptInput {
 /** Body for PATCH /attempts/:id (all optional). */
 export type UpdateAttemptInput = Partial<Omit<CreateAttemptInput, 'problemId'>>;
 
+/* ---- Module 2 · Sprint 3: Pattern Notebook ---- */
+
+export interface NotebookAlternative {
+  title: string;
+  detail: string;
+}
+
+export interface RelatedProblemRef {
+  id: string;
+  title: string;
+  slug: string;
+  pattern: string;
+  difficulty: Difficulty;
+  platform: Platform;
+  topicId: string;
+  topicTitle: string;
+}
+
+export interface NotebookRef {
+  id: string;
+  problemId: string;
+  title: string;
+  pattern: string;
+  confidence: number;
+}
+
+export interface NotebookListItem {
+  id: string;
+  problemId: string;
+  topicId: string;
+  phaseId: string;
+  title: string;
+  pattern: string;
+  platform: Platform;
+  topicTitle: string;
+  confidence: number;
+  revisionCount: number;
+  relatedCount: number;
+  lastReviewedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NotebookDetail {
+  id: string;
+  userId: string;
+  problemId: string;
+  topicId: string;
+  phaseId: string;
+  title: string;
+  platform: Platform;
+  pattern: string;
+  recognitionKeywords: string[];
+  observation: string;
+  coreAlgorithm: string;
+  timeComplexity: string;
+  spaceComplexity: string;
+  alternativeSolutions: NotebookAlternative[];
+  commonMistakes: string[];
+  lessonsLearned: string;
+  personalNotes: string;
+  confidence: number;
+  revisionDates: string[];
+  revisionCount: number;
+  lastReviewedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  topic: TopicRef | null;
+  phase: PhaseRef | null;
+  relatedProblems: RelatedProblemRef[];
+  relatedEntries: NotebookRef[];
+}
+
+export interface PaginatedNotebook {
+  items: NotebookListItem[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
+export interface NotebookFacets {
+  patterns: string[];
+  platforms: Platform[];
+}
+
+export type NotebookSortField = 'recent' | 'confidence' | 'reviewed' | 'alpha';
+
+export interface NotebookQuery {
+  page?: number;
+  pageSize?: number;
+  q?: string;
+  pattern?: string;
+  topic?: string;
+  phase?: string;
+  platform?: Platform;
+  problem?: string;
+  tag?: string;
+  confidenceMin?: number;
+  confidenceMax?: number;
+  sort?: NotebookSortField;
+  order?: 'asc' | 'desc';
+}
+
+/** Body for POST /notebook (problemId required; rest pre-filled from the problem). */
+export interface CreateNotebookInput {
+  problemId: string;
+  title?: string;
+  pattern?: string;
+  platform?: Platform;
+  recognitionKeywords?: string[];
+  observation?: string;
+  coreAlgorithm?: string;
+  timeComplexity?: string;
+  spaceComplexity?: string;
+  alternativeSolutions?: NotebookAlternative[];
+  commonMistakes?: string[];
+  lessonsLearned?: string;
+  personalNotes?: string;
+  confidence?: number;
+  relatedProblems?: string[];
+  relatedEntries?: string[];
+}
+
+/** Body for PATCH /notebook/:id (all optional; `review` appends a revision). */
+export type UpdateNotebookInput = Partial<Omit<CreateNotebookInput, 'problemId'>> & {
+  review?: boolean;
+};
+
 /** Success envelope returned by every backend endpoint. */
 export interface ApiEnvelope<T> {
   success: true;
