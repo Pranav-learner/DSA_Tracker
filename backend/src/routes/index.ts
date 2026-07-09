@@ -11,6 +11,7 @@ import attemptRoutes from './attempt.routes.js';
 import notebookRoutes from './notebook.routes.js';
 import revisionRoutes from './revision.routes.js';
 import retentionRoutes, { confidenceRouter } from './retention.routes.js';
+import analyticsRoutes from '../analytics/routes/analytics.routes.js';
 
 /** Root API router — mounts every feature router under /api. */
 const api = Router();
@@ -69,6 +70,13 @@ api.get('/', (_req, res) => {
         'GET /api/retention/history',
         'GET|PATCH /api/retention/:entityId',
         'GET /api/confidence',
+        'GET /api/analytics/overview',
+        'GET /api/analytics/learning',
+        'GET /api/analytics/problems',
+        'GET /api/analytics/knowledge',
+        'GET /api/analytics/revision',
+        'GET /api/analytics/retention',
+        'GET /api/analytics/activity',
       ],
     },
   });
@@ -87,5 +95,6 @@ api.use('/notebook', notebookRoutes);
 api.use('/revision', revisionRoutes);
 api.use('/retention', retentionRoutes);
 api.use('/confidence', confidenceRouter);
+api.use('/analytics', analyticsRoutes);
 
 export default api;

@@ -10,6 +10,7 @@ import problemsReducer from './slices/problemsSlice';
 import notebookReducer from './slices/notebookSlice';
 import revisionReducer from './slices/revisionSlice';
 import retentionReducer from './slices/retentionSlice';
+import analyticsReducer from './slices/analyticsSlice';
 
 /**
  * Redux store — holds **UI state only**. Server data (phases, topics) is owned
@@ -28,6 +29,7 @@ export const store = configureStore({
     notebook: notebookReducer,
     revision: revisionReducer,
     retention: retentionReducer,
+    analytics: analyticsReducer,
   },
 });
 

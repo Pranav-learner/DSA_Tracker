@@ -1114,6 +1114,102 @@ export interface UpdateRetentionInput {
   confidenceScore: number;
 }
 
+/* ---- Module 4 · Sprint 1: Analytics Infrastructure ---- */
+
+export type AnalyticsRange = '7d' | '30d' | '90d' | '180d' | '365d' | 'all';
+
+export interface DistributionSlice<K extends string = string> {
+  key: K;
+  count: number;
+  percent: number;
+}
+
+export interface TimePoint {
+  date: string;
+  count: number;
+}
+
+export interface PhaseProgressSlice {
+  phaseId: string;
+  title: string;
+  completionPercent: number;
+  mastery: number;
+  topicsCompleted: number;
+  topicsTotal: number;
+}
+
+export interface LearningSummary {
+  topicsCompleted: number;
+  topicsRemaining: number;
+  topicsTotal: number;
+  phasesCompleted: number;
+  phasesTotal: number;
+  completionPercent: number;
+  averageMastery: number;
+  averageConfidence: number;
+  learningVelocityPerWeek: number;
+  learningTimeHours: number;
+  phaseProgress: PhaseProgressSlice[];
+}
+
+export interface ProblemSummary {
+  totalProblems: number;
+  solvedProblems: number;
+  attemptedProblems: number;
+  successRate: number;
+  averageSolveTimeMinutes: number;
+  platformDistribution: DistributionSlice<Platform>[];
+  difficultyDistribution: DistributionSlice<Difficulty>[];
+}
+
+export interface KnowledgeSummaryAnalytics {
+  notebookEntries: number;
+  representativeProblems: number;
+  patternsLearned: number;
+  topicsCovered: number;
+  coveragePercent: number;
+  documentationRate: number;
+  averageConfidence: number;
+}
+
+export interface RevisionSummaryAnalytics {
+  reviewsCompleted: number;
+  overdueReviews: number;
+  totalScheduled: number;
+  reviewFrequencyPerWeek: number;
+  averageReviewDurationMinutes: number;
+  revisionConsistencyPercent: number;
+}
+
+export interface RetentionSummaryAnalytics {
+  averageRetention: number;
+  averageConfidence: number;
+  knowledgeHealthPercent: number;
+  atRiskTopics: number;
+  masteredTopics: number;
+  needsReviewTopics: number;
+  totalTracked: number;
+}
+
+export interface ActivitySummary {
+  totalActivities: number;
+  activeDays: number;
+  currentStreak: number;
+  longestStreak: number;
+  dailyActivity: TimePoint[];
+  weeklyActivity: TimePoint[];
+  monthlyActivity: TimePoint[];
+}
+
+export interface AnalyticsOverview {
+  learning: LearningSummary;
+  problems: ProblemSummary;
+  knowledge: KnowledgeSummaryAnalytics;
+  revision: RevisionSummaryAnalytics;
+  retention: RetentionSummaryAnalytics;
+  activity: ActivitySummary;
+}
+
 /** Success envelope returned by every backend endpoint. */
 export interface ApiEnvelope<T> {
   success: true;

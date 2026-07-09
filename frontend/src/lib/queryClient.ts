@@ -74,4 +74,7 @@ export const queryKeys = {
   retentionHistory: (params: { limit?: number }) => ['retention', 'history', params] as const,
   retentionEntity: (entityId: string) => ['retention', 'entity', entityId] as const,
   confidence: ['confidence'] as const,
+  // --- Module 4 · Sprint 1: analytics ---
+  analytics: ['analytics'] as const,
+  analyticsScope: (scope: string, params: object) => ['analytics', scope, params] as const,
 };

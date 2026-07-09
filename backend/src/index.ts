@@ -3,6 +3,7 @@ import { connectDatabase, disconnectDatabase } from './config/db.js';
 import { env } from './config/env.js';
 import { logger } from './utils/logger.js';
 import { startRetentionJob, stopRetentionJob } from './jobs/retentionDecay.job.js';
+import { startAnalyticsJob, stopAnalyticsJob } from './jobs/analyticsRefresh.job.js';
 
 async function bootstrap(): Promise<void> {
   await connectDatabase();
@@ -14,10 +15,13 @@ async function bootstrap(): Promise<void> {
 
   // Module 3 · Sprint 3 — start the independent background retention decay job.
   startRetentionJob();
+  // Module 4 · Sprint 1 — start the independent analytics refresh job.
+  startAnalyticsJob();
 
   const shutdown = async (signal: string) => {
     logger.warn(`${signal} received — shutting down gracefully`);
     stopRetentionJob();
+    stopAnalyticsJob();
     server.close(async () => {
       await disconnectDatabase();
       process.exit(0);

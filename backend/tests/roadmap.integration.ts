@@ -37,6 +37,9 @@ import { revisionQueueService } from '../src/services/revisionQueue.service.js';
 import { revisionSessionService } from '../src/services/revisionSession.service.js';
 import { revisionWorkspaceService } from '../src/services/revisionWorkspace.service.js';
 import { retentionService } from '../src/services/retention.service.js';
+import { analyticsAggregationService } from '../src/analytics/services/analyticsAggregation.service.js';
+import { resolveAnalyticsWindow } from '../src/analytics/validators/analytics.validator.js';
+import { metricsEngine } from '../src/analytics/services/metricsEngine.js';
 import { problemRepository } from '../src/repositories/problem.repository.js';
 import { userProblemRepository } from '../src/repositories/userProblem.repository.js';
 import {
@@ -786,6 +789,66 @@ async function run(): Promise<void> {
   assert(retActivity.some((a) => a.type === 'retention-updated'), 'retention-updated activity generated');
   assert(retActivity.some((a) => a.type === 'confidence-increased'), 'confidence-increased activity generated');
 
+  // --- Module 4 · Sprint 1: Analytics infrastructure ---
+  const anWindow = resolveAnalyticsWindow({ range: '30d' });
+  const anOverview = await analyticsAggregationService.overview(DEMO_USER, anWindow);
+  console.log(
+    `  analytics: learning{done=${anOverview.learning.topicsCompleted} velocity=${anOverview.learning.learningVelocityPerWeek}/wk} ` +
+      `problems{solved=${anOverview.problems.solvedProblems}/${anOverview.problems.totalProblems} success=${anOverview.problems.successRate}%} ` +
+      `knowledge{entries=${anOverview.knowledge.notebookEntries} coverage=${anOverview.knowledge.coveragePercent}%} ` +
+      `revision{done=${anOverview.revision.reviewsCompleted} freq=${anOverview.revision.reviewFrequencyPerWeek}/wk} ` +
+      `retention{avg=${anOverview.retention.averageRetention}% health=${anOverview.retention.knowledgeHealthPercent}%} ` +
+      `activity{total=${anOverview.activity.totalActivities} streak=${anOverview.activity.currentStreak} days=${anOverview.activity.activeDays}}`,
+  );
+  assert(
+    anOverview.learning.topicsTotal === 59 && anOverview.learning.completionPercent >= 0 && anOverview.learning.learningVelocityPerWeek >= 0,
+    'analytics learning summary aggregates',
+  );
+  assert(
+    anOverview.problems.totalProblems >= 1 &&
+      anOverview.problems.solvedProblems >= 0 &&
+      anOverview.problems.successRate >= 0 && anOverview.problems.successRate <= 100 &&
+      Array.isArray(anOverview.problems.platformDistribution) &&
+      Array.isArray(anOverview.problems.difficultyDistribution),
+    'analytics problem summary aggregates with distributions',
+  );
+  assert(
+    anOverview.knowledge.notebookEntries >= 1 &&
+      anOverview.knowledge.coveragePercent >= 0 && anOverview.knowledge.averageConfidence >= 0,
+    'analytics knowledge summary aggregates',
+  );
+  assert(
+    anOverview.revision.reviewsCompleted >= 0 &&
+      anOverview.revision.revisionConsistencyPercent >= 0 && anOverview.revision.revisionConsistencyPercent <= 100,
+    'analytics revision summary aggregates',
+  );
+  assert(
+    anOverview.retention.totalTracked >= 1 &&
+      anOverview.retention.knowledgeHealthPercent >= 0 && anOverview.retention.knowledgeHealthPercent <= 100,
+    'analytics retention summary aggregates',
+  );
+  assert(
+    anOverview.activity.totalActivities >= 1 &&
+      anOverview.activity.currentStreak >= 0 &&
+      anOverview.activity.longestStreak >= anOverview.activity.currentStreak &&
+      Array.isArray(anOverview.activity.dailyActivity),
+    'analytics activity summary aggregates with streaks',
+  );
+
+  // MetricsEngine sanity + cache re-hit (second call returns identical, cached object).
+  assert(metricsEngine.percentage(3, 4) === 75 && metricsEngine.successRate(0, 0) === 0, 'MetricsEngine computes correctly');
+  const anCached = await analyticsAggregationService.learning(DEMO_USER, anWindow);
+  const anCached2 = await analyticsAggregationService.learning(DEMO_USER, anWindow);
+  assert(JSON.stringify(anCached) === JSON.stringify(anCached2), 'analytics section results are stable/cacheable');
+  // Custom-range validation rejects future / inverted windows.
+  let anBadRange = false;
+  try {
+    resolveAnalyticsWindow({ from: '2030-01-01', to: '2020-01-01' });
+  } catch {
+    anBadRange = true;
+  }
+  assert(anBadRange, 'analytics rejects an inverted date range');
+
   // Mastery weights sanity: all-100 metrics → 100% overall.
   const perfect = masteryService.computeOverall({
     recognition: 100, implementation: 100, standard: 100, variant: 100,
@@ -933,6 +996,16 @@ async function run(): Promise<void> {
   const httpConfidence = await getJson('/api/confidence');
   const httpRetMissing = await getJson('/api/retention/no-such-entity');
   const httpRetBadPatch = await sendJson('PATCH', retEntityPath, { confidenceScore: 150 });
+  // Module 4 · Sprint 1 analytics requests (before the server closes).
+  const httpAnOverview = await getJson('/api/analytics/overview?range=30d');
+  const httpAnLearning = await getJson('/api/analytics/learning');
+  const httpAnProblems = await getJson('/api/analytics/problems');
+  const httpAnKnowledge = await getJson('/api/analytics/knowledge');
+  const httpAnRevision = await getJson('/api/analytics/revision');
+  const httpAnRetention = await getJson('/api/analytics/retention');
+  const httpAnActivity = await getJson('/api/analytics/activity?range=all');
+  const httpAnBadRange = await getJson('/api/analytics/overview?range=bogus');
+  const httpAnBadDates = await getJson('/api/analytics/overview?from=2030-01-01&to=2020-01-01');
   server.close();
 
   console.log(
@@ -1063,6 +1136,23 @@ async function run(): Promise<void> {
   assert(httpConfidence.status === 200 && httpConfidence.body.success, 'GET /confidence → 200');
   assert(httpRetMissing.status === 404, 'GET /retention missing entity → 404');
   assert(httpRetBadPatch.status === 400, 'PATCH /retention bad confidence → 400');
+
+  // Module 4 · Sprint 1 HTTP assertions:
+  console.log(
+    `http analytics: overview=${httpAnOverview.status} learning=${httpAnLearning.status} problems=${httpAnProblems.status} ` +
+      `knowledge=${httpAnKnowledge.status} revision=${httpAnRevision.status} retention=${httpAnRetention.status} ` +
+      `activity=${httpAnActivity.status} badRange=${httpAnBadRange.status} badDates=${httpAnBadDates.status}`,
+  );
+  const anBody = httpAnOverview.body as { success: boolean; status?: string; timestamp?: string; data?: unknown; metadata?: unknown };
+  assert(httpAnOverview.status === 200 && anBody.success && anBody.status === 'success' && typeof anBody.timestamp === 'string' && anBody.metadata !== undefined, 'GET /analytics/overview → 200 with analytics envelope');
+  assert(httpAnLearning.status === 200 && httpAnLearning.body.success, 'GET /analytics/learning → 200');
+  assert(httpAnProblems.status === 200 && httpAnProblems.body.success, 'GET /analytics/problems → 200');
+  assert(httpAnKnowledge.status === 200 && httpAnKnowledge.body.success, 'GET /analytics/knowledge → 200');
+  assert(httpAnRevision.status === 200 && httpAnRevision.body.success, 'GET /analytics/revision → 200');
+  assert(httpAnRetention.status === 200 && httpAnRetention.body.success, 'GET /analytics/retention → 200');
+  assert(httpAnActivity.status === 200 && httpAnActivity.body.success, 'GET /analytics/activity → 200');
+  assert(httpAnBadRange.status === 400, 'analytics invalid range → 400');
+  assert(httpAnBadDates.status === 400, 'analytics inverted date range → 400');
 
   console.log('\n✅ ALL ASSERTIONS PASSED');
 
