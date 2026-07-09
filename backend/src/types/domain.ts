@@ -132,6 +132,10 @@ export const ACTIVITY_TYPES = [
   'problem-documented',
   // Module 2 · Sprint 4 — learning integration
   'recommendation-updated',
+  // Module 3 · Sprint 1 — revision engine
+  'revision-scheduled',
+  'revision-due',
+  'revision-overdue',
 ] as const;
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];
 
@@ -149,8 +153,32 @@ export const PROBLEM_LEARNING_STATUSES = [
 ] as const;
 export type ProblemLearningStatus = (typeof PROBLEM_LEARNING_STATUSES)[number];
 
+/* ------------------------------------------------------------------ *
+ *  Module 3 · Sprint 1 — Revision Engine
+ * ------------------------------------------------------------------ */
+
+/** What a revision schedule points at. Generic so future entities can plug in. */
+export const REVISION_ENTITY_TYPES = ['topic', 'pattern', 'knowledgeEntry'] as const;
+export type RevisionEntityType = (typeof REVISION_ENTITY_TYPES)[number];
+
+/**
+ * Lifecycle status. The service stores only Pending / Completed / Archived;
+ * Due and Overdue are DERIVED from `nextReviewDate` at read time (never stored),
+ * so schedules can't drift as the clock moves.
+ */
+export const REVISION_STATUSES = ['Pending', 'Due', 'Completed', 'Overdue', 'Archived'] as const;
+export type RevisionStatus = (typeof REVISION_STATUSES)[number];
+
+/** Registered scheduling strategies (SM-2 / AI plug in here — no schema change). */
+export const REVISION_STRATEGIES = ['default'] as const;
+export type RevisionStrategyName = (typeof REVISION_STRATEGIES)[number];
+
+/** Derived queue urgency for a schedule (from its next review date vs. today). */
+export const REVISION_URGENCIES = ['overdue', 'due', 'upcoming'] as const;
+export type RevisionUrgency = (typeof REVISION_URGENCIES)[number];
+
 /** The entity an activity refers to. Kept generic so future modules can extend. */
-export const ACTIVITY_ENTITY_TYPES = ['topic', 'phase', 'problem'] as const;
+export const ACTIVITY_ENTITY_TYPES = ['topic', 'phase', 'problem', 'revision'] as const;
 export type ActivityEntityType = (typeof ACTIVITY_ENTITY_TYPES)[number];
 
 /* ------------------------------------------------------------------ *
