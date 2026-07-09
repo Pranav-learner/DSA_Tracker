@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Map, LibraryBig, BrainCircuit, CalendarClock, Brain, Sparkles, Lock } from 'lucide-react';
+import { LayoutDashboard, Map, LibraryBig, BrainCircuit, CalendarClock, Brain, BarChart3, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface NavItem {
@@ -17,9 +17,10 @@ const NAV: NavItem[] = [
   { to: '/notebook', label: 'Notebook', icon: BrainCircuit },
   { to: '/revision', label: 'Revision', icon: CalendarClock },
   { to: '/retention', label: 'Retention', icon: Brain },
+  { to: '/analytics', label: 'Analytics', icon: BarChart3 },
 ];
 
-const FUTURE: NavItem[] = [{ to: '#', label: 'Analytics', icon: Sparkles, disabled: true }];
+const FUTURE: NavItem[] = [];
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   return (
@@ -60,27 +61,29 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           ))}
         </div>
 
-        <div className="space-y-1">
-          <p className="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-            Coming soon
-          </p>
-          {FUTURE.map(({ label, icon: IconCmp }) => (
-            <span
-              key={label}
-              className="flex cursor-not-allowed items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground/50"
-              title="Available in a future sprint"
-            >
-              <IconCmp className="size-4" />
-              {label}
-              <Lock className="ml-auto size-3" />
-            </span>
-          ))}
-        </div>
+        {FUTURE.length > 0 && (
+          <div className="space-y-1">
+            <p className="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              Coming soon
+            </p>
+            {FUTURE.map(({ label, icon: IconCmp }) => (
+              <span
+                key={label}
+                className="flex cursor-not-allowed items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground/50"
+                title="Available in a future sprint"
+              >
+                <IconCmp className="size-4" />
+                {label}
+                <Lock className="ml-auto size-3" />
+              </span>
+            ))}
+          </div>
+        )}
       </nav>
 
       <div className="border-t border-border p-4">
         <p className="text-[11px] text-muted-foreground">
-          Module 3 · Revision Engine
+          Module 4 · Analytics Engine
         </p>
       </div>
     </aside>

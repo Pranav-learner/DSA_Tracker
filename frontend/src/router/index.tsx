@@ -13,6 +13,13 @@ import { RevisionPage } from '@/pages/RevisionPage';
 import { RevisionWorkspacePage } from '@/pages/RevisionWorkspacePage';
 import { RevisionHistoryPage } from '@/pages/RevisionHistoryPage';
 import { RetentionPage } from '@/pages/RetentionPage';
+import { AnalyticsHome } from '@/pages/AnalyticsHome';
+import { LearningAnalytics } from '@/pages/LearningAnalytics';
+import { ProblemAnalytics } from '@/pages/ProblemAnalytics';
+import { KnowledgeAnalytics } from '@/pages/KnowledgeAnalytics';
+import { RevisionAnalytics } from '@/pages/RevisionAnalytics';
+import { RetentionAnalytics } from '@/pages/RetentionAnalytics';
+import { ActivityAnalytics } from '@/pages/ActivityAnalytics';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 
 /**
@@ -50,6 +57,13 @@ export const router = createBrowserRouter([
       { path: 'revision/session', element: <RevisionWorkspacePage /> },
       { path: 'revision/history', element: <RevisionHistoryPage /> },
       { path: 'retention', element: <RetentionPage /> },
+      { path: 'analytics', element: <AnalyticsHome /> },
+      { path: 'analytics/learning', element: <LearningAnalytics /> },
+      { path: 'analytics/problems', element: <ProblemAnalytics /> },
+      { path: 'analytics/knowledge', element: <KnowledgeAnalytics /> },
+      { path: 'analytics/revision', element: <RevisionAnalytics /> },
+      { path: 'analytics/retention', element: <RetentionAnalytics /> },
+      { path: 'analytics/activity', element: <ActivityAnalytics /> },
     ],
   },
   { path: '*', element: <NotFoundPage /> },
