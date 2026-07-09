@@ -3,6 +3,7 @@ import { recommendationService } from './recommendation.service.js';
 import { phaseService } from './phase.service.js';
 import { activityService } from './activity.service.js';
 import { revisionQueueService } from './revisionQueue.service.js';
+import { revisionSessionService } from './revisionSession.service.js';
 import { topicRepository } from '../repositories/topic.repository.js';
 import { toTopicSummaryDTO, type PhaseDTO, type PhaseRefDTO, type TopicSummaryDTO } from './mappers.js';
 import type { PhaseProgressDTO, ProgressDTO } from './learning.dto.js';
@@ -30,12 +31,14 @@ export const dashboardService = {
     const recommendation = recommendationService.build(overview);
 
     // Everything below reuses `overview`; only display metadata is fetched, in parallel.
-    const [phases, hoursByPhase, recentActivity, revision] = await Promise.all([
+    const [phases, hoursByPhase, recentActivity, revisionQueue, revisionSession] = await Promise.all([
       phaseService.list(),
       topicRepository.estimatedHoursByPhase(),
       activityService.getRecent(userId, RECENT_ACTIVITY_LIMIT),
       revisionQueueService.getDashboardSummary(userId),
+      revisionSessionService.getDashboardSummary(userId),
     ]);
+    const revision = { ...revisionQueue, ...revisionSession };
 
     // Resolve the current + recommended topic docs in a single query (they may overlap).
     const topicIds = unique([overview.currentTopicId, recommendation.topicId]);

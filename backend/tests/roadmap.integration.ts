@@ -34,6 +34,8 @@ import { workspaceService } from '../src/services/workspace.service.js';
 import { learningIntegrationService } from '../src/services/learningIntegration.service.js';
 import { revisionScheduleService } from '../src/services/revisionSchedule.service.js';
 import { revisionQueueService } from '../src/services/revisionQueue.service.js';
+import { revisionSessionService } from '../src/services/revisionSession.service.js';
+import { revisionWorkspaceService } from '../src/services/revisionWorkspace.service.js';
 import { problemRepository } from '../src/repositories/problem.repository.js';
 import { userProblemRepository } from '../src/repositories/userProblem.repository.js';
 import {
@@ -622,6 +624,90 @@ async function run(): Promise<void> {
   const rActivity = await activityService.getRecent(DEMO_USER, 50);
   assert(rActivity.some((a) => a.type === 'revision-scheduled'), 'revision-scheduled activity generated');
 
+  // --- Module 3 · Sprint 2: Revision Workspace & Sessions ---
+  // Start a session from the (still active) Prefix Sum pattern schedule.
+  const sess = await revisionSessionService.start(DEMO_USER, { scheduleId: upSched.id, selfConfidenceBefore: 55 });
+  assert(sess.sessionStatus === 'Started' && sess.entityType === 'pattern' && sess.revisionScheduleId === upSched.id, 'session starts from a schedule');
+
+  let sessDupThrew = false;
+  try {
+    await revisionSessionService.start(DEMO_USER, { entityType: 'topic', entityId: sw.id });
+  } catch {
+    sessDupThrew = true;
+  }
+  assert(sessDupThrew, 'only one active session per user');
+
+  const activeNow = await revisionSessionService.getActive(DEMO_USER);
+  assert(activeNow !== null && activeNow.id === sess.id, 'active session is retrievable');
+
+  // Workspace content reuses Module 2 (knowledge entry + topic), no duplicate storage.
+  const nbContent = await revisionWorkspaceService.getContent(DEMO_USER, 'knowledgeEntry', nb1.id);
+  const topicContent = await revisionWorkspaceService.getContent(DEMO_USER, 'topic', sw.id);
+  const sessWs = await revisionWorkspaceService.getWorkspace(DEMO_USER, { scheduleId: upSched.id });
+
+  console.log(
+    `session: started "${sess.title}" | nbContent keywords=${nbContent.recognitionKeywords.length} ` +
+      `repProblems=${nbContent.representativeProblems.length} traps=${nbContent.contestTraps.length} | ` +
+      `topicContent coreIdea=${topicContent.coreIdea.length > 0} whenToUse=${topicContent.whenToUse.length > 0}`,
+  );
+
+  assert(nbContent.hasNotebook && nbContent.coreIdea.length > 0 && nbContent.recognitionKeywords.length > 0, 'knowledge-entry content composed from Module 2');
+  assert(nbContent.representativeProblems.length >= 1, 'workspace resolves representative problems from the library');
+  assert(topicContent.entityType === 'topic' && topicContent.whenToUse.length > 0 && topicContent.contestTraps.length >= 0, 'topic content composed');
+  assert(sessWs.activeSession !== null && sessWs.content.entityType === 'pattern' && sessWs.schedule !== null, 'workspace bundles content + session + schedule');
+
+  // Pause / resume / notes.
+  await revisionSessionService.update(DEMO_USER, sess.id, { action: 'pause' });
+  await revisionSessionService.update(DEMO_USER, sess.id, { action: 'resume' });
+  const noted = await revisionSessionService.update(DEMO_USER, sess.id, { reviewNotes: 'Re-derived prefix[r]-prefix[l].' });
+  assert(noted.reviewNotes.includes('prefix'), 'review notes saved');
+
+  // Complete → advances the owning schedule via the Sprint-1 strategy.
+  const completed = await revisionSessionService.complete(DEMO_USER, {
+    sessionId: sess.id, durationMinutes: 10, reviewNotes: 'Solid.', selfConfidenceAfter: 80, reviewedProblems: ['x'],
+  });
+  const advancedSchedule = await revisionScheduleService.getById(DEMO_USER, upSched.id);
+  assert(completed.sessionStatus === 'Completed' && completed.durationMinutes === 10 && completed.selfConfidenceAfter === 80, 'session completes with stored values');
+  assert(advancedSchedule.reviewCount === 1 && advancedSchedule.daysUntilReview > 0, 'completing a session advances the schedule');
+
+  let completeAgainThrew = false;
+  try {
+    await revisionSessionService.complete(DEMO_USER, { sessionId: sess.id });
+  } catch {
+    completeAgainThrew = true;
+  }
+  assert(completeAgainThrew, 'a session cannot be completed twice / without being active');
+  assert((await revisionSessionService.getActive(DEMO_USER)) === null, 'no active session after completion');
+
+  // Abandon flow.
+  const sess2 = await revisionSessionService.start(DEMO_USER, { entityType: 'topic', entityId: sw.id });
+  const abandoned = await revisionSessionService.update(DEMO_USER, sess2.id, { action: 'abandon' });
+  assert(abandoned.sessionStatus === 'Abandoned' && (await revisionSessionService.getActive(DEMO_USER)) === null, 'session can be abandoned');
+
+  // History + dashboard + activity.
+  const sessHistory = await revisionSessionService.history(DEMO_USER, { page: 1, pageSize: 20, sort: 'recent' });
+  const entityHistory = await revisionSessionService.historyByEntity(DEMO_USER, 'pattern:ps');
+  const dashSession = await dashboardService.get(DEMO_USER);
+  const sessActivity = await activityService.getRecent(DEMO_USER, 60);
+
+  console.log(
+    `  history total=${sessHistory.total} entityHistory=${entityHistory.length} | ` +
+      `dashboard activeSession=${dashSession.revision.activeSession ? 'yes' : 'no'} completedToday=${dashSession.revision.completedToday} ` +
+      `recent=${dashSession.revision.recentSessions.length}`,
+  );
+
+  assert(sessHistory.total >= 2 && sessHistory.items[0].sessionStatus !== undefined, 'session history stored');
+  assert(entityHistory.length >= 1, 'per-entity history works');
+  assert(dashSession.revision.activeSession === null && dashSession.revision.completedToday >= 1, 'dashboard reflects sessions');
+  assert(Array.isArray(dashSession.revision.recentSessions) && dashSession.revision.recentSessions.length >= 1, 'dashboard recent sessions');
+  assert(
+    sessActivity.some((a) => a.type === 'revision-started') &&
+      sessActivity.some((a) => a.type === 'revision-completed') &&
+      sessActivity.some((a) => a.type === 'revision-paused') &&
+      sessActivity.some((a) => a.type === 'revision-notes-updated'),
+    'session activity events generated',
+  );
+
   // Mastery weights sanity: all-100 metrics → 100% overall.
   const perfect = masteryService.computeOverall({
     recognition: 100, implementation: 100, standard: 100, variant: 100,
@@ -744,6 +830,21 @@ async function run(): Promise<void> {
     entityType: 'pattern', entityId: 'pattern:sw', title: 'dup',
   });
   const httpRevBadId = await getJson('/api/revision/schedules/not-an-id');
+
+  // Module 3 · Sprint 2 — session + workspace endpoints over HTTP.
+  const httpSessStart = await sendJson('POST', '/api/revision/session/start', { scheduleId: defaultSched.id, selfConfidenceBefore: 60 });
+  const createdSessId = (httpSessStart.body.data as { id?: string } | undefined)?.id ?? '';
+  const httpSessActive = await getJson('/api/revision/session/active');
+  const httpSessPatch = await sendJson('PATCH', `/api/revision/session/${createdSessId}`, { action: 'pause' });
+  const httpSessGet = await getJson(`/api/revision/session/${createdSessId}`);
+  const httpSessWorkspace = await getJson(`/api/revision/workspace?scheduleId=${defaultSched.id}`);
+  const httpSessComplete = await sendJson('POST', '/api/revision/session/complete', { sessionId: createdSessId, durationMinutes: 6 });
+  const httpSessHistory = await getJson('/api/revision/history?pageSize=5');
+  const httpSessEntityHistory = await getJson(`/api/revision/history/${encodeURIComponent('pattern:default')}`);
+  const httpSessRestart = await sendJson('POST', '/api/revision/session/start', { scheduleId: defaultSched.id });
+  const httpSessDup = await sendJson('POST', '/api/revision/session/start', { scheduleId: overdueSched.id });
+  const httpWorkspaceNoParams = await getJson('/api/revision/workspace');
+  const httpSessBadId = await getJson('/api/revision/session/not-an-id');
   server.close();
 
   console.log(
@@ -840,6 +941,25 @@ async function run(): Promise<void> {
   assert(httpRevDelete.status === 200, 'DELETE /revision/schedules/:id → 200');
   assert(httpRevDup.status === 409, 'duplicate schedule → 409');
   assert(httpRevBadId.status === 400, 'invalid schedule id → 400');
+  // Module 3 · Sprint 2 HTTP assertions:
+  console.log(
+    `http session: start=${httpSessStart.status} active=${httpSessActive.status} patch=${httpSessPatch.status} ` +
+      `get=${httpSessGet.status} workspace=${httpSessWorkspace.status} complete=${httpSessComplete.status} ` +
+      `history=${httpSessHistory.status} entityHistory=${httpSessEntityHistory.status} restart=${httpSessRestart.status} ` +
+      `dup=${httpSessDup.status} noParams=${httpWorkspaceNoParams.status} badId=${httpSessBadId.status}`,
+  );
+  assert(httpSessStart.status === 201 && httpSessStart.body.success, 'POST /session/start → 201');
+  assert(httpSessActive.status === 200, 'GET /session/active → 200');
+  assert(httpSessPatch.status === 200, 'PATCH /session/:id → 200');
+  assert(httpSessGet.status === 200, 'GET /session/:id → 200');
+  assert(httpSessWorkspace.status === 200 && httpSessWorkspace.body.success, 'GET /workspace → 200');
+  assert(httpSessComplete.status === 200, 'POST /session/complete → 200');
+  assert(httpSessHistory.status === 200 && httpSessHistory.body.success, 'GET /history → 200');
+  assert(httpSessEntityHistory.status === 200, 'GET /history/:entityId → 200');
+  assert(httpSessRestart.status === 201, 'restart after completion → 201');
+  assert(httpSessDup.status === 409, 'second active session → 409');
+  assert(httpWorkspaceNoParams.status === 400, 'workspace without params → 400');
+  assert(httpSessBadId.status === 400, 'invalid session id → 400');
 
   console.log('\n✅ ALL ASSERTIONS PASSED');
 

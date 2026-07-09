@@ -1,6 +1,6 @@
 import { QueryClient } from '@tanstack/react-query';
 import { ApiError } from '@/api/client';
-import type { ProblemsQuery, NotebookQuery, RevisionQuery } from '@/types';
+import type { ProblemsQuery, NotebookQuery, RevisionQuery, SessionHistoryQuery } from '@/types';
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -61,4 +61,10 @@ export const queryKeys = {
   revisionCalendar: (range: { from?: string; to?: string }) => ['revision', 'calendar', range] as const,
   revisionSchedules: (query: RevisionQuery) => ['revision', 'schedules', query] as const,
   revisionSchedule: (id: string) => ['revision', 'schedule', id] as const,
+  // --- Module 3 · Sprint 2: revision sessions ---
+  revisionWorkspace: (params: object) => ['revision', 'workspace', params] as const,
+  revisionActiveSession: ['revision', 'session', 'active'] as const,
+  revisionSession: (id: string) => ['revision', 'session', id] as const,
+  revisionHistory: (query: SessionHistoryQuery) => ['revision', 'history', query] as const,
+  revisionEntityHistory: (entityId: string) => ['revision', 'history', 'entity', entityId] as const,
 };

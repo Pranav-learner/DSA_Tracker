@@ -18,6 +18,8 @@ import {
   CalendarClock,
   CalendarPlus,
   AlarmClock,
+  Pause,
+  Timer,
   type LucideIcon,
 } from 'lucide-react';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -44,6 +46,11 @@ const EVENT_META: Record<ActivityType, EventMeta> = {
   'revision-scheduled': { icon: CalendarPlus, tile: 'border-primary/40 bg-primary/15 text-primary' },
   'revision-due': { icon: CalendarClock, tile: 'border-warning/40 bg-warning/15 text-warning' },
   'revision-overdue': { icon: AlarmClock, tile: 'border-danger/40 bg-danger/15 text-danger' },
+  'revision-started': { icon: Play, tile: 'border-primary/40 bg-primary/15 text-primary' },
+  'revision-paused': { icon: Pause, tile: 'border-warning/40 bg-warning/15 text-warning' },
+  'revision-resumed': { icon: Play, tile: 'border-primary/40 bg-primary/15 text-primary' },
+  'revision-completed': { icon: CheckCircle2, tile: 'border-success/40 bg-success/15 text-success' },
+  'revision-notes-updated': { icon: Timer, tile: 'border-warning/40 bg-warning/15 text-warning' },
 };
 
 /**

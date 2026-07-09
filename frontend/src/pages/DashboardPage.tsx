@@ -16,8 +16,10 @@ import {
   ArrowRight,
   Lock,
   BarChart3,
+  CalendarClock,
 } from 'lucide-react';
 import { useDashboard } from '@/hooks/useDashboard';
+import { DueTodayWidget } from '@/components/revision';
 import { CardContainer } from '@/components/common/CardContainer';
 import { ErrorState } from '@/components/common/ErrorState';
 import { Button } from '@/components/ui/button';
@@ -119,6 +121,10 @@ export function DashboardPage() {
 
         {/* Right insights panel */}
         <aside className="space-y-8">
+          <DashboardSection title="Revision" icon={<CalendarClock className="size-4" />}>
+            <DueTodayWidget revision={data.revision} />
+          </DashboardSection>
+
           <DashboardSection title="Learning Insights" icon={<Lightbulb className="size-4" />}>
             <div className="space-y-3">
               <LearningRecommendationCard recommendation={recommendation} />

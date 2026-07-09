@@ -12,6 +12,7 @@ import { masteryService } from '../services/mastery.service.js';
 import { Types } from 'mongoose';
 import { Problem } from '../models/Problem.js';
 import { NotebookEntry } from '../models/NotebookEntry.js';
+import { RevisionSchedule } from '../models/RevisionSchedule.js';
 import { topicProgressRepository } from '../repositories/topicProgress.repository.js';
 import { learningRepository } from '../repositories/learning.repository.js';
 import { activityRepository } from '../repositories/activity.repository.js';
@@ -19,6 +20,7 @@ import { problemRepository } from '../repositories/problem.repository.js';
 import { userProblemRepository } from '../repositories/userProblem.repository.js';
 import { notebookRepository } from '../repositories/notebook.repository.js';
 import { revisionScheduleRepository } from '../repositories/revisionSchedule.repository.js';
+import { revisionSessionRepository } from '../repositories/revisionSession.repository.js';
 import {
   DEFAULT_REVISION_INTERVALS,
   DEFAULT_EASE_FACTOR,
@@ -112,10 +114,11 @@ async function seed(): Promise<void> {
   await seedUserProblems();
   const notebookCount = await seedNotebook();
   const revisionCount = await seedRevision();
+  const sessionCount = await seedRevisionSessions();
 
   logger.info(
     `Seed complete — ${roadmapSeed.length} phases, ${totalTopics} topics, ${problemCount} problems, ` +
-      `${notebookCount} notebook entries, ${revisionCount} revision schedules.`,
+      `${notebookCount} notebook entries, ${revisionCount} revision schedules, ${sessionCount} revision sessions.`,
   );
   await disconnectDatabase();
 }
@@ -426,6 +429,45 @@ async function seedRevision(): Promise<number> {
   ]);
 
   logger.info(`  ✓ Revision seeded (${docs.length} schedules, ${overdueCount} overdue).`);
+  return docs.length;
+}
+
+/**
+ * Module 3 · Sprint 2: seed a few completed revision sessions so the history page
+ * and dashboard session widget have realistic data on first run.
+ */
+async function seedRevisionSessions(): Promise<number> {
+  const userId = env.demoUserId;
+  logger.info(`Seeding revision sessions for '${userId}'…`);
+  await revisionSessionRepository.deleteByUser(userId);
+
+  const schedules = await RevisionSchedule.find({ userId }).limit(3).exec();
+  const now = Date.now();
+  const DAY = 24 * 60 * 60_000;
+
+  const docs = schedules.map((s, i) => {
+    const duration = 8 + i * 3;
+    const startedAt = new Date(now - (i + 1) * DAY);
+    return {
+      userId,
+      revisionScheduleId: s._id,
+      entityType: s.entityType,
+      entityId: s.entityId,
+      title: s.title,
+      sessionStatus: 'Completed' as const,
+      startedAt,
+      completedAt: new Date(startedAt.getTime() + duration * 60_000),
+      durationMinutes: duration,
+      reviewedKnowledgeEntries: [],
+      reviewedProblems: [],
+      reviewNotes: 'Refreshed the core idea and re-derived the key template.',
+      selfConfidenceBefore: 60 + i * 5,
+      selfConfidenceAfter: 72 + i * 5,
+    };
+  });
+  await revisionSessionRepository.insertMany(docs);
+
+  logger.info(`  ✓ Revision sessions seeded (${docs.length}).`);
   return docs.length;
 }
 

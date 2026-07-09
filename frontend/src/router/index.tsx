@@ -9,6 +9,9 @@ import { ProblemDetailPage } from '@/pages/ProblemDetailPage';
 import { ProblemPlaceholderPage } from '@/pages/ProblemPlaceholderPage';
 import { NotebookListPage } from '@/pages/NotebookListPage';
 import { NotebookWorkspacePage } from '@/pages/NotebookWorkspacePage';
+import { RevisionPage } from '@/pages/RevisionPage';
+import { RevisionWorkspacePage } from '@/pages/RevisionWorkspacePage';
+import { RevisionHistoryPage } from '@/pages/RevisionHistoryPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 
 /**
@@ -23,7 +26,10 @@ import { NotFoundPage } from '@/pages/NotFoundPage';
  *   /problems/:id   → Problem Detail
  *   /notebook       → Pattern Notebook (knowledge index)
  *   /notebook/:id   → Notebook Workspace
- *   *               → 404
+ *   /revision          → Daily Revision hub
+ *   /revision/session  → Revision Workspace (active review)
+ *   /revision/history  → Revision History
+ *   *                  → 404
  */
 export const router = createBrowserRouter([
   {
@@ -39,6 +45,9 @@ export const router = createBrowserRouter([
       { path: 'problems/:problemId', element: <ProblemDetailPage /> },
       { path: 'notebook', element: <NotebookListPage /> },
       { path: 'notebook/:notebookId', element: <NotebookWorkspacePage /> },
+      { path: 'revision', element: <RevisionPage /> },
+      { path: 'revision/session', element: <RevisionWorkspacePage /> },
+      { path: 'revision/history', element: <RevisionHistoryPage /> },
     ],
   },
   { path: '*', element: <NotFoundPage /> },

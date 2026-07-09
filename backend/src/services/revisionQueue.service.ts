@@ -3,7 +3,7 @@ import { UPCOMING_WINDOW_DAYS } from '../config/revision.js';
 import { dayKey, urgencyOf, toRevisionScheduleDTO } from './revision.util.js';
 import type { RevisionScheduleDocument } from '../models/RevisionSchedule.js';
 import type {
-  DashboardRevisionDTO,
+  DashboardRevisionQueueDTO,
   RevisionCalendarDTO,
   RevisionCalendarDayDTO,
   RevisionQueueDTO,
@@ -41,8 +41,8 @@ export const revisionQueueService = {
     };
   },
 
-  /** Compact summary + preview for the Module 1 dashboard widget (one query). */
-  async getDashboardSummary(userId: string): Promise<DashboardRevisionDTO> {
+  /** Compact queue summary + preview for the Module 1 dashboard widget (one query). */
+  async getDashboardSummary(userId: string): Promise<DashboardRevisionQueueDTO> {
     const { overdue, dueToday, upcoming, total } = await buildBuckets(userId);
     return {
       dueTodayCount: dueToday.length,

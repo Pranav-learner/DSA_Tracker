@@ -56,6 +56,13 @@ api.get('/', (_req, res) => {
         'GET|PATCH|DELETE /api/revision/schedules/:id',
         'GET /api/revision/today',
         'GET /api/revision/calendar',
+        'GET /api/revision/workspace',
+        'POST /api/revision/session/start',
+        'POST /api/revision/session/complete',
+        'GET /api/revision/session/active',
+        'GET|PATCH /api/revision/session/:id',
+        'GET /api/revision/history',
+        'GET /api/revision/history/:entityId',
       ],
     },
   });

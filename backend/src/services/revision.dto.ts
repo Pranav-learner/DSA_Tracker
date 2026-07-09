@@ -74,8 +74,8 @@ export interface RevisionCalendarDTO {
   days: RevisionCalendarDayDTO[];
 }
 
-/** Compact revision summary embedded in the Module 1 dashboard. */
-export interface DashboardRevisionDTO {
+/** Compact revision QUEUE summary embedded in the Module 1 dashboard. */
+export interface DashboardRevisionQueueDTO {
   dueTodayCount: number;
   overdueCount: number;
   upcomingCount: number;

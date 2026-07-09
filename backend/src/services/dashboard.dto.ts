@@ -6,7 +6,11 @@ import type {
   RecommendationDTO,
 } from './learning.dto.js';
 import type { ActivityDTO } from './activity.service.js';
-import type { DashboardRevisionDTO } from './revision.dto.js';
+import type { DashboardRevisionQueueDTO } from './revision.dto.js';
+import type { DashboardRevisionSessionDTO } from './revisionSession.dto.js';
+
+/** Combined revision widget: the scheduling queue + the active-session block. */
+export type DashboardRevisionDTO = DashboardRevisionQueueDTO & DashboardRevisionSessionDTO;
 
 /* Sprint 4 — Dashboard aggregation response DTOs.
  *

@@ -1,5 +1,10 @@
 import type { BadgeProps } from '@/components/ui/badge';
-import type { RevisionEntityType, RevisionSchedule, RevisionUrgency } from '@/types';
+import type {
+  RevisionEntityType,
+  RevisionSchedule,
+  RevisionSessionStatus,
+  RevisionUrgency,
+} from '@/types';
 
 /** Visual metadata per queue urgency. */
 export const URGENCY_META: Record<
@@ -52,11 +57,35 @@ export function formatShortDate(iso: string): string {
 }
 
 /**
- * Where "Review" opens for a schedule. Revision sessions land in Sprint 2 — for
- * now the learner reviews the underlying entity directly.
+ * Where "Review" opens for a schedule — the Revision Workspace, scoped to the
+ * schedule so the learner can start a structured session.
  */
-export function revisionEntityLink(schedule: Pick<RevisionSchedule, 'entityType' | 'entityId'>): string {
-  if (schedule.entityType === 'knowledgeEntry') return `/notebook/${schedule.entityId}`;
-  if (schedule.entityType === 'topic') return `/topic/${schedule.entityId}`;
-  return '/problems';
+export function revisionEntityLink(schedule: Pick<RevisionSchedule, 'id' | 'entityType' | 'entityId'>): string {
+  return `/revision/session?scheduleId=${schedule.id}`;
+}
+
+/** Deep link to the workspace for a raw entity (no schedule). */
+export function revisionWorkspaceLink(entityType: RevisionEntityType, entityId: string): string {
+  return `/revision/session?entityType=${entityType}&entityId=${encodeURIComponent(entityId)}`;
+}
+
+/** Badge metadata per session status. */
+export const SESSION_STATUS_META: Record<
+  RevisionSessionStatus,
+  { label: string; badge: NonNullable<BadgeProps['variant']> }
+> = {
+  Started: { label: 'In Progress', badge: 'warning' },
+  Completed: { label: 'Completed', badge: 'success' },
+  Abandoned: { label: 'Abandoned', badge: 'outline' },
+};
+
+/** Clock label from seconds, e.g. 75 → "1:15", 3725 → "1:02:05". */
+export function formatClock(totalSeconds: number): string {
+  const s = Math.max(0, Math.floor(totalSeconds));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  const mm = String(m).padStart(2, '0');
+  const ss = String(sec).padStart(2, '0');
+  return h > 0 ? `${h}:${mm}:${ss}` : `${m}:${ss}`;
 }

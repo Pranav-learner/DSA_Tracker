@@ -136,6 +136,18 @@ export const ACTIVITY_TYPES = [
   'revision-scheduled',
   'revision-due',
   'revision-overdue',
+  // Module 3 · Sprint 2 — revision sessions
+  'revision-started',
+  'revision-paused',
+  'revision-resumed',
+  'revision-completed',
+  'revision-notes-updated',
+  // Module 3 · Sprint 3 — retention engine
+  'confidence-increased',
+  'confidence-decreased',
+  'retention-updated',
+  'knowledge-strengthened',
+  'knowledge-at-risk',
 ] as const;
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];
 
@@ -176,6 +188,33 @@ export type RevisionStrategyName = (typeof REVISION_STRATEGIES)[number];
 /** Derived queue urgency for a schedule (from its next review date vs. today). */
 export const REVISION_URGENCIES = ['overdue', 'due', 'upcoming'] as const;
 export type RevisionUrgency = (typeof REVISION_URGENCIES)[number];
+
+/** Lifecycle of an active-review session (Module 3 · Sprint 2). */
+export const REVISION_SESSION_STATUSES = ['Started', 'Completed', 'Abandoned'] as const;
+export type RevisionSessionStatus = (typeof REVISION_SESSION_STATUSES)[number];
+
+/* ------------------------------------------------------------------ *
+ *  Module 3 · Sprint 3 — Retention Engine
+ * ------------------------------------------------------------------ */
+
+/** Dynamically-derived retention level for an entity. */
+export const RETENTION_LEVELS = [
+  'Learning',
+  'Familiar',
+  'Strong',
+  'Mastered',
+  'Needs Review',
+  'At Risk',
+] as const;
+export type RetentionLevel = (typeof RETENTION_LEVELS)[number];
+
+/** Direction of the confidence trend. */
+export const CONFIDENCE_TRENDS = ['rising', 'falling', 'stable'] as const;
+export type ConfidenceTrend = (typeof CONFIDENCE_TRENDS)[number];
+
+/** Registered decay strategies (AI strategies plug in here — no schema change). */
+export const DECAY_STRATEGIES = ['default'] as const;
+export type DecayStrategyName = (typeof DECAY_STRATEGIES)[number];
 
 /** The entity an activity refers to. Kept generic so future modules can extend. */
 export const ACTIVITY_ENTITY_TYPES = ['topic', 'phase', 'problem', 'revision'] as const;

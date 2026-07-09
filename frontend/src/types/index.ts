@@ -268,7 +268,12 @@ export type ActivityType =
   | 'recommendation-updated'
   | 'revision-scheduled'
   | 'revision-due'
-  | 'revision-overdue';
+  | 'revision-overdue'
+  | 'revision-started'
+  | 'revision-paused'
+  | 'revision-resumed'
+  | 'revision-completed'
+  | 'revision-notes-updated';
 
 export type ActivityEntityType = 'topic' | 'phase' | 'problem' | 'revision';
 
@@ -771,6 +776,10 @@ export interface DashboardRevision {
   totalScheduled: number;
   estimatedReviewMinutes: number;
   preview: RevisionSchedule[];
+  // --- Sprint 2: active-session block ---
+  activeSession: RevisionSession | null;
+  completedToday: number;
+  recentSessions: RevisionSession[];
 }
 
 export type RevisionSortField = 'nextReviewDate' | 'priority' | 'createdAt' | 'title';
@@ -812,6 +821,109 @@ export interface UpdateScheduleInput {
   status?: 'Pending' | 'Completed' | 'Archived';
   strategy?: string;
   nextReviewDate?: string;
+}
+
+/* ---- Module 3 · Sprint 2: Revision Sessions & Workspace ---- */
+
+export type RevisionSessionStatus = 'Started' | 'Completed' | 'Abandoned';
+
+export interface RevisionSession {
+  id: string;
+  userId: string;
+  revisionScheduleId: string | null;
+  entityType: RevisionEntityType;
+  entityId: string;
+  title: string;
+  sessionStatus: RevisionSessionStatus;
+  startedAt: string;
+  completedAt: string | null;
+  durationMinutes: number;
+  reviewedKnowledgeEntries: string[];
+  reviewedProblems: string[];
+  reviewNotes: string;
+  selfConfidenceBefore: number | null;
+  selfConfidenceAfter: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RevisionContent {
+  entityType: RevisionEntityType;
+  entityId: string;
+  title: string;
+  pattern: string;
+  topic: TopicRef | null;
+  phase: PhaseRef | null;
+  recognitionKeywords: string[];
+  coreIdea: string;
+  coreAlgorithm: string;
+  whenToUse: string;
+  whenNotToUse: string;
+  timeComplexity: string;
+  spaceComplexity: string;
+  commonMistakes: string[];
+  contestTraps: string[];
+  alternativeSolutions: NotebookAlternative[];
+  representativeProblems: RelatedProblemRef[];
+  relatedProblems: RelatedProblemRef[];
+  knowledgeNotes: string;
+  confidence: number | null;
+  estimatedReviewMinutes: number;
+  hasNotebook: boolean;
+  notebookId: string | null;
+}
+
+export interface RevisionWorkspace {
+  content: RevisionContent;
+  activeSession: RevisionSession | null;
+  schedule: RevisionSchedule | null;
+}
+
+export type SessionHistorySort = 'recent' | 'oldest' | 'duration';
+
+export interface SessionHistoryQuery {
+  page?: number;
+  pageSize?: number;
+  entityType?: RevisionEntityType;
+  status?: RevisionSessionStatus;
+  from?: string;
+  to?: string;
+  sort?: SessionHistorySort;
+}
+
+export interface PaginatedSessions {
+  items: RevisionSession[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
+export interface StartSessionInput {
+  scheduleId?: string;
+  entityType?: RevisionEntityType;
+  entityId?: string;
+  selfConfidenceBefore?: number;
+}
+
+export interface CompleteSessionInput {
+  sessionId: string;
+  durationMinutes?: number;
+  reviewNotes?: string;
+  selfConfidenceAfter?: number;
+  reviewedKnowledgeEntries?: string[];
+  reviewedProblems?: string[];
+}
+
+export interface UpdateSessionInput {
+  reviewNotes?: string;
+  selfConfidenceBefore?: number;
+  selfConfidenceAfter?: number;
+  reviewedKnowledgeEntries?: string[];
+  reviewedProblems?: string[];
+  action?: 'pause' | 'resume' | 'abandon';
 }
 
 /** Success envelope returned by every backend endpoint. */
