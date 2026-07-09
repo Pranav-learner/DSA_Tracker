@@ -77,4 +77,7 @@ export const queryKeys = {
   // --- Module 4 · Sprint 1: analytics ---
   analytics: ['analytics'] as const,
   analyticsScope: (scope: string, params: object) => ['analytics', scope, params] as const,
+  // --- Module 4 · Sprint 4: reports & executive ---
+  executive: (params: object) => ['analytics', 'executive', params] as const,
+  report: (kind: string, params: object = {}) => ['reports', kind, params] as const,
 };

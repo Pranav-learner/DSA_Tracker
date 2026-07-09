@@ -12,6 +12,7 @@ import notebookRoutes from './notebook.routes.js';
 import revisionRoutes from './revision.routes.js';
 import retentionRoutes, { confidenceRouter } from './retention.routes.js';
 import analyticsRoutes from '../analytics/routes/analytics.routes.js';
+import reportRoutes from '../reports/routes/report.routes.js';
 
 /** Root API router — mounts every feature router under /api. */
 const api = Router();
@@ -84,6 +85,12 @@ api.get('/', (_req, res) => {
         'GET /api/analytics/insights',
         'GET /api/analytics/trends',
         'GET /api/analytics/recommendations',
+        'GET /api/analytics/executive',
+        'GET /api/reports/weekly',
+        'GET /api/reports/monthly',
+        'GET /api/reports/phase/:phaseId',
+        'GET /api/reports/summary',
+        'GET /api/reports/export/pdf|markdown|json|csv',
       ],
     },
   });
@@ -103,5 +110,6 @@ api.use('/revision', revisionRoutes);
 api.use('/retention', retentionRoutes);
 api.use('/confidence', confidenceRouter);
 api.use('/analytics', analyticsRoutes);
+api.use('/reports', reportRoutes);
 
 export default api;

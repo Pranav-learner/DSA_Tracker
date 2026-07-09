@@ -1318,6 +1318,98 @@ export interface AnalyticsRecommendation {
   entityId: string | null;
 }
 
+/* ---- Module 4 · Sprint 4: Executive Dashboard & Reports ---- */
+
+export type ScoreStatus = 'excellent' | 'good' | 'fair' | 'at-risk';
+
+export interface ExecutiveScores {
+  learning: number;
+  knowledge: number;
+  retention: number;
+  revision: number;
+  productivity: number;
+  overallReadiness: number;
+}
+
+export interface ScoreBreakdown {
+  key: string;
+  label: string;
+  score: number;
+  status: ScoreStatus;
+}
+
+export interface ExecutiveProgress {
+  completionPercent: number;
+  overallMastery: number;
+  averageRetention: number;
+  learningVelocityPerWeek: number;
+  knowledgeCoveragePercent: number;
+  revisionConsistencyPercent: number;
+}
+
+export interface Executive {
+  scores: ExecutiveScores;
+  breakdown: ScoreBreakdown[];
+  progress: ExecutiveProgress;
+  currentPhase: { id: string; title: string; completionPercent: number } | null;
+  currentTopic: { id: string; title: string } | null;
+  patternHealth: { strong: number; developing: number; needsWork: number; total: number };
+  insights: LearningInsight[];
+  recommendations: AnalyticsRecommendation[];
+}
+
+export type ReportKind = 'weekly' | 'monthly' | 'summary' | 'phase';
+
+export interface ReportMeta {
+  kind: ReportKind;
+  title: string;
+  periodLabel: string;
+  from: string | null;
+  to: string;
+  generatedAt: string;
+}
+
+export interface ReportMetric {
+  label: string;
+  value: string;
+  hint?: string;
+}
+
+export interface Achievement {
+  title: string;
+  description: string;
+}
+
+export interface Report {
+  meta: ReportMeta;
+  scores: ExecutiveScores;
+  summary: string;
+  keyMetrics: ReportMetric[];
+  overview: AnalyticsOverview;
+  trends: Trend[];
+  achievements: Achievement[];
+  strengths: Strength[];
+  weaknesses: Weakness[];
+  recommendations: AnalyticsRecommendation[];
+  nextGoals: string[];
+}
+
+export interface PhaseReport extends Report {
+  phase: {
+    id: string;
+    title: string;
+    completionPercent: number;
+    mastery: number;
+    topicsCompleted: number;
+    topicsTotal: number;
+  };
+  patterns: PatternProfile[];
+  estimatedReadiness: number;
+  readinessLabel: string;
+}
+
+export type ExportFormat = 'pdf' | 'markdown' | 'json' | 'csv';
+
 /** Success envelope returned by every backend endpoint. */
 export interface ApiEnvelope<T> {
   success: true;

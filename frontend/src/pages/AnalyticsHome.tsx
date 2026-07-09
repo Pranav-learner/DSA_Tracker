@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { BarChart3, TrendingUp, Gauge, Brain, Puzzle, CheckCircle2, NotebookPen, CalendarClock, Flame, Activity, Sparkles, ShieldAlert, Award, Lightbulb, Compass, ArrowRight } from 'lucide-react';
+import { BarChart3, TrendingUp, Gauge, Brain, Puzzle, CheckCircle2, NotebookPen, CalendarClock, Flame, Activity, Sparkles, ShieldAlert, Award, Lightbulb, Compass, ArrowRight, FileText, Layers, Download } from 'lucide-react';
 import { useAnalyticsOverview, usePreviousOverview } from '@/hooks/useAnalytics';
 import { useAppSelector } from '@/store/hooks';
 import { SectionHeader } from '@/components/common/SectionHeader';
@@ -79,6 +79,17 @@ export function AnalyticsHome() {
               <IntelLink to="/analytics/strengths" icon={<Award className="size-4" />} label="Strengths" />
               <IntelLink to="/analytics/insights" icon={<Lightbulb className="size-4" />} label="Insights" />
               <IntelLink to="/analytics/recommendations" icon={<Compass className="size-4" />} label="Recommendations" />
+            </div>
+          </AnalyticsSection>
+
+          {/* Executive & Reports nav */}
+          <AnalyticsSection title="Executive & Reports" description="Composite scores + printable, exportable reports" icon={<Gauge className="size-4" />}>
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+              <IntelLink to="/analytics/executive" icon={<Gauge className="size-4" />} label="Executive" />
+              <IntelLink to="/reports/weekly" icon={<FileText className="size-4" />} label="Weekly" />
+              <IntelLink to="/reports/monthly" icon={<FileText className="size-4" />} label="Monthly" />
+              <IntelLink to="/reports/phase" icon={<Layers className="size-4" />} label="Phase" />
+              <IntelLink to="/reports" icon={<Download className="size-4" />} label="Export" />
             </div>
           </AnalyticsSection>
 

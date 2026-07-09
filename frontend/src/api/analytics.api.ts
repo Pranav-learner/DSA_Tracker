@@ -4,11 +4,16 @@ import type {
   AnalyticsOverview,
   AnalyticsRange,
   AnalyticsRecommendation,
+  Executive,
+  ExportFormat,
   KnowledgeSummaryAnalytics,
   LearningInsight,
   LearningSummary,
   PatternProfile,
+  PhaseReport,
   ProblemSummary,
+  Report,
+  ReportKind,
   RetentionSummaryAnalytics,
   RevisionSummaryAnalytics,
   Strength,
@@ -68,4 +73,47 @@ export const analyticsApi = {
     apiGet<Trend[]>(`/analytics/trends${toQueryString(params)}`, signal),
   recommendations: (params: AnalyticsParams = {}, signal?: AbortSignal) =>
     apiGet<AnalyticsRecommendation[]>(`/analytics/recommendations${toQueryString(params)}`, signal),
+  executive: (params: AnalyticsParams = {}, signal?: AbortSignal) =>
+    apiGet<Executive>(`/analytics/executive${toQueryString(params)}`, signal),
 };
+
+/** Report generation + export (Module 4 · Sprint 4). */
+export const reportsApi = {
+  weekly: (signal?: AbortSignal) => apiGet<Report>('/reports/weekly', signal),
+  monthly: (signal?: AbortSignal) => apiGet<Report>('/reports/monthly', signal),
+  summary: (signal?: AbortSignal) => apiGet<Report>('/reports/summary', signal),
+  phase: (phaseId: string, signal?: AbortSignal) => apiGet<PhaseReport>(`/reports/phase/${phaseId}`, signal),
+};
+
+const EXPORT_PATH: Record<ExportFormat, string> = {
+  pdf: 'pdf',
+  markdown: 'markdown',
+  json: 'json',
+  csv: 'csv',
+};
+
+/**
+ * Trigger a report export download. Fetches the file (respecting the analytics
+ * base URL) and saves it via a temporary object URL — the server does all the
+ * rendering; the client only downloads.
+ */
+export async function downloadReportExport(
+  format: ExportFormat,
+  type: ReportKind,
+  phaseId?: string,
+): Promise<void> {
+  const { env } = await import('@/config/env');
+  const params = new URLSearchParams({ type });
+  if (phaseId) params.set('phaseId', phaseId);
+  const res = await fetch(`${env.apiUrl}/reports/export/${EXPORT_PATH[format]}?${params.toString()}`);
+  if (!res.ok) throw new Error(`Export failed (${res.status})`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `cp-os-${type}-report.${format === 'markdown' ? 'md' : format}`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}

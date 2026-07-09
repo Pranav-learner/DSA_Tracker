@@ -34,6 +34,13 @@ const StrengthReport = lazy(() => import('@/pages/StrengthReport').then((m) => (
 const LearningInsights = lazy(() => import('@/pages/LearningInsights').then((m) => ({ default: m.LearningInsights })));
 const TrendAnalysis = lazy(() => import('@/pages/TrendAnalysis').then((m) => ({ default: m.TrendAnalysis })));
 const RecommendationCenter = lazy(() => import('@/pages/RecommendationCenter').then((m) => ({ default: m.RecommendationCenter })));
+// Module 4 · Sprint 4 — Executive dashboard + reports (chart-heavy, lazy).
+const ExecutiveDashboard = lazy(() => import('@/pages/ExecutiveDashboard').then((m) => ({ default: m.ExecutiveDashboard })));
+const WeeklyReport = lazy(() => import('@/pages/WeeklyReport').then((m) => ({ default: m.WeeklyReport })));
+const MonthlyReport = lazy(() => import('@/pages/MonthlyReport').then((m) => ({ default: m.MonthlyReport })));
+const LearningSummary = lazy(() => import('@/pages/LearningSummary').then((m) => ({ default: m.LearningSummary })));
+const PhaseReport = lazy(() => import('@/pages/PhaseReport').then((m) => ({ default: m.PhaseReport })));
+const ExportCenter = lazy(() => import('@/pages/ExportCenter').then((m) => ({ default: m.ExportCenter })));
 
 /** Wrap a lazily-loaded analytics page in a Suspense skeleton fallback. */
 function analyticsLazy(node: ReactNode): ReactNode {
@@ -90,6 +97,14 @@ export const router = createBrowserRouter([
       { path: 'analytics/insights', element: analyticsLazy(<LearningInsights />) },
       { path: 'analytics/trends', element: analyticsLazy(<TrendAnalysis />) },
       { path: 'analytics/recommendations', element: analyticsLazy(<RecommendationCenter />) },
+      // Executive dashboard + reports.
+      { path: 'analytics/executive', element: analyticsLazy(<ExecutiveDashboard />) },
+      { path: 'reports', element: analyticsLazy(<ExportCenter />) },
+      { path: 'reports/weekly', element: analyticsLazy(<WeeklyReport />) },
+      { path: 'reports/monthly', element: analyticsLazy(<MonthlyReport />) },
+      { path: 'reports/summary', element: analyticsLazy(<LearningSummary />) },
+      { path: 'reports/phase', element: analyticsLazy(<PhaseReport />) },
+      { path: 'reports/phase/:phaseId', element: analyticsLazy(<PhaseReport />) },
     ],
   },
   { path: '*', element: <NotFoundPage /> },

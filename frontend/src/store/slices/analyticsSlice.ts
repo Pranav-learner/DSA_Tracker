@@ -25,6 +25,10 @@ export interface AnalyticsUiState {
   selectedPattern: string | null;
   /** Weakness/strength severity filter (null = all). */
   severityFilter: 'high' | 'medium' | 'low' | null;
+  /** Preferred export format in the Export Center. */
+  exportFormat: 'pdf' | 'markdown' | 'json' | 'csv';
+  /** Print mode strips chrome for a clean printable report. */
+  printMode: boolean;
 }
 
 const initialState: AnalyticsUiState = {
@@ -38,6 +42,8 @@ const initialState: AnalyticsUiState = {
   distributionChart: 'pie',
   selectedPattern: null,
   severityFilter: null,
+  exportFormat: 'pdf',
+  printMode: false,
 };
 
 const analyticsSlice = createSlice({
@@ -80,6 +86,12 @@ const analyticsSlice = createSlice({
     setSeverityFilter(state, action: PayloadAction<'high' | 'medium' | 'low' | null>) {
       state.severityFilter = state.severityFilter === action.payload ? null : action.payload;
     },
+    setExportFormat(state, action: PayloadAction<'pdf' | 'markdown' | 'json' | 'csv'>) {
+      state.exportFormat = action.payload;
+    },
+    setPrintMode(state, action: PayloadAction<boolean>) {
+      state.printMode = action.payload;
+    },
   },
 });
 
@@ -93,5 +105,7 @@ export const {
   setDistributionChart,
   setSelectedPattern,
   setSeverityFilter,
+  setExportFormat,
+  setPrintMode,
 } = analyticsSlice.actions;
 export default analyticsSlice.reducer;

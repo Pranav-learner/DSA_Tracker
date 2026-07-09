@@ -17,6 +17,7 @@ import {
   getTrends,
   getRecommendations,
 } from '../controllers/intelligence.controller.js';
+import { getExecutive } from '../controllers/executive.controller.js';
 
 /** /api/analytics — the unified analytics aggregation + intelligence layer (read-only). */
 const router = Router();
@@ -36,6 +37,7 @@ router.get('/strengths', getStrengths);
 router.get('/insights', getInsights);
 router.get('/trends', getTrends);
 router.get('/recommendations', getRecommendations);
+router.get('/executive', getExecutive);
 router.get('/patterns/:patternId', getPattern);
 
 export default router;

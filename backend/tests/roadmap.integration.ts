@@ -41,6 +41,11 @@ import { analyticsAggregationService } from '../src/analytics/services/analytics
 import { resolveAnalyticsWindow } from '../src/analytics/validators/analytics.validator.js';
 import { metricsEngine } from '../src/analytics/services/metricsEngine.js';
 import { patternIntelligenceService } from '../src/analytics/services/patternIntelligence.service.js';
+import { executiveMetricsService } from '../src/analytics/services/executiveMetrics.service.js';
+import { reportService } from '../src/reports/services/report.service.js';
+import { renderMarkdown } from '../src/reports/renderers/markdown.renderer.js';
+import { renderPdf } from '../src/reports/renderers/pdf.renderer.js';
+import { renderCsv } from '../src/reports/renderers/csv.renderer.js';
 import { problemRepository } from '../src/repositories/problem.repository.js';
 import { userProblemRepository } from '../src/repositories/userProblem.repository.js';
 import {
@@ -878,6 +883,56 @@ async function run(): Promise<void> {
   const missingPattern = await patternIntelligenceService.pattern(DEMO_USER, '64b2f0000000000000000000');
   assert(missingPattern === null, 'unknown pattern returns null');
 
+  // --- Module 4 · Sprint 4: Executive metrics + Reports + Exports ---
+  const executive = await executiveMetricsService.compute(DEMO_USER, anWindow);
+  console.log(
+    `  executive: readiness=${executive.scores.overallReadiness}% learning=${executive.scores.learning}% knowledge=${executive.scores.knowledge}% ` +
+      `retention=${executive.scores.retention}% revision=${executive.scores.revision}% productivity=${executive.scores.productivity}% ` +
+      `patterns{strong=${executive.patternHealth.strong} needsWork=${executive.patternHealth.needsWork}}`,
+  );
+  assert(
+    executive.scores.overallReadiness >= 0 && executive.scores.overallReadiness <= 100 &&
+      executive.breakdown.length === 5 && executive.breakdown.every((b) => b.score >= 0 && b.score <= 100) &&
+      executive.patternHealth.total >= 1,
+    'executive metrics compute all six scores + breakdown',
+  );
+
+  const weekly = await reportService.weekly(DEMO_USER);
+  const monthly = await reportService.monthly(DEMO_USER);
+  const summaryReport = await reportService.summary(DEMO_USER);
+  const somePhaseId = phase0.phaseId;
+  const phaseReport = await reportService.phase(DEMO_USER, somePhaseId);
+  console.log(
+    `  reports: weekly{metrics=${weekly.keyMetrics.length} recs=${weekly.recommendations.length} goals=${weekly.nextGoals.length}} ` +
+      `phase{"${phaseReport.phase.title}" readiness=${phaseReport.estimatedReadiness}%/${phaseReport.readinessLabel} patterns=${phaseReport.patterns.length}}`,
+  );
+  assert(
+    weekly.meta.kind === 'weekly' && weekly.keyMetrics.length >= 6 && weekly.summary.length > 0 &&
+      typeof weekly.scores.overallReadiness === 'number' && Array.isArray(weekly.trends),
+    'weekly report composes metrics + scores + trends',
+  );
+  assert(monthly.meta.kind === 'monthly' && summaryReport.meta.kind === 'summary', 'monthly + summary reports build');
+  assert(
+    phaseReport.meta.kind === 'phase' && phaseReport.phase.id === somePhaseId &&
+      phaseReport.estimatedReadiness >= 0 && phaseReport.estimatedReadiness <= 100 && phaseReport.readinessLabel.length > 0,
+    'phase report builds with estimated readiness',
+  );
+  let phaseBad = false;
+  try {
+    await reportService.phase(DEMO_USER, '64b2f0000000000000000000');
+  } catch {
+    phaseBad = true;
+  }
+  assert(phaseBad, 'phase report rejects an unknown phase');
+
+  // Renderers: markdown, csv (strings) + pdf (a real PDF buffer).
+  const md = renderMarkdown(weekly);
+  const csv = renderCsv(monthly);
+  const pdf = await renderPdf(summaryReport);
+  assert(md.includes('# Weekly Report') && md.includes('## Executive Scores'), 'markdown renderer produces a report');
+  assert(csv.split('\n')[0] === 'section,key,value,extra' && csv.includes('score,'), 'csv renderer produces analytics tables');
+  assert(Buffer.isBuffer(pdf) && pdf.length > 800 && pdf.subarray(0, 5).toString() === '%PDF-', 'pdf renderer produces a valid PDF buffer');
+
   // MetricsEngine sanity + cache re-hit (second call returns identical, cached object).
   assert(metricsEngine.percentage(3, 4) === 75 && metricsEngine.successRate(0, 0) === 0, 'MetricsEngine computes correctly');
   const anCached = await analyticsAggregationService.learning(DEMO_USER, anWindow);
@@ -1060,6 +1115,23 @@ async function run(): Promise<void> {
   const httpAnRecs = await getJson('/api/analytics/recommendations');
   const httpAnPatternMissing = await getJson('/api/analytics/patterns/64b2f0000000000000000000');
   const httpAnPatternBadId = await getJson('/api/analytics/patterns/not-an-id');
+  // Module 4 · Sprint 4 executive + reports + exports.
+  const httpExecutive = await getJson('/api/analytics/executive');
+  const httpRepWeekly = await getJson('/api/reports/weekly');
+  const httpRepMonthly = await getJson('/api/reports/monthly');
+  const httpRepSummary = await getJson('/api/reports/summary');
+  const httpRepPhase = await getJson(`/api/reports/phase/${phase0.phaseId}`);
+  const httpRepPhaseBad = await getJson('/api/reports/phase/64b2f0000000000000000000');
+  const rawGet = async (path: string) => {
+    const r = await fetch(base + path);
+    return { status: r.status, ctype: r.headers.get('content-type') ?? '', len: (await r.arrayBuffer()).byteLength };
+  };
+  const httpExportPdf = await rawGet('/api/reports/export/pdf?type=weekly');
+  const httpExportMd = await rawGet('/api/reports/export/markdown?type=monthly');
+  const httpExportJson = await rawGet('/api/reports/export/json?type=summary');
+  const httpExportCsv = await rawGet('/api/reports/export/csv?type=monthly');
+  const httpExportPhase = await rawGet(`/api/reports/export/pdf?type=phase&phaseId=${phase0.phaseId}`);
+  const httpExportBad = await getJson('/api/reports/export/pdf?type=phase');
   server.close();
 
   console.log(
@@ -1223,6 +1295,26 @@ async function run(): Promise<void> {
   assert(httpAnRecs.status === 200 && httpAnRecs.body.success, 'GET /analytics/recommendations → 200');
   assert(httpAnPatternMissing.status === 404, 'GET /analytics/patterns unknown → 404');
   assert(httpAnPatternBadId.status === 400, 'GET /analytics/patterns bad id → 400');
+
+  // Module 4 · Sprint 4 HTTP assertions:
+  console.log(
+    `http reports: executive=${httpExecutive.status} weekly=${httpRepWeekly.status} monthly=${httpRepMonthly.status} ` +
+      `summary=${httpRepSummary.status} phase=${httpRepPhase.status} phaseBad=${httpRepPhaseBad.status} | ` +
+      `export pdf=${httpExportPdf.status}/${httpExportPdf.ctype.includes('pdf')} md=${httpExportMd.status} json=${httpExportJson.status} ` +
+      `csv=${httpExportCsv.status} phasePdf=${httpExportPhase.status} exportBad=${httpExportBad.status}`,
+  );
+  assert(httpExecutive.status === 200 && httpExecutive.body.success, 'GET /analytics/executive → 200');
+  assert(httpRepWeekly.status === 200 && httpRepWeekly.body.success, 'GET /reports/weekly → 200');
+  assert(httpRepMonthly.status === 200 && httpRepMonthly.body.success, 'GET /reports/monthly → 200');
+  assert(httpRepSummary.status === 200 && httpRepSummary.body.success, 'GET /reports/summary → 200');
+  assert(httpRepPhase.status === 200 && httpRepPhase.body.success, 'GET /reports/phase/:id → 200');
+  assert(httpRepPhaseBad.status === 404, 'GET /reports/phase unknown → 404');
+  assert(httpExportPdf.status === 200 && httpExportPdf.ctype.includes('application/pdf') && httpExportPdf.len > 800, 'export PDF → 200 application/pdf');
+  assert(httpExportMd.status === 200 && httpExportMd.ctype.includes('text/markdown'), 'export Markdown → 200 text/markdown');
+  assert(httpExportJson.status === 200 && httpExportJson.ctype.includes('application/json'), 'export JSON → 200 application/json');
+  assert(httpExportCsv.status === 200 && httpExportCsv.ctype.includes('text/csv'), 'export CSV → 200 text/csv');
+  assert(httpExportPhase.status === 200 && httpExportPhase.ctype.includes('application/pdf'), 'export phase PDF → 200');
+  assert(httpExportBad.status === 400, 'export phase without phaseId → 400');
 
   console.log('\n✅ ALL ASSERTIONS PASSED');
 

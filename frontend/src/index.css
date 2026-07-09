@@ -86,3 +86,45 @@
     animation: shimmer 1.6s infinite;
   }
 }
+
+/* Module 4 · Sprint 4 — printable reports: hide app chrome, let content flow. */
+@media print {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --muted: 220 14% 96%;
+    --border: 220 13% 85%;
+  }
+  html,
+  body {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+  /* App shell chrome */
+  aside,
+  header {
+    display: none !important;
+  }
+  .flex.h-screen.overflow-hidden {
+    height: auto !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+  main {
+    overflow: visible !important;
+  }
+  main > div {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+  .shadow-card,
+  .shadow-glow {
+    box-shadow: none !important;
+  }
+  .backdrop-blur-sm,
+  .backdrop-blur-xl {
+    backdrop-filter: none !important;
+  }
+}
