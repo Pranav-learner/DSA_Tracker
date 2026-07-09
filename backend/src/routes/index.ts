@@ -10,6 +10,7 @@ import problemRoutes from './problem.routes.js';
 import attemptRoutes from './attempt.routes.js';
 import notebookRoutes from './notebook.routes.js';
 import revisionRoutes from './revision.routes.js';
+import retentionRoutes, { confidenceRouter } from './retention.routes.js';
 
 /** Root API router — mounts every feature router under /api. */
 const api = Router();
@@ -63,6 +64,11 @@ api.get('/', (_req, res) => {
         'GET|PATCH /api/revision/session/:id',
         'GET /api/revision/history',
         'GET /api/revision/history/:entityId',
+        'GET /api/retention',
+        'GET /api/retention/overview',
+        'GET /api/retention/history',
+        'GET|PATCH /api/retention/:entityId',
+        'GET /api/confidence',
       ],
     },
   });
@@ -79,5 +85,7 @@ api.use('/problems', problemRoutes);
 api.use('/attempts', attemptRoutes);
 api.use('/notebook', notebookRoutes);
 api.use('/revision', revisionRoutes);
+api.use('/retention', retentionRoutes);
+api.use('/confidence', confidenceRouter);
 
 export default api;

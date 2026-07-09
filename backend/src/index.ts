@@ -2,6 +2,7 @@ import { createApp } from './app.js';
 import { connectDatabase, disconnectDatabase } from './config/db.js';
 import { env } from './config/env.js';
 import { logger } from './utils/logger.js';
+import { startRetentionJob, stopRetentionJob } from './jobs/retentionDecay.job.js';
 
 async function bootstrap(): Promise<void> {
   await connectDatabase();
@@ -11,8 +12,12 @@ async function bootstrap(): Promise<void> {
     logger.info(`CP-OS API listening on http://localhost:${env.port} (${env.nodeEnv})`);
   });
 
+  // Module 3 · Sprint 3 — start the independent background retention decay job.
+  startRetentionJob();
+
   const shutdown = async (signal: string) => {
     logger.warn(`${signal} received — shutting down gracefully`);
+    stopRetentionJob();
     server.close(async () => {
       await disconnectDatabase();
       process.exit(0);

@@ -8,6 +8,7 @@ import type {
 import type { ActivityDTO } from './activity.service.js';
 import type { DashboardRevisionQueueDTO } from './revision.dto.js';
 import type { DashboardRevisionSessionDTO } from './revisionSession.dto.js';
+import type { DashboardRetentionDTO } from './retention.dto.js';
 
 /** Combined revision widget: the scheduling queue + the active-session block. */
 export type DashboardRevisionDTO = DashboardRevisionQueueDTO & DashboardRevisionSessionDTO;
@@ -65,4 +66,6 @@ export interface DashboardDTO {
   recentActivity: ActivityDTO[];
   /** Module 3: revision widget (due today / overdue / preview). */
   revision: DashboardRevisionDTO;
+  /** Module 3 · Sprint 3: retention & confidence health widget. */
+  retention: DashboardRetentionDTO;
 }

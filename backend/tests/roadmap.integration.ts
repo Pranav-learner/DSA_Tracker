@@ -36,6 +36,7 @@ import { revisionScheduleService } from '../src/services/revisionSchedule.servic
 import { revisionQueueService } from '../src/services/revisionQueue.service.js';
 import { revisionSessionService } from '../src/services/revisionSession.service.js';
 import { revisionWorkspaceService } from '../src/services/revisionWorkspace.service.js';
+import { retentionService } from '../src/services/retention.service.js';
 import { problemRepository } from '../src/repositories/problem.repository.js';
 import { userProblemRepository } from '../src/repositories/userProblem.repository.js';
 import {
@@ -708,6 +709,53 @@ async function run(): Promise<void> {
     'session activity events generated',
   );
 
+  // --- Module 3 · Sprint 3: Retention Engine, Confidence Decay & Mastery Sync ---
+  // The pattern:ps session completed above auto-synced a retention profile.
+  const retProfile = await retentionService.getByEntity(DEMO_USER, 'pattern:ps');
+  assert(retProfile !== null, 'revision completion auto-created a retention profile');
+  assert(retProfile!.reviewCount === 1 && retProfile!.successfulReviews === 1, 'retention counters updated after a review');
+  assert(retProfile!.confidenceScore > 50 && retProfile!.history.length >= 1, 'confidence boosted + snapshot recorded after review');
+
+  // Topic-linked review → mastery synchronisation (reuses Module 1 engine, not duplicated).
+  const topicSess = await revisionSessionService.start(DEMO_USER, { entityType: 'topic', entityId: sw.id });
+  await revisionSessionService.complete(DEMO_USER, { sessionId: topicSess.id, selfConfidenceAfter: 85 });
+  const topicRet = await retentionService.getByEntity(DEMO_USER, sw.id);
+  assert(topicRet !== null && topicRet!.topicId === sw.id, 'topic review created a topic-linked retention profile (mastery-synced)');
+
+  // Manual confidence override recomputes retention + level.
+  const retUpdated = await retentionService.update(DEMO_USER, 'pattern:ps', { confidenceScore: 95 });
+  assert(retUpdated.confidenceScore === 95 && retUpdated.retentionScore >= retProfile!.retentionScore, 'manual confidence override recomputes retention');
+
+  // Overview + confidence + history aggregates.
+  const retOverview = await retentionService.overview(DEMO_USER);
+  const confOverview = await retentionService.confidence(DEMO_USER);
+  const retHistory = await retentionService.history(DEMO_USER, 20);
+  console.log(
+    `  retention: profiles=${retOverview.totalProfiles} avgConf=${retOverview.averageConfidence} ` +
+      `avgRet=${retOverview.averageRetention} atRisk=${retOverview.atRiskCount} mastered=${retOverview.masteredCount} ` +
+      `trend=${retOverview.confidenceTrend.direction} historyRows=${retHistory.length}`,
+  );
+  assert(retOverview.totalProfiles >= 2 && retOverview.averageConfidence > 0, 'retention overview aggregates profiles');
+  assert(['rising', 'falling', 'stable'].includes(retOverview.confidenceTrend.direction), 'overview exposes a confidence trend');
+  assert(confOverview.entries.length >= 2 && confOverview.averageConfidence > 0, 'confidence overview lists entities');
+  assert(retHistory.length >= 1, 'retention history rows returned');
+
+  // Background decay job runs, is safe, and processes profiles.
+  const decayResult = await retentionService.applyDecayForAll(DEMO_USER);
+  assert(decayResult.processed >= 2, 'background decay processes all profiles');
+
+  // Dashboard exposes the retention widget.
+  const dashRet = await dashboardService.get(DEMO_USER);
+  assert(
+    typeof dashRet.retention.averageConfidence === 'number' && dashRet.retention.averageConfidence >= 0,
+    'dashboard exposes the retention widget',
+  );
+
+  // Retention/confidence activity events generated.
+  const retActivity = await activityService.getRecent(DEMO_USER, 100);
+  assert(retActivity.some((a) => a.type === 'retention-updated'), 'retention-updated activity generated');
+  assert(retActivity.some((a) => a.type === 'confidence-increased'), 'confidence-increased activity generated');
+
   // Mastery weights sanity: all-100 metrics → 100% overall.
   const perfect = masteryService.computeOverall({
     recognition: 100, implementation: 100, standard: 100, variant: 100,
@@ -845,6 +893,16 @@ async function run(): Promise<void> {
   const httpSessDup = await sendJson('POST', '/api/revision/session/start', { scheduleId: overdueSched.id });
   const httpWorkspaceNoParams = await getJson('/api/revision/workspace');
   const httpSessBadId = await getJson('/api/revision/session/not-an-id');
+  // Module 3 · Sprint 3 retention/confidence requests (before the server closes).
+  const httpRetList = await getJson('/api/retention');
+  const httpRetOverview = await getJson('/api/retention/overview');
+  const httpRetHistory = await getJson('/api/retention/history?limit=10');
+  const retEntityPath = `/api/retention/${encodeURIComponent('pattern:ps')}`;
+  const httpRetEntity = await getJson(retEntityPath);
+  const httpRetPatch = await sendJson('PATCH', retEntityPath, { confidenceScore: 88 });
+  const httpConfidence = await getJson('/api/confidence');
+  const httpRetMissing = await getJson('/api/retention/no-such-entity');
+  const httpRetBadPatch = await sendJson('PATCH', retEntityPath, { confidenceScore: 150 });
   server.close();
 
   console.log(
@@ -960,6 +1018,21 @@ async function run(): Promise<void> {
   assert(httpSessDup.status === 409, 'second active session → 409');
   assert(httpWorkspaceNoParams.status === 400, 'workspace without params → 400');
   assert(httpSessBadId.status === 400, 'invalid session id → 400');
+
+  // Module 3 · Sprint 3 HTTP assertions:
+  console.log(
+    `http retention: list=${httpRetList.status} overview=${httpRetOverview.status} history=${httpRetHistory.status} ` +
+      `entity=${httpRetEntity.status} patch=${httpRetPatch.status} confidence=${httpConfidence.status} ` +
+      `missing=${httpRetMissing.status} badPatch=${httpRetBadPatch.status}`,
+  );
+  assert(httpRetList.status === 200 && httpRetList.body.success, 'GET /retention → 200');
+  assert(httpRetOverview.status === 200 && httpRetOverview.body.success, 'GET /retention/overview → 200');
+  assert(httpRetHistory.status === 200 && httpRetHistory.body.success, 'GET /retention/history → 200');
+  assert(httpRetEntity.status === 200 && httpRetEntity.body.success, 'GET /retention/:entityId → 200');
+  assert(httpRetPatch.status === 200, 'PATCH /retention/:entityId → 200');
+  assert(httpConfidence.status === 200 && httpConfidence.body.success, 'GET /confidence → 200');
+  assert(httpRetMissing.status === 404, 'GET /retention missing entity → 404');
+  assert(httpRetBadPatch.status === 400, 'PATCH /retention bad confidence → 400');
 
   console.log('\n✅ ALL ASSERTIONS PASSED');
 

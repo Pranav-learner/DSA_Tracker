@@ -1,6 +1,7 @@
 import { revisionSessionRepository } from '../repositories/revisionSession.repository.js';
 import { revisionScheduleRepository } from '../repositories/revisionSchedule.repository.js';
 import { revisionScheduleService } from './revisionSchedule.service.js';
+import { retentionService } from './retention.service.js';
 import { activityService } from './activity.service.js';
 import { notebookRepository } from '../repositories/notebook.repository.js';
 import { topicRepository } from '../repositories/topic.repository.js';
@@ -143,7 +144,18 @@ export const revisionSessionService = {
       }
     }
 
-    return toSessionDTO(updated!);
+    const dto = toSessionDTO(updated!);
+
+    // Module 3 · Sprint 3 — sync retention → confidence → mastery from this review.
+    // Runs after the schedule advances so retention reads the fresh nextReviewDate.
+    // Best-effort: retention is downstream and must never fail a completion.
+    try {
+      await retentionService.syncAfterRevision(userId, dto);
+    } catch (err) {
+      logger.warn('Failed to sync retention after session completion', err);
+    }
+
+    return dto;
   },
 
   async update(userId: string, id: string, input: UpdateSessionInput): Promise<RevisionSessionDTO> {

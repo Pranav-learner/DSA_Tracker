@@ -21,6 +21,7 @@ import { userProblemRepository } from '../repositories/userProblem.repository.js
 import { notebookRepository } from '../repositories/notebook.repository.js';
 import { revisionScheduleRepository } from '../repositories/revisionSchedule.repository.js';
 import { revisionSessionRepository } from '../repositories/revisionSession.repository.js';
+import { retentionRepository } from '../repositories/retention.repository.js';
 import {
   DEFAULT_REVISION_INTERVALS,
   DEFAULT_EASE_FACTOR,
@@ -37,7 +38,7 @@ import {
   DEMO_FAVORITE_TITLES,
 } from './problems.js';
 import { DEMO_NOTEBOOK } from './notebook.js';
-import type { ProblemStatus } from '../types/domain.js';
+import type { ProblemStatus, RetentionLevel } from '../types/domain.js';
 
 /**
  * Idempotent seed: wipes phases & topics, then repopulates the full roadmap.
@@ -115,10 +116,12 @@ async function seed(): Promise<void> {
   const notebookCount = await seedNotebook();
   const revisionCount = await seedRevision();
   const sessionCount = await seedRevisionSessions();
+  const retentionCount = await seedRetention();
 
   logger.info(
     `Seed complete — ${roadmapSeed.length} phases, ${totalTopics} topics, ${problemCount} problems, ` +
-      `${notebookCount} notebook entries, ${revisionCount} revision schedules, ${sessionCount} revision sessions.`,
+      `${notebookCount} notebook entries, ${revisionCount} revision schedules, ${sessionCount} revision sessions, ` +
+      `${retentionCount} retention profiles.`,
   );
   await disconnectDatabase();
 }
@@ -468,6 +471,93 @@ async function seedRevisionSessions(): Promise<number> {
   await revisionSessionRepository.insertMany(docs);
 
   logger.info(`  ✓ Revision sessions seeded (${docs.length}).`);
+  return docs.length;
+}
+
+/**
+ * Module 3 · Sprint 3: seed retention profiles from the demo user's revision
+ * schedules so the Retention Engine dashboard, rings and trend charts have a
+ * spread of confidence/retention levels (Mastered → At Risk) on first run.
+ */
+async function seedRetention(): Promise<number> {
+  const userId = env.demoUserId;
+  logger.info(`Seeding retention profiles for '${userId}'…`);
+  await retentionRepository.deleteByUser(userId);
+
+  const [schedules, notebooks] = await Promise.all([
+    RevisionSchedule.find({ userId }).exec(),
+    NotebookEntry.find({ userId }).exec(),
+  ]);
+  const topicIdByEntry = new Map(notebooks.map((n) => [String(n._id), String(n.topicId)]));
+  const now = Date.now();
+  const DAY = 24 * 60 * 60_000;
+
+  // A spread of confidence values so every retention level is represented.
+  const confidences = [94, 88, 78, 66, 54, 45, 34];
+  const reasons = ['Reviewed', 'Decay', 'Reviewed'];
+
+  const docs = schedules.map((s, i) => {
+    const confidence = confidences[i % confidences.length];
+    const reviewCount = 1 + (i % 5);
+    const successfulReviews = Math.max(1, reviewCount - (i % 2));
+    const successRate = successfulReviews / reviewCount;
+    const retention = Math.round(0.6 * confidence + 0.4 * successRate * 100);
+    const overdue = s.nextReviewDate.getTime() < now;
+    const level: RetentionLevel =
+      retention < 40 || (overdue && (now - s.nextReviewDate.getTime()) / DAY > 7)
+        ? 'At Risk'
+        : overdue
+          ? 'Needs Review'
+          : retention >= 90
+            ? 'Mastered'
+            : retention >= 75
+              ? 'Strong'
+              : retention >= 50
+                ? 'Familiar'
+                : 'Learning';
+
+    // A short back-dated history so trend sparklines render.
+    const history = [0, 1, 2].map((h) => {
+      const c = Math.max(0, Math.min(100, confidence - (2 - h) * 4));
+      return {
+        confidenceScore: c,
+        retentionScore: Math.round(0.6 * c + 0.4 * successRate * 100),
+        level,
+        reason: reasons[h],
+        date: new Date(now - (3 - h) * 4 * DAY),
+      };
+    });
+
+    const topicId =
+      s.entityType === 'topic'
+        ? s.entityId
+        : (topicIdByEntry.get(s.entityId) ?? null);
+
+    return {
+      userId,
+      entityType: s.entityType,
+      entityId: s.entityId,
+      title: s.title,
+      topicId: topicId ? new Types.ObjectId(topicId) : null,
+      confidenceScore: confidence,
+      retentionScore: retention,
+      decayScore: Math.max(0.3, 2.0 / (1 + reviewCount * 0.35)),
+      currentLevel: level,
+      reviewCount,
+      successfulReviews,
+      missedReviews: i % 2,
+      overdueReviews: overdue ? Math.max(1, Math.round((now - s.nextReviewDate.getTime()) / DAY)) : 0,
+      averageReviewInterval: 3 + (i % 4),
+      lastReviewDate: s.lastReviewDate,
+      nextReviewDate: s.nextReviewDate,
+      lastDecayDate: new Date(now - DAY),
+      strategy: 'default',
+      history,
+    };
+  });
+  await retentionRepository.insertMany(docs);
+
+  logger.info(`  ✓ Retention seeded (${docs.length} profiles).`);
   return docs.length;
 }
 
