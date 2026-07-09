@@ -9,6 +9,7 @@ import type { ActivityDTO } from './activity.service.js';
 import type { DashboardRevisionQueueDTO } from './revision.dto.js';
 import type { DashboardRevisionSessionDTO } from './revisionSession.dto.js';
 import type { DashboardRetentionDTO } from './retention.dto.js';
+import type { DashboardContestDTO } from '../contests/dto/contest.dto.js';
 
 /** Combined revision widget: the scheduling queue + the active-session block. */
 export type DashboardRevisionDTO = DashboardRevisionQueueDTO & DashboardRevisionSessionDTO;
@@ -142,4 +143,6 @@ export interface DashboardDTO {
   health: DashboardHealthDTO;
   /** Sprint 4: one-tap actions into existing routes. */
   quickActions: QuickActionDTO[];
+  /** Module 5: contest summary (rating + latest contest). */
+  contest: DashboardContestDTO;
 }

@@ -12,8 +12,10 @@ import {
   NotebookPen,
   Zap,
   ArrowRight,
+  Swords,
 } from 'lucide-react';
 import { useDashboard } from '@/hooks/useDashboard';
+import { ContestSummaryCard } from '@/components/contest';
 import { CardContainer } from '@/components/common/CardContainer';
 import { ErrorState } from '@/components/common/ErrorState';
 import { Button } from '@/components/ui/button';
@@ -188,6 +190,12 @@ export function DashboardPage() {
           <DashboardSection title="Quick Actions" icon={<Zap className="size-4" />}>
             <QuickActionsPanel actions={quickActions} />
           </DashboardSection>
+
+          {data.contest.totalContests > 0 && (
+            <DashboardSection title="Contests" icon={<Swords className="size-4" />}>
+              <ContestSummaryCard contest={data.contest} />
+            </DashboardSection>
+          )}
 
           <DashboardSection title="Phase" icon={<Layers className="size-4" />}>
             <PhaseGlance data={data} />

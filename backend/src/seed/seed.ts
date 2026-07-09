@@ -22,6 +22,10 @@ import { notebookRepository } from '../repositories/notebook.repository.js';
 import { revisionScheduleRepository } from '../repositories/revisionSchedule.repository.js';
 import { revisionSessionRepository } from '../repositories/revisionSession.repository.js';
 import { retentionRepository } from '../repositories/retention.repository.js';
+import { contestRepository } from '../contests/repositories/contest.repository.js';
+import { ratingService } from '../contests/services/rating.service.js';
+import { getContestProvider } from '../contests/providers/contestProvider.js';
+import type { ContestPlatform, ContestType } from '../types/domain.js';
 import {
   DEFAULT_REVISION_INTERVALS,
   DEFAULT_EASE_FACTOR,
@@ -117,11 +121,12 @@ async function seed(): Promise<void> {
   const revisionCount = await seedRevision();
   const sessionCount = await seedRevisionSessions();
   const retentionCount = await seedRetention();
+  const contestCount = await seedContests();
 
   logger.info(
     `Seed complete — ${roadmapSeed.length} phases, ${totalTopics} topics, ${problemCount} problems, ` +
       `${notebookCount} notebook entries, ${revisionCount} revision schedules, ${sessionCount} revision sessions, ` +
-      `${retentionCount} retention profiles.`,
+      `${retentionCount} retention profiles, ${contestCount} contests.`,
   );
   await disconnectDatabase();
 }
@@ -558,6 +563,85 @@ async function seedRetention(): Promise<number> {
   await retentionRepository.insertMany(docs);
 
   logger.info(`  ✓ Retention seeded (${docs.length} profiles).`);
+  return docs.length;
+}
+
+/**
+ * Module 5 · Sprint 1: seed a spread of contests (multi-platform) with a
+ * realistic Codeforces rating progression, then rebuild the rating timeline.
+ */
+async function seedContests(): Promise<number> {
+  const userId = env.demoUserId;
+  logger.info(`Seeding contests for '${userId}'…`);
+  await contestRepository.deleteByUser(userId);
+  const now = Date.now();
+  const DAY = 24 * 60 * 60_000;
+
+  // A Codeforces rating arc (before → after) over recent weeks.
+  const cfArc = [
+    { id: '1900', name: 'Codeforces Round 1900 (Div. 2)', div: 'Div. 2', before: 1200, after: 1284, rank: 3120, days: 84 },
+    { id: '1912', name: 'Educational Codeforces Round 160', div: 'Educational', before: 1284, after: 1341, rank: 2740, days: 70 },
+    { id: '1925', name: 'Codeforces Round 1925 (Div. 2)', div: 'Div. 2', before: 1341, after: 1298, rank: 4010, days: 56 },
+    { id: '1938', name: 'Codeforces Round 1938 (Div. 1)', div: 'Div. 1', before: 1298, after: 1372, rank: 1880, days: 42 },
+    { id: '1950', name: 'Educational Codeforces Round 165', div: 'Educational', before: 1372, after: 1425, rank: 1540, days: 21 },
+    { id: '1962', name: 'Codeforces Round 1962 (Div. 2)', div: 'Div. 2', before: 1425, after: 1489, rank: 980, days: 7 },
+  ];
+
+  const build = (
+    platform: ContestPlatform,
+    contestId: string,
+    contestName: string,
+    division: string,
+    contestType: ContestType,
+    daysAgo: number,
+    durationMinutes: number,
+    before: number | null,
+    after: number | null,
+    rank: number | null,
+  ) => ({
+    userId,
+    platform,
+    provider: platform,
+    contestId,
+    contestName,
+    contestUrl: getContestProvider(platform).contestUrl(contestId),
+    division,
+    contestType,
+    startTime: new Date(now - daysAgo * DAY),
+    durationMinutes,
+    ratingBefore: before,
+    ratingAfter: after,
+    ratingChange: before != null && after != null ? after - before : null,
+    rank,
+    percentile: rank ? Math.max(1, Math.min(99, Math.round(100 - rank / 80))) : null,
+    participated: true,
+    notes: '',
+  });
+
+  const docs = [
+    ...cfArc.map((c) => build('Codeforces', c.id, c.name, c.div, 'Rated', c.days, 120, c.before, c.after, c.rank)),
+    build('LeetCode', 'weekly-contest-390', 'LeetCode Weekly Contest 390', 'Weekly', 'Rated', 35, 90, 1720, 1768, 640),
+    build('AtCoder', 'abc345', 'AtCoder Beginner Contest 345', 'ABC', 'Rated', 28, 100, 820, 861, 1420),
+    build('Codeforces', 'gym-virtual-1', 'Virtual: Codeforces Round 1888', 'Div. 2', 'Virtual', 14, 120, null, null, 2200),
+  ];
+
+  await contestRepository.insertMany(docs);
+  await ratingService.rebuild(userId);
+
+  // A back-dated activity for the timeline.
+  await activityRepository.insertMany([
+    {
+      userId,
+      type: 'contest-added',
+      entityType: 'contest',
+      entityId: 'seed',
+      title: `${docs.length} contests logged`,
+      description: 'Your contest library is ready.',
+      createdAt: new Date(now - 4 * 60_000),
+    },
+  ]);
+
+  logger.info(`  ✓ Contests seeded (${docs.length}).`);
   return docs.length;
 }
 

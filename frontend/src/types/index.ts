@@ -282,9 +282,12 @@ export type ActivityType =
   | 'insight-generated'
   | 'pattern-improved'
   | 'pattern-at-risk'
-  | 'recommendation-created';
+  | 'recommendation-created'
+  | 'contest-added'
+  | 'contest-updated'
+  | 'rating-updated';
 
-export type ActivityEntityType = 'topic' | 'phase' | 'problem' | 'revision';
+export type ActivityEntityType = 'topic' | 'phase' | 'problem' | 'revision' | 'contest';
 
 export interface ActivityEvent {
   id: string;
@@ -398,6 +401,7 @@ export interface Dashboard {
   todayPlan: DashboardTodayPlan;
   health: DashboardHealth;
   quickActions: QuickAction[];
+  contest: DashboardContest;
 }
 
 export interface RoadmapStats {
@@ -1409,6 +1413,126 @@ export interface PhaseReport extends Report {
 }
 
 export type ExportFormat = 'pdf' | 'markdown' | 'json' | 'csv';
+
+/* ---- Module 5 · Sprint 1: Competitive Programming Engine ---- */
+
+export type ContestPlatform = 'Codeforces' | 'LeetCode' | 'AtCoder' | 'CodeChef';
+export type ContestType = 'Rated' | 'Unrated' | 'Virtual';
+export type ContestSortField = 'startTime' | 'ratingChange' | 'rank' | 'contestName' | 'createdAt';
+
+export interface Contest {
+  id: string;
+  platform: ContestPlatform;
+  provider: string;
+  contestId: string;
+  contestName: string;
+  contestUrl: string;
+  division: string;
+  contestType: ContestType;
+  startTime: string;
+  durationMinutes: number;
+  ratingBefore: number | null;
+  ratingAfter: number | null;
+  ratingChange: number | null;
+  rank: number | null;
+  percentile: number | null;
+  participated: boolean;
+  notes: string;
+  isRated: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaginatedContests {
+  items: Contest[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
+export interface ContestFacets {
+  platforms: { platform: ContestPlatform; label: string; divisions: string[] }[];
+  contestTypes: ContestType[];
+  usedPlatforms: string[];
+  usedDivisions: string[];
+}
+
+export interface ContestStats {
+  totalContests: number;
+  ratedContests: number;
+  virtualContests: number;
+  participatedContests: number;
+  averageRank: number;
+  averageRatingChange: number;
+  participationFrequencyPerMonth: number;
+  platformDistribution: { platform: string; count: number; percent: number }[];
+}
+
+export interface RatingHistoryPoint {
+  contestId: string;
+  contestName: string;
+  platform: ContestPlatform;
+  rating: number;
+  ratingChange: number;
+  date: string;
+}
+
+export interface RatingSummary {
+  currentRating: number | null;
+  highestRating: number | null;
+  lowestRating: number | null;
+  averageRating: number | null;
+  bestImprovement: number;
+  worstDrop: number;
+  ratedContests: number;
+  lastRatingChange: number | null;
+  recentChanges: { contestName: string; ratingChange: number; date: string }[];
+}
+
+export interface DashboardContest {
+  totalContests: number;
+  currentRating: number | null;
+  highestRating: number | null;
+  latestContest: Contest | null;
+  recentRatingChange: number | null;
+  averageRank: number;
+}
+
+export interface ContestQuery {
+  page?: number;
+  pageSize?: number;
+  q?: string;
+  platform?: ContestPlatform;
+  contestType?: ContestType;
+  division?: string;
+  rated?: boolean;
+  from?: string;
+  to?: string;
+  sort?: ContestSortField;
+  order?: 'asc' | 'desc';
+}
+
+export interface CreateContestInput {
+  platform: ContestPlatform;
+  contestId: string;
+  contestName: string;
+  contestUrl?: string;
+  division?: string;
+  contestType: ContestType;
+  startTime: string;
+  durationMinutes?: number;
+  ratingBefore?: number | null;
+  ratingAfter?: number | null;
+  rank?: number | null;
+  percentile?: number | null;
+  participated?: boolean;
+  notes?: string;
+}
+
+export type UpdateContestInput = Partial<Omit<CreateContestInput, 'platform' | 'contestId'>>;
 
 /** Success envelope returned by every backend endpoint. */
 export interface ApiEnvelope<T> {

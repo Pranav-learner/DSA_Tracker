@@ -46,6 +46,8 @@ import { reportService } from '../src/reports/services/report.service.js';
 import { renderMarkdown } from '../src/reports/renderers/markdown.renderer.js';
 import { renderPdf } from '../src/reports/renderers/pdf.renderer.js';
 import { renderCsv } from '../src/reports/renderers/csv.renderer.js';
+import { contestService } from '../src/contests/services/contest.service.js';
+import { ratingService } from '../src/contests/services/rating.service.js';
 import { problemRepository } from '../src/repositories/problem.repository.js';
 import { userProblemRepository } from '../src/repositories/userProblem.repository.js';
 import {
@@ -933,6 +935,61 @@ async function run(): Promise<void> {
   assert(csv.split('\n')[0] === 'section,key,value,extra' && csv.includes('score,'), 'csv renderer produces analytics tables');
   assert(Buffer.isBuffer(pdf) && pdf.length > 800 && pdf.subarray(0, 5).toString() === '%PDF-', 'pdf renderer produces a valid PDF buffer');
 
+  // --- Module 5 · Sprint 1: Contest Library & Rating History ---
+  const c1 = await contestService.create(DEMO_USER, {
+    platform: 'Codeforces', contestId: 'test-2000', contestName: 'Codeforces Round 2000 (Div. 2)', contestType: 'Rated',
+    division: 'Div. 2', startTime: new Date(Date.now() - 5 * 86_400_000).toISOString(), durationMinutes: 120,
+    ratingBefore: 1489, ratingAfter: 1553, rank: 720, participated: true,
+  });
+  const c2 = await contestService.create(DEMO_USER, {
+    platform: 'AtCoder', contestId: 'test-abc350', contestName: 'AtCoder Beginner Contest 350', contestType: 'Rated',
+    division: 'ABC', startTime: new Date(Date.now() - 2 * 86_400_000).toISOString(), durationMinutes: 100,
+    ratingBefore: 861, ratingAfter: 902, rank: 1100, participated: true,
+  });
+  console.log(`  contest: created "${c1.contestName}" change=${c1.ratingChange} url=${c1.contestUrl.includes('codeforces')} isRated=${c1.isRated}`);
+  assert(c1.ratingChange === 64 && c1.isRated && c1.contestUrl === 'https://codeforces.com/contest/test-2000', 'contest create derives rating change + provider url');
+
+  let contestDupThrew = false;
+  try {
+    await contestService.create(DEMO_USER, { platform: 'Codeforces', contestId: 'test-2000', contestName: 'dup', contestType: 'Rated', startTime: new Date().toISOString(), durationMinutes: 120, participated: true });
+  } catch { contestDupThrew = true; }
+  assert(contestDupThrew, 'duplicate contest is rejected');
+
+  const contestUpdated = await contestService.update(DEMO_USER, c1.id, { rank: 640, notes: 'Solid round.' });
+  assert(contestUpdated.rank === 640 && contestUpdated.notes === 'Solid round.', 'contest update works');
+
+  const list = await contestService.list(DEMO_USER, { page: 1, pageSize: 10, sort: 'startTime', order: 'desc' });
+  const cfOnly = await contestService.list(DEMO_USER, { page: 1, pageSize: 10, sort: 'startTime', order: 'desc', platform: 'Codeforces' });
+  assert(list.total >= 2 && list.items[0].startTime >= list.items[1].startTime, 'contest list paginates + sorts');
+  assert(cfOnly.items.every((c) => c.platform === 'Codeforces'), 'contest list filters by platform');
+
+  const cStats = await contestService.stats(DEMO_USER);
+  const ratingSummary = await ratingService.summary(DEMO_USER);
+  const ratingHistory = await ratingService.history(DEMO_USER);
+  console.log(
+    `  ratings: current=${ratingSummary.currentRating} highest=${ratingSummary.highestRating} lowest=${ratingSummary.lowestRating} ` +
+      `best=${ratingSummary.bestImprovement} worst=${ratingSummary.worstDrop} rated=${ratingSummary.ratedContests} | ` +
+      `stats total=${cStats.totalContests} rated=${cStats.ratedContests} virtual=${cStats.virtualContests} platforms=${cStats.platformDistribution.length}`,
+  );
+  assert(cStats.totalContests >= 2 && cStats.platformDistribution.length >= 1, 'contest stats aggregate');
+  assert(
+    ratingSummary.currentRating !== null && ratingSummary.highestRating !== null &&
+      (ratingSummary.highestRating ?? 0) >= (ratingSummary.currentRating ?? 0) - 1000 &&
+      ratingHistory.length >= 2 && ratingHistory[0].date <= ratingHistory[ratingHistory.length - 1].date,
+    'rating summary + timeline maintained',
+  );
+
+  const dashContest = await dashboardService.get(DEMO_USER);
+  assert(dashContest.contest.totalContests >= 2 && typeof dashContest.contest.currentRating === 'number', 'dashboard exposes the contest widget');
+
+  const contestActivity = await activityService.getRecent(DEMO_USER, 120);
+  assert(contestActivity.some((a) => a.type === 'contest-added') && contestActivity.some((a) => a.type === 'rating-updated'), 'contest activity events generated');
+
+  // Delete removes the rating point too.
+  await contestService.remove(DEMO_USER, c2.id);
+  const afterDelete = await ratingService.history(DEMO_USER);
+  assert(!afterDelete.some((p) => p.contestId === 'test-abc350'), 'deleting a contest removes its rating point');
+
   // MetricsEngine sanity + cache re-hit (second call returns identical, cached object).
   assert(metricsEngine.percentage(3, 4) === 75 && metricsEngine.successRate(0, 0) === 0, 'MetricsEngine computes correctly');
   const anCached = await analyticsAggregationService.learning(DEMO_USER, anWindow);
@@ -1132,6 +1189,24 @@ async function run(): Promise<void> {
   const httpExportCsv = await rawGet('/api/reports/export/csv?type=monthly');
   const httpExportPhase = await rawGet(`/api/reports/export/pdf?type=phase&phaseId=${phase0.phaseId}`);
   const httpExportBad = await getJson('/api/reports/export/pdf?type=phase');
+  // Module 5 · Sprint 1 contest + rating requests.
+  const httpContestCreate = await sendJson('POST', '/api/contests', {
+    platform: 'LeetCode', contestId: 'http-weekly-400', contestName: 'LeetCode Weekly 400', contestType: 'Rated',
+    startTime: new Date().toISOString(), durationMinutes: 90, ratingBefore: 1768, ratingAfter: 1801, rank: 500,
+  });
+  const createdContestId = (httpContestCreate.body.data as { id?: string } | undefined)?.id ?? '';
+  const httpContestList = await getJson('/api/contests?pageSize=5&sort=startTime');
+  const httpContestStats = await getJson('/api/contests/stats');
+  const httpContestFacets = await getJson('/api/contests/facets');
+  const httpContestGet = await getJson(`/api/contests/${createdContestId}`);
+  const httpContestPatch = await sendJson('PATCH', `/api/contests/${createdContestId}`, { notes: 'gg' });
+  const httpRatings = await getJson('/api/ratings');
+  const httpRatingHistory = await getJson('/api/ratings/history');
+  const httpRatingCurrent = await getJson('/api/ratings/current');
+  const httpContestDup = await sendJson('POST', '/api/contests', { platform: 'LeetCode', contestId: 'http-weekly-400', contestName: 'dup', contestType: 'Rated', startTime: new Date().toISOString(), durationMinutes: 90 });
+  const httpContestBadPlatform = await sendJson('POST', '/api/contests', { platform: 'Nope', contestId: 'x', contestName: 'x', contestType: 'Rated', startTime: new Date().toISOString(), durationMinutes: 90 });
+  const httpContestBadId = await getJson('/api/contests/not-an-id');
+  const httpContestDelete = await sendJson('DELETE', `/api/contests/${createdContestId}`);
   server.close();
 
   console.log(
@@ -1315,6 +1390,27 @@ async function run(): Promise<void> {
   assert(httpExportCsv.status === 200 && httpExportCsv.ctype.includes('text/csv'), 'export CSV → 200 text/csv');
   assert(httpExportPhase.status === 200 && httpExportPhase.ctype.includes('application/pdf'), 'export phase PDF → 200');
   assert(httpExportBad.status === 400, 'export phase without phaseId → 400');
+
+  // Module 5 · Sprint 1 HTTP assertions:
+  console.log(
+    `http contests: create=${httpContestCreate.status} list=${httpContestList.status} stats=${httpContestStats.status} ` +
+      `facets=${httpContestFacets.status} get=${httpContestGet.status} patch=${httpContestPatch.status} delete=${httpContestDelete.status} ` +
+      `dup=${httpContestDup.status} badPlatform=${httpContestBadPlatform.status} badId=${httpContestBadId.status} | ` +
+      `ratings=${httpRatings.status} history=${httpRatingHistory.status} current=${httpRatingCurrent.status}`,
+  );
+  assert(httpContestCreate.status === 201 && httpContestCreate.body.success, 'POST /contests → 201');
+  assert(httpContestList.status === 200 && httpContestList.body.success, 'GET /contests → 200');
+  assert(httpContestStats.status === 200 && httpContestStats.body.success, 'GET /contests/stats → 200');
+  assert(httpContestFacets.status === 200 && httpContestFacets.body.success, 'GET /contests/facets → 200');
+  assert(httpContestGet.status === 200, 'GET /contests/:id → 200');
+  assert(httpContestPatch.status === 200, 'PATCH /contests/:id → 200');
+  assert(httpContestDelete.status === 200, 'DELETE /contests/:id → 200');
+  assert(httpContestDup.status === 409, 'duplicate contest → 409');
+  assert(httpContestBadPlatform.status === 400, 'invalid platform → 400');
+  assert(httpContestBadId.status === 400, 'invalid contest id → 400');
+  assert(httpRatings.status === 200 && httpRatings.body.success, 'GET /ratings → 200');
+  assert(httpRatingHistory.status === 200 && httpRatingHistory.body.success, 'GET /ratings/history → 200');
+  assert(httpRatingCurrent.status === 200 && httpRatingCurrent.body.success, 'GET /ratings/current → 200');
 
   console.log('\n✅ ALL ASSERTIONS PASSED');
 

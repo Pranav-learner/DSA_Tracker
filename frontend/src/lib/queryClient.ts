@@ -80,4 +80,12 @@ export const queryKeys = {
   // --- Module 4 · Sprint 4: reports & executive ---
   executive: (params: object) => ['analytics', 'executive', params] as const,
   report: (kind: string, params: object = {}) => ['reports', kind, params] as const,
+  // --- Module 5 · Sprint 1: contests ---
+  contests: ['contests'] as const,
+  contestList: (query: object) => ['contests', 'list', query] as const,
+  contest: (id: string) => ['contests', 'detail', id] as const,
+  contestStats: ['contests', 'stats'] as const,
+  contestFacets: ['contests', 'facets'] as const,
+  ratings: (platform: string) => ['ratings', platform] as const,
+  ratingHistory: (platform: string) => ['ratings', 'history', platform] as const,
 };

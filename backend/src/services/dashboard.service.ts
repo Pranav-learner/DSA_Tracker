@@ -7,6 +7,7 @@ import { revisionSessionService } from './revisionSession.service.js';
 import { retentionService } from './retention.service.js';
 import { notebookService } from './notebook.service.js';
 import { dashboardInsightsService } from './dashboardInsights.service.js';
+import { contestService } from '../contests/services/contest.service.js';
 import { topicRepository } from '../repositories/topic.repository.js';
 import { toTopicSummaryDTO, type PhaseDTO, type PhaseRefDTO, type TopicSummaryDTO } from './mappers.js';
 import type { PhaseProgressDTO, ProgressDTO } from './learning.dto.js';
@@ -34,7 +35,7 @@ export const dashboardService = {
     const recommendation = recommendationService.build(overview);
 
     // Everything below reuses `overview`; only display metadata is fetched, in parallel.
-    const [phases, hoursByPhase, recentActivity, revisionQueue, revisionSession, retention, knowledgeStats] =
+    const [phases, hoursByPhase, recentActivity, revisionQueue, revisionSession, retention, knowledgeStats, contest] =
       await Promise.all([
         phaseService.list(),
         topicRepository.estimatedHoursByPhase(),
@@ -43,6 +44,7 @@ export const dashboardService = {
         revisionSessionService.getDashboardSummary(userId),
         retentionService.getDashboardSummary(userId),
         notebookService.stats(userId),
+        contestService.getDashboardSummary(userId),
       ]);
     const revision = { ...revisionQueue, ...revisionSession };
 
@@ -115,6 +117,7 @@ export const dashboardService = {
       todayPlan,
       health,
       quickActions,
+      contest,
     };
   },
 

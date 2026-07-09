@@ -26,6 +26,8 @@ import {
   ShieldAlert,
   Lightbulb,
   Sparkle,
+  Swords,
+  Medal,
   type LucideIcon,
 } from 'lucide-react';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -66,6 +68,9 @@ const EVENT_META: Record<ActivityType, EventMeta> = {
   'pattern-improved': { icon: Sparkle, tile: 'border-success/40 bg-success/15 text-success' },
   'pattern-at-risk': { icon: ShieldAlert, tile: 'border-danger/40 bg-danger/15 text-danger' },
   'recommendation-created': { icon: Compass, tile: 'border-primary/40 bg-primary/15 text-primary' },
+  'contest-added': { icon: Swords, tile: 'border-primary/40 bg-primary/15 text-primary' },
+  'contest-updated': { icon: PencilLine, tile: 'border-warning/40 bg-warning/15 text-warning' },
+  'rating-updated': { icon: Medal, tile: 'border-success/40 bg-success/15 text-success' },
 };
 
 /**

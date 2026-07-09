@@ -41,6 +41,13 @@ const MonthlyReport = lazy(() => import('@/pages/MonthlyReport').then((m) => ({ 
 const LearningSummary = lazy(() => import('@/pages/LearningSummary').then((m) => ({ default: m.LearningSummary })));
 const PhaseReport = lazy(() => import('@/pages/PhaseReport').then((m) => ({ default: m.PhaseReport })));
 const ExportCenter = lazy(() => import('@/pages/ExportCenter').then((m) => ({ default: m.ExportCenter })));
+// Module 5 · Sprint 1 — Contest engine (rating charts are chart-heavy, lazy).
+const ContestDashboard = lazy(() => import('@/pages/ContestDashboard').then((m) => ({ default: m.ContestDashboard })));
+const ContestLibrary = lazy(() => import('@/pages/ContestLibrary').then((m) => ({ default: m.ContestLibrary })));
+const ContestDetail = lazy(() => import('@/pages/ContestDetail').then((m) => ({ default: m.ContestDetail })));
+const ContestNew = lazy(() => import('@/pages/ContestNew').then((m) => ({ default: m.ContestNew })));
+const RatingHistory = lazy(() => import('@/pages/RatingHistory').then((m) => ({ default: m.RatingHistory })));
+const ContestStatistics = lazy(() => import('@/pages/ContestStatistics').then((m) => ({ default: m.ContestStatistics })));
 
 /** Wrap a lazily-loaded analytics page in a Suspense skeleton fallback. */
 function analyticsLazy(node: ReactNode): ReactNode {
@@ -105,6 +112,13 @@ export const router = createBrowserRouter([
       { path: 'reports/summary', element: analyticsLazy(<LearningSummary />) },
       { path: 'reports/phase', element: analyticsLazy(<PhaseReport />) },
       { path: 'reports/phase/:phaseId', element: analyticsLazy(<PhaseReport />) },
+      // Contest engine (static routes rank above /:id automatically).
+      { path: 'contests', element: analyticsLazy(<ContestDashboard />) },
+      { path: 'contests/library', element: analyticsLazy(<ContestLibrary />) },
+      { path: 'contests/new', element: analyticsLazy(<ContestNew />) },
+      { path: 'contests/ratings', element: analyticsLazy(<RatingHistory />) },
+      { path: 'contests/stats', element: analyticsLazy(<ContestStatistics />) },
+      { path: 'contests/:id', element: analyticsLazy(<ContestDetail />) },
     ],
   },
   { path: '*', element: <NotFoundPage /> },

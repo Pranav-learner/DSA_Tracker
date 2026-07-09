@@ -153,6 +153,10 @@ export const ACTIVITY_TYPES = [
   'pattern-improved',
   'pattern-at-risk',
   'recommendation-created',
+  // Module 5 · Sprint 1 — competitive programming engine
+  'contest-added',
+  'contest-updated',
+  'rating-updated',
 ] as const;
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];
 
@@ -222,8 +226,18 @@ export const DECAY_STRATEGIES = ['default'] as const;
 export type DecayStrategyName = (typeof DECAY_STRATEGIES)[number];
 
 /** The entity an activity refers to. Kept generic so future modules can extend. */
-export const ACTIVITY_ENTITY_TYPES = ['topic', 'phase', 'problem', 'revision'] as const;
+export const ACTIVITY_ENTITY_TYPES = ['topic', 'phase', 'problem', 'revision', 'contest'] as const;
 export type ActivityEntityType = (typeof ACTIVITY_ENTITY_TYPES)[number];
+
+/* ---- Module 5 · Sprint 1: Competitive Programming Engine ---- */
+
+/** Contest platforms (distinct from problem PLATFORMS — includes CodeChef). */
+export const CONTEST_PLATFORMS = ['Codeforces', 'LeetCode', 'AtCoder', 'CodeChef'] as const;
+export type ContestPlatform = (typeof CONTEST_PLATFORMS)[number];
+
+/** Whether a contest counted toward rating. */
+export const CONTEST_TYPES = ['Rated', 'Unrated', 'Virtual'] as const;
+export type ContestType = (typeof CONTEST_TYPES)[number];
 
 /* ------------------------------------------------------------------ *
  *  Module 2 · Sprint 1 — Problem Library
