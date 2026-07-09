@@ -70,6 +70,28 @@ export const dashboardService = {
       ? (overview.topics.find((t) => t.topicId === overview.currentTopicId)?.mastery ?? 0)
       : 0;
 
+    // Sprint 4 — derive the Learning-OS blocks from the summaries above. All
+    // composite rules live in dashboardInsightsService; this stays orchestration.
+    const knowledge = dashboardInsightsService.buildKnowledge(knowledgeStats, overview.overall.topicsTotal);
+    const todayPlan = dashboardInsightsService.buildTodayPlan({
+      recommendation,
+      currentTopic,
+      currentMastery,
+      revisionQueue,
+    });
+    const health = dashboardInsightsService.buildHealth({
+      overall: overview.overall,
+      knowledge,
+      revisionQueue,
+      retention,
+    });
+    const quickActions = dashboardInsightsService.buildQuickActions({
+      recommendation,
+      currentTopicId: overview.currentTopicId,
+      hasActiveSession: revisionSession.activeSession !== null,
+      revisionsDue: todayPlan.revisionsDue,
+    });
+
     return {
       userId,
       currentPhase,
@@ -89,6 +111,10 @@ export const dashboardService = {
       recentActivity,
       revision,
       retention,
+      knowledge,
+      todayPlan,
+      health,
+      quickActions,
     };
   },
 

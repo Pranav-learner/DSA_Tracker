@@ -751,6 +751,36 @@ async function run(): Promise<void> {
     'dashboard exposes the retention widget',
   );
 
+  // --- Module 3 · Sprint 4: Learning-OS dashboard aggregation ---
+  console.log(
+    `  dashboard-os: knowledge{entries=${dashRet.knowledge.knowledgeEntries} patterns=${dashRet.knowledge.patternsLearned} ` +
+      `coverage=${dashRet.knowledge.notebookCoveragePercent}%} plan{priority=${dashRet.todayPlan.priority} due=${dashRet.todayPlan.revisionsDue} ` +
+      `study=${dashRet.todayPlan.estimatedStudyMinutes}m} health{overall=${dashRet.health.overallScore}/${dashRet.health.overallStatus} ` +
+      `indicators=${dashRet.health.indicators.length}} actions=${dashRet.quickActions.length}`,
+  );
+  assert(
+    dashRet.knowledge.knowledgeEntries >= 1 && dashRet.knowledge.notebookCoveragePercent >= 0,
+    'dashboard exposes the knowledge summary',
+  );
+  assert(
+    dashRet.todayPlan.recommendation !== undefined &&
+      ['high', 'medium', 'low'].includes(dashRet.todayPlan.priority) &&
+      dashRet.todayPlan.estimatedRevisionMinutes >= 0,
+    'dashboard exposes today\'s plan',
+  );
+  assert(
+    dashRet.health.indicators.length === 4 &&
+      dashRet.health.indicators.every((h) => h.score >= 0 && h.score <= 100 && ['excellent', 'good', 'fair', 'at-risk'].includes(h.status)) &&
+      dashRet.health.overallScore >= 0 && dashRet.health.overallScore <= 100,
+    'dashboard exposes the learning-health panel',
+  );
+  assert(
+    dashRet.quickActions.length >= 6 &&
+      dashRet.quickActions.some((a) => a.kind === 'continue-learning' && a.primary && a.enabled) &&
+      dashRet.quickActions.every((a) => typeof a.to === 'string' && a.to.startsWith('/')),
+    'dashboard exposes quick actions into existing routes',
+  );
+
   // Retention/confidence activity events generated.
   const retActivity = await activityService.getRecent(DEMO_USER, 100);
   assert(retActivity.some((a) => a.type === 'retention-updated'), 'retention-updated activity generated');

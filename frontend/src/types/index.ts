@@ -314,6 +314,67 @@ export interface DashboardPhaseProgress extends PhaseProgress {
   estimatedTimeRemainingHours: number;
 }
 
+/* Sprint 4 — Learning-OS dashboard blocks. */
+
+export interface DashboardKnowledge {
+  knowledgeEntries: number;
+  representativeProblems: number;
+  patternsLearned: number;
+  patternsPending: number;
+  topicsCovered: number;
+  notebookCoveragePercent: number;
+}
+
+export type PlanPriority = 'high' | 'medium' | 'low';
+
+export interface DashboardTodayPlan {
+  recommendation: Recommendation;
+  currentTopic: TopicSummary | null;
+  revisionsDue: number;
+  estimatedStudyMinutes: number;
+  estimatedRevisionMinutes: number;
+  priority: PlanPriority;
+  headline: string;
+}
+
+export type HealthStatus = 'excellent' | 'good' | 'fair' | 'at-risk';
+export type HealthKey = 'learning' | 'knowledge' | 'revision' | 'retention';
+
+export interface HealthIndicator {
+  key: HealthKey;
+  label: string;
+  score: number;
+  status: HealthStatus;
+  detail: string;
+}
+
+export interface DashboardHealth {
+  overallScore: number;
+  overallStatus: HealthStatus;
+  indicators: HealthIndicator[];
+  confidence: number;
+  topicsAtRisk: number;
+  masteredTopics: number;
+  upcomingReviews: number;
+}
+
+export type QuickActionKind =
+  | 'continue-learning'
+  | 'resume-session'
+  | 'start-revision'
+  | 'open-topic'
+  | 'view-notebook'
+  | 'view-calendar'
+  | 'view-retention';
+
+export interface QuickAction {
+  kind: QuickActionKind;
+  label: string;
+  to: string;
+  enabled: boolean;
+  primary: boolean;
+}
+
 /** Response of GET /dashboard — the aggregated learner home screen. */
 export interface Dashboard {
   userId: string;
@@ -329,6 +390,10 @@ export interface Dashboard {
   recentActivity: ActivityEvent[];
   revision: DashboardRevision;
   retention: DashboardRetention;
+  knowledge: DashboardKnowledge;
+  todayPlan: DashboardTodayPlan;
+  health: DashboardHealth;
+  quickActions: QuickAction[];
 }
 
 export interface RoadmapStats {

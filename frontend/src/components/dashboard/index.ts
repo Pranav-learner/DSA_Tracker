@@ -13,3 +13,12 @@ export { DashboardMetricCard } from './DashboardMetricCard';
 export { DashboardSection } from './DashboardSection';
 export { DashboardGrid } from './DashboardGrid';
 export { QuickActionButton } from './QuickActionButton';
+// Sprint 4 — Learning-OS integration components.
+export { LearningPlanCard } from './LearningPlanCard';
+export { RevisionSummaryCard } from './RevisionSummaryCard';
+export { LearningHealthCard } from './LearningHealthCard';
+export { HealthIndicator } from './HealthIndicator';
+export { KnowledgeSummaryCard } from './KnowledgeSummaryCard';
+export { ProgressOverviewCard } from './ProgressOverviewCard';
+export { RetentionSummaryCard } from './RetentionSummaryCard';
+export { QuickActionsPanel } from './QuickActionsPanel';

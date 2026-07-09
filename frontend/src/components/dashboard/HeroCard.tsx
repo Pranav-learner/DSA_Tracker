@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Play, Flag, Layers } from 'lucide-react';
+import { Play, Flag, Layers, RefreshCw, Brain } from 'lucide-react';
 import { CardContainer } from '@/components/common/CardContainer';
 import { MasteryRing } from '@/components/learning/MasteryRing';
 import { DifficultyBadge } from '@/components/common/DifficultyBadge';
@@ -20,6 +20,11 @@ interface HeroCardProps {
   topicsRemaining: number;
   continueTo: string;
   continueLabel: string;
+  /** Overall retention (Sprint 4) — shown beside overall mastery. */
+  overallRetention?: number;
+  /** Optional secondary action, e.g. Start Revision. */
+  secondaryTo?: string;
+  secondaryLabel?: string;
 }
 
 /**
@@ -37,6 +42,9 @@ export function HeroCard({
   topicsRemaining,
   continueTo,
   continueLabel,
+  overallRetention,
+  secondaryTo,
+  secondaryLabel,
 }: HeroCardProps) {
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
@@ -76,8 +84,16 @@ export function HeroCard({
               {topic && <DifficultyBadge difficulty={topic.difficulty} />}
             </div>
 
-            <div className="flex flex-wrap items-center gap-4 pt-1">
+            <div className="flex flex-wrap items-center gap-3 pt-1">
               <QuickActionButton to={continueTo} label={continueLabel} icon={<Play className="size-4" />} />
+              {secondaryTo && secondaryLabel && (
+                <QuickActionButton
+                  to={secondaryTo}
+                  label={secondaryLabel}
+                  icon={<RefreshCw className="size-4" />}
+                  variant="secondary"
+                />
+              )}
               <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Layers className="size-3.5" /> {plural(topicsRemaining, 'topic')} remaining
               </span>
@@ -86,9 +102,17 @@ export function HeroCard({
 
           <div className="flex shrink-0 flex-row items-center gap-4 sm:flex-col sm:gap-2">
             <MasteryRing value={overallMastery} size={120} strokeWidth={9} label="Overall" />
-            <p className="text-xs text-muted-foreground sm:text-center">
-              <span className="font-semibold tabular-nums text-foreground">{completionPercent}%</span> complete
-            </p>
+            <div className="flex flex-col items-center gap-1 text-xs text-muted-foreground sm:text-center">
+              <span>
+                <span className="font-semibold tabular-nums text-foreground">{completionPercent}%</span> complete
+              </span>
+              {overallRetention !== undefined && (
+                <span className="inline-flex items-center gap-1">
+                  <Brain className="size-3" />
+                  <span className="font-semibold tabular-nums text-foreground">{overallRetention}%</span> retention
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </CardContainer>

@@ -5,59 +5,66 @@ import {
   Layers,
   Map as MapIcon,
   History,
-  Lightbulb,
-  ClipboardList,
-  Gauge,
-  HeartHandshake,
-  Flag,
-  CircleDashed,
-  CheckCircle2,
-  Flame,
-  ArrowRight,
-  Lock,
+  HeartPulse,
   BarChart3,
   CalendarClock,
   Brain,
+  NotebookPen,
+  Zap,
+  ArrowRight,
 } from 'lucide-react';
 import { useDashboard } from '@/hooks/useDashboard';
-import { useRetentionOverview } from '@/hooks/useRetention';
-import { DueTodayWidget } from '@/components/revision';
-import { RetentionOverviewCard } from '@/components/retention';
 import { CardContainer } from '@/components/common/CardContainer';
 import { ErrorState } from '@/components/common/ErrorState';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { LearningRecommendationCard } from '@/components/learning/LearningRecommendationCard';
 import {
   HeroCard,
   TodaysLearningCard,
   CurrentTopicCard,
-  ProgressSummaryCard,
-  PhaseProgressCard,
   RoadmapMiniView,
-  LearningInsightCard,
   DashboardSection,
+  LearningPlanCard,
+  RevisionSummaryCard,
+  LearningHealthCard,
+  KnowledgeSummaryCard,
+  ProgressOverviewCard,
+  RetentionSummaryCard,
+  QuickActionsPanel,
 } from '@/components/dashboard';
-import { STAGE_LABELS, masteryTone } from '@/lib/mastery';
 import { greeting } from '@/lib/utils';
 
-// Non-critical below-the-fold section — lazily code-split.
+// Below-the-fold activity feed — lazily code-split.
 const ActivityTimeline = lazy(() => import('@/components/dashboard/ActivityTimeline'));
 
 /**
- * The learner's home screen — a personal-mentor dashboard aggregating current
- * state, next action, progress, roadmap position and recent activity from the
- * single GET /dashboard endpoint.
+ * The learner's Learning Operating System — one screen that answers *what to
+ * learn, what to revise, what's being forgotten, what's improving and what to
+ * prioritise today*. Everything is aggregated by GET /dashboard; the page is
+ * pure composition (no values are computed here).
  */
 export function DashboardPage() {
   const { data, isLoading, isError, error, refetch } = useDashboard();
-  const { data: retentionOverview } = useRetentionOverview();
 
   if (isLoading) return <DashboardSkeleton />;
   if (isError) return <ErrorState error={error} onRetry={refetch} />;
   if (!data) return null;
 
-  const { overall, currentPhase, currentTopic, currentStage, recommendation } = data;
+  const {
+    overall,
+    currentPhase,
+    currentTopic,
+    currentStage,
+    recommendation,
+    todayPlan,
+    health,
+    revision,
+    retention,
+    knowledge,
+    quickActions,
+  } = data;
+
+  const startRevisionAction = quickActions.find((a) => a.kind === 'start-revision' && a.enabled);
 
   return (
     <div className="space-y-6">
@@ -71,40 +78,87 @@ export function DashboardPage() {
         topicsRemaining={overall.topicsRemaining}
         continueTo={recommendation.actionTo}
         continueLabel={currentTopic ? 'Continue Learning' : recommendation.actionLabel}
+        overallRetention={retention.averageRetention}
+        secondaryTo={startRevisionAction?.to}
+        secondaryLabel={startRevisionAction ? 'Start Revision' : undefined}
       />
 
       <div className="grid grid-cols-1 gap-x-6 gap-y-8 xl:grid-cols-3">
         {/* Main column */}
         <div className="space-y-8 xl:col-span-2">
           <DashboardSection
-            title="Today's Learning"
+            title="Today's Plan"
             description="What to focus on right now"
             icon={<Sparkles className="size-4" />}
           >
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <CurrentTopicCard
-                topic={currentTopic}
-                mastery={data.currentMastery}
-                stage={currentStage}
-                phaseTitle={currentPhase?.title}
-              />
-              <TodaysLearningCard recommendation={recommendation} topic={data.recommendedTopic} />
+            <div className="space-y-4">
+              <LearningPlanCard plan={todayPlan} revisionTo={startRevisionAction?.to ?? '/revision'} />
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <CurrentTopicCard
+                  topic={currentTopic}
+                  mastery={data.currentMastery}
+                  stage={currentStage}
+                  phaseTitle={currentPhase?.title}
+                />
+                <TodaysLearningCard recommendation={recommendation} topic={data.recommendedTopic} />
+              </div>
             </div>
           </DashboardSection>
 
-          <DashboardSection title="Learning Progress" icon={<BarChart3 className="size-4" />}>
-            <ProgressSummaryCard overall={overall} />
+          <DashboardSection
+            title="Today's Revision"
+            icon={<CalendarClock className="size-4" />}
+            action={
+              <Button variant="link" size="sm" asChild>
+                <Link to="/revision">
+                  Open revision <ArrowRight className="size-4" />
+                </Link>
+              </Button>
+            }
+          >
+            <RevisionSummaryCard revision={revision} />
           </DashboardSection>
 
-          <DashboardSection title="Current Phase" icon={<Layers className="size-4" />}>
-            <PhaseProgressCard phase={data.currentPhaseProgress} />
+          <DashboardSection title="Learning Health" icon={<HeartPulse className="size-4" />}>
+            <LearningHealthCard health={health} />
           </DashboardSection>
 
-          {retentionOverview && retentionOverview.totalProfiles > 0 && (
-            <DashboardSection title="Knowledge Retention" icon={<Brain className="size-4" />}>
-              <RetentionOverviewCard overview={retentionOverview} />
-            </DashboardSection>
-          )}
+          <DashboardSection title="Progress" icon={<BarChart3 className="size-4" />}>
+            <ProgressOverviewCard
+              overall={overall}
+              currentPhase={currentPhase}
+              currentTopic={currentTopic}
+              retention={retention}
+            />
+          </DashboardSection>
+
+          <DashboardSection
+            title="Knowledge Retention"
+            icon={<Brain className="size-4" />}
+            action={
+              <Button variant="link" size="sm" asChild>
+                <Link to="/retention">
+                  Details <ArrowRight className="size-4" />
+                </Link>
+              </Button>
+            }
+          >
+            <RetentionSummaryCard retention={retention} />
+          </DashboardSection>
+
+          <DashboardSection
+            title="Knowledge Summary"
+            icon={<NotebookPen className="size-4" />}
+            action={
+              <Button variant="link" size="sm" asChild>
+                <Link to="/notebook">
+                  View notebook <ArrowRight className="size-4" />
+                </Link>
+              </Button>
+            }
+          >
+            <KnowledgeSummaryCard knowledge={knowledge} />
+          </DashboardSection>
 
           <DashboardSection
             title="Roadmap"
@@ -112,7 +166,7 @@ export function DashboardPage() {
             action={
               <Button variant="link" size="sm" asChild>
                 <Link to="/roadmap">
-                  View full roadmap <ArrowRight className="size-4" />
+                  Full roadmap <ArrowRight className="size-4" />
                 </Link>
               </Button>
             }
@@ -120,7 +174,7 @@ export function DashboardPage() {
             <RoadmapMiniView phases={data.roadmap} />
           </DashboardSection>
 
-          <DashboardSection title="Recent Learning Activity" icon={<History className="size-4" />}>
+          <DashboardSection title="Recent Activity" icon={<History className="size-4" />}>
             <CardContainer>
               <Suspense fallback={<Skeleton className="h-48 w-full rounded-lg" />}>
                 <ActivityTimeline activities={data.recentActivity} />
@@ -129,63 +183,14 @@ export function DashboardPage() {
           </DashboardSection>
         </div>
 
-        {/* Right insights panel */}
-        <aside className="space-y-8">
-          <DashboardSection title="Revision" icon={<CalendarClock className="size-4" />}>
-            <DueTodayWidget revision={data.revision} />
+        {/* Right insight panel */}
+        <aside className="space-y-8 xl:sticky xl:top-24 xl:self-start">
+          <DashboardSection title="Quick Actions" icon={<Zap className="size-4" />}>
+            <QuickActionsPanel actions={quickActions} />
           </DashboardSection>
 
-          <DashboardSection title="Learning Insights" icon={<Lightbulb className="size-4" />}>
-            <div className="space-y-3">
-              <LearningRecommendationCard recommendation={recommendation} />
-              <LearningInsightCard
-                icon={<Gauge className="size-4" />}
-                label="Current Mastery"
-                value={`${data.currentMastery}%`}
-                tone={masteryTone(data.currentMastery)}
-              />
-              <LearningInsightCard
-                icon={<HeartHandshake className="size-4" />}
-                label="Current Confidence"
-                value={`${overall.averageConfidence}%`}
-                tone={masteryTone(overall.averageConfidence)}
-              />
-              <LearningInsightCard
-                icon={<Flag className="size-4" />}
-                label="Current Learning Stage"
-                value={currentStage ? STAGE_LABELS[currentStage] : 'Not started'}
-                tone="primary"
-              />
-              <LearningInsightCard
-                icon={<CircleDashed className="size-4" />}
-                label="Topics Remaining"
-                value={overall.topicsRemaining}
-                hint={`of ${overall.topicsTotal}`}
-              />
-            </div>
-          </DashboardSection>
-
-          <DashboardSection title="Learning Summary" icon={<ClipboardList className="size-4" />}>
-            <div className="space-y-3">
-              <LearningInsightCard
-                icon={<CheckCircle2 className="size-4" />}
-                label="Topics Completed"
-                value={`${overall.topicsCompleted}/${overall.topicsTotal}`}
-                tone="success"
-              />
-              <LearningInsightCard
-                icon={<Layers className="size-4" />}
-                label="Phases Completed"
-                value={`${overall.phasesCompleted}/${overall.phasesTotal}`}
-              />
-              <LearningInsightCard
-                icon={<Flame className="size-4" />}
-                label="Learning Streak"
-                value="Coming soon"
-                hint="soon"
-              />
-              <UpcomingFeatures />
-            </div>
+          <DashboardSection title="Phase" icon={<Layers className="size-4" />}>
+            <PhaseGlance data={data} />
           </DashboardSection>
         </aside>
       </div>
@@ -193,23 +198,31 @@ export function DashboardPage() {
   );
 }
 
-const UPCOMING = ['Problem Tracker', 'Revision Scheduler', 'Analytics', 'Contests'];
-
-/** Placeholder card teasing future modules (kept out of scope this sprint). */
-function UpcomingFeatures() {
+/** Compact current-phase snapshot for the insight rail. */
+function PhaseGlance({ data }: { data: ReturnType<typeof useDashboard>['data'] }) {
+  const progress = data?.currentPhaseProgress;
+  if (!progress) {
+    return (
+      <CardContainer>
+        <p className="text-sm text-muted-foreground">No active phase yet — start the roadmap to begin.</p>
+      </CardContainer>
+    );
+  }
   return (
-    <CardContainer className="space-y-2.5">
-      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-        Upcoming Features
-      </p>
-      <ul className="space-y-1.5">
-        {UPCOMING.map((feature) => (
-          <li key={feature} className="flex items-center gap-2 text-sm text-muted-foreground/70">
-            <Lock className="size-3.5 shrink-0" />
-            {feature}
-          </li>
-        ))}
-      </ul>
+    <CardContainer className="space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-semibold">{progress.phase.title}</span>
+        <span className="text-sm tabular-nums text-muted-foreground">{progress.completionPercent}%</span>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-muted">
+        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progress.completionPercent}%` }} />
+      </div>
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>
+          {progress.topicsCompleted}/{progress.topicsTotal} topics
+        </span>
+        <span>~{progress.estimatedTimeRemainingHours}h remaining</span>
+      </div>
     </CardContainer>
   );
 }
@@ -221,19 +234,15 @@ function DashboardSkeleton() {
       <Skeleton className="h-44 w-full rounded-lg" />
       <div className="grid grid-cols-1 gap-x-6 gap-y-8 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Skeleton className="h-52 w-full rounded-lg" />
-            <Skeleton className="h-52 w-full rounded-lg" />
-          </div>
+          <Skeleton className="h-52 w-full rounded-lg" />
+          <Skeleton className="h-40 w-full rounded-lg" />
+          <Skeleton className="h-48 w-full rounded-lg" />
           <Skeleton className="h-40 w-full rounded-lg" />
           <Skeleton className="h-36 w-full rounded-lg" />
-          <Skeleton className="h-48 w-full rounded-lg" />
         </div>
         <div className="space-y-3">
+          <Skeleton className="h-64 w-full rounded-lg" />
           <Skeleton className="h-32 w-full rounded-lg" />
-          <Skeleton className="h-16 w-full rounded-lg" />
-          <Skeleton className="h-16 w-full rounded-lg" />
-          <Skeleton className="h-16 w-full rounded-lg" />
         </div>
       </div>
     </div>
