@@ -43,6 +43,72 @@ export interface DashboardPhaseProgressDTO extends PhaseProgressDTO {
   estimatedTimeRemainingHours: number;
 }
 
+/* ── Sprint 4 · Learning-OS integration blocks ──────────────────────────── */
+
+/** Module 2 rollup: how much of the knowledge base the learner has captured. */
+export interface DashboardKnowledgeDTO {
+  knowledgeEntries: number;
+  representativeProblems: number;
+  patternsLearned: number;
+  patternsPending: number;
+  topicsCovered: number;
+  notebookCoveragePercent: number;
+}
+
+export type PlanPriority = 'high' | 'medium' | 'low';
+
+/** "What should I do today" — composed from recommendation + revision + timing. */
+export interface DashboardTodayPlanDTO {
+  recommendation: RecommendationDTO;
+  currentTopic: TopicSummaryDTO | null;
+  revisionsDue: number;
+  estimatedStudyMinutes: number;
+  estimatedRevisionMinutes: number;
+  priority: PlanPriority;
+  headline: string;
+}
+
+export type HealthStatus = 'excellent' | 'good' | 'fair' | 'at-risk';
+export type HealthKey = 'learning' | 'knowledge' | 'revision' | 'retention';
+
+/** One 0–100 health dimension + its status band and a one-line read. */
+export interface HealthIndicatorDTO {
+  key: HealthKey;
+  label: string;
+  score: number;
+  status: HealthStatus;
+  detail: string;
+}
+
+/** The Learning Health panel: four indicators + headline figures. */
+export interface DashboardHealthDTO {
+  overallScore: number;
+  overallStatus: HealthStatus;
+  indicators: HealthIndicatorDTO[];
+  confidence: number;
+  topicsAtRisk: number;
+  masteredTopics: number;
+  upcomingReviews: number;
+}
+
+export type QuickActionKind =
+  | 'continue-learning'
+  | 'resume-session'
+  | 'start-revision'
+  | 'open-topic'
+  | 'view-notebook'
+  | 'view-calendar'
+  | 'view-retention';
+
+/** A single Quick Action — label + existing route + availability. */
+export interface QuickActionDTO {
+  kind: QuickActionKind;
+  label: string;
+  to: string;
+  enabled: boolean;
+  primary: boolean;
+}
+
 /**
  * The single payload behind GET /api/dashboard — everything the learner's home
  * screen renders, aggregated so the client makes one request.
@@ -68,4 +134,12 @@ export interface DashboardDTO {
   revision: DashboardRevisionDTO;
   /** Module 3 · Sprint 3: retention & confidence health widget. */
   retention: DashboardRetentionDTO;
+  /** Module 2 rollup: knowledge-base coverage. */
+  knowledge: DashboardKnowledgeDTO;
+  /** Sprint 4: today's prioritised learning + revision plan. */
+  todayPlan: DashboardTodayPlanDTO;
+  /** Sprint 4: composite Learning Health panel. */
+  health: DashboardHealthDTO;
+  /** Sprint 4: one-tap actions into existing routes. */
+  quickActions: QuickActionDTO[];
 }

@@ -5,6 +5,8 @@ import { activityService } from './activity.service.js';
 import { revisionQueueService } from './revisionQueue.service.js';
 import { revisionSessionService } from './revisionSession.service.js';
 import { retentionService } from './retention.service.js';
+import { notebookService } from './notebook.service.js';
+import { dashboardInsightsService } from './dashboardInsights.service.js';
 import { topicRepository } from '../repositories/topic.repository.js';
 import { toTopicSummaryDTO, type PhaseDTO, type PhaseRefDTO, type TopicSummaryDTO } from './mappers.js';
 import type { PhaseProgressDTO, ProgressDTO } from './learning.dto.js';
@@ -32,14 +34,16 @@ export const dashboardService = {
     const recommendation = recommendationService.build(overview);
 
     // Everything below reuses `overview`; only display metadata is fetched, in parallel.
-    const [phases, hoursByPhase, recentActivity, revisionQueue, revisionSession, retention] = await Promise.all([
-      phaseService.list(),
-      topicRepository.estimatedHoursByPhase(),
-      activityService.getRecent(userId, RECENT_ACTIVITY_LIMIT),
-      revisionQueueService.getDashboardSummary(userId),
-      revisionSessionService.getDashboardSummary(userId),
-      retentionService.getDashboardSummary(userId),
-    ]);
+    const [phases, hoursByPhase, recentActivity, revisionQueue, revisionSession, retention, knowledgeStats] =
+      await Promise.all([
+        phaseService.list(),
+        topicRepository.estimatedHoursByPhase(),
+        activityService.getRecent(userId, RECENT_ACTIVITY_LIMIT),
+        revisionQueueService.getDashboardSummary(userId),
+        revisionSessionService.getDashboardSummary(userId),
+        retentionService.getDashboardSummary(userId),
+        notebookService.stats(userId),
+      ]);
     const revision = { ...revisionQueue, ...revisionSession };
 
     // Resolve the current + recommended topic docs in a single query (they may overlap).

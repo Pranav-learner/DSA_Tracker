@@ -84,6 +84,14 @@ export interface NotebookFacetsDTO {
   platforms: Platform[];
 }
 
+/** Raw knowledge counts for the dashboard's Knowledge Summary (Module 2 owned). */
+export interface KnowledgeStatsDTO {
+  knowledgeEntries: number;
+  patternsLearned: number;
+  topicsCovered: number;
+  representativeProblems: number;
+}
+
 export const NOTEBOOK_SORT_FIELDS = ['recent', 'confidence', 'reviewed', 'alpha'] as const;
 export type NotebookSortField = (typeof NOTEBOOK_SORT_FIELDS)[number];
 

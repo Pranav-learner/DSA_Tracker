@@ -12,6 +12,7 @@ import type { ProblemDocument } from '../models/Problem.js';
 import type { TopicDocument } from '../models/Topic.js';
 import type { CreateNotebookBody, UpdateNotebookBody } from '../validators/notebook.validator.js';
 import type {
+  KnowledgeStatsDTO,
   NotebookDetailDTO,
   NotebookFacetsDTO,
   NotebookListItemDTO,
@@ -162,6 +163,17 @@ export const notebookService = {
     return {
       patterns: patterns.filter(Boolean).sort((a, b) => a.localeCompare(b)),
       platforms: [...PLATFORMS],
+    };
+  },
+
+  /** Knowledge counts for the dashboard's Knowledge Summary (one aggregation). */
+  async stats(userId: string): Promise<KnowledgeStatsDTO> {
+    const s = await notebookRepository.knowledgeStats(userId);
+    return {
+      knowledgeEntries: s.entries,
+      patternsLearned: s.patternsLearned,
+      topicsCovered: s.topicsCovered,
+      representativeProblems: s.representativeProblems,
     };
   },
 

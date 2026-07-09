@@ -62,6 +62,46 @@ export const notebookRepository = {
     ).exec();
   },
 
+  /**
+   * Knowledge stats in a single aggregation: total entries, distinct patterns,
+   * distinct topics covered and distinct problems documented. Powers the
+   * dashboard's Knowledge Summary without per-entry loading.
+   */
+  async knowledgeStats(userId: string): Promise<{
+    entries: number;
+    patternsLearned: number;
+    topicsCovered: number;
+    representativeProblems: number;
+  }> {
+    const [row] = await NotebookEntry.aggregate<{
+      entries: number;
+      patternsLearned: number;
+      topicsCovered: number;
+      representativeProblems: number;
+    }>([
+      { $match: { userId } },
+      {
+        $group: {
+          _id: null,
+          entries: { $sum: 1 },
+          patterns: { $addToSet: '$pattern' },
+          topics: { $addToSet: '$topicId' },
+          problems: { $addToSet: '$problemId' },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          entries: 1,
+          patternsLearned: { $size: '$patterns' },
+          topicsCovered: { $size: '$topics' },
+          representativeProblems: { $size: '$problems' },
+        },
+      },
+    ]).exec();
+    return row ?? { entries: 0, patternsLearned: 0, topicsCovered: 0, representativeProblems: 0 };
+  },
+
   countByUser(userId: string): Promise<number> {
     return NotebookEntry.countDocuments({ userId }).exec();
   },
