@@ -28,6 +28,7 @@ import { dashboardService } from '../src/services/dashboard.service.js';
 import { activityService } from '../src/services/activity.service.js';
 import { Problem } from '../src/models/Problem.js';
 import { problemService } from '../src/services/problem.service.js';
+import { attemptService } from '../src/services/attempt.service.js';
 import { problemRepository } from '../src/repositories/problem.repository.js';
 import { userProblemRepository } from '../src/repositories/userProblem.repository.js';
 import {
@@ -313,6 +314,93 @@ async function run(): Promise<void> {
   assert(Boolean(problemDetail.topic) && Boolean(problemDetail.phase), 'detail resolves topic + phase refs');
   assert(extrasList.items.some((p) => p.pattern === 'Greedy'), 'Greedy pattern is covered');
 
+  // --- Module 2 · Sprint 2: Attempt Tracking Engine ---
+  const targetProblem = await Problem.findOne({ title: 'Binary Search' }).exec();
+  assert(Boolean(targetProblem), 'seeded a target problem for attempts');
+  const targetProblemId = String(targetProblem!._id);
+  const t0 = seedNow.getTime();
+  const mins = (m: number) => new Date(t0 - m * 60_000);
+
+  // The learning journey: WA → TLE → Solved (history is preserved forever).
+  const at1 = await attemptService.create(DEMO_USER, {
+    problemId: targetProblemId, status: 'Abandoned', verdict: 'Wrong Answer', language: 'C++',
+    startTime: mins(40), endTime: mins(22), wrongAttempts: 2,
+  });
+  const at2 = await attemptService.create(DEMO_USER, {
+    problemId: targetProblemId, status: 'Abandoned', verdict: 'TLE', language: 'C++',
+    startTime: mins(20), endTime: mins(8), usedHint: true,
+  });
+  const at3 = await attemptService.create(DEMO_USER, {
+    problemId: targetProblemId, status: 'Solved', verdict: 'Accepted', language: 'C++',
+    startTime: mins(10), endTime: mins(1), durationMinutes: 9,
+  });
+
+  const upSynced = await userProblemRepository.findByUserAndProblem(DEMO_USER, targetProblemId);
+  const history = await attemptService.history(DEMO_USER, targetProblemId);
+  const summary = await attemptService.summary(DEMO_USER, targetProblemId);
+
+  console.log(
+    `attempts: #${at1.attemptNumber}(${at1.verdict},${at1.durationMinutes}m) → ` +
+      `#${at2.attemptNumber}(${at2.verdict},${at2.durationMinutes}m) → ` +
+      `#${at3.attemptNumber}(${at3.status},${at3.durationMinutes}m)`,
+  );
+  console.log(
+    `  userProblem: solved=${upSynced?.solved} status=${upSynced?.status} total=${upSynced?.totalAttempts} ` +
+      `time=${upSynced?.totalTimeSpent}m noHint=${upSynced?.solvedWithoutHint} fav(kept)=${upSynced?.favorite}`,
+  );
+  console.log(
+    `  summary: total=${summary.totalAttempts} solved=${summary.solved} avg=${summary.averageSolveTime}m ` +
+      `hints=${summary.hintUsageCount} latest=#${summary.latestAttempt?.attemptNumber}`,
+  );
+
+  assert(at1.attemptNumber === 1 && at2.attemptNumber === 2 && at3.attemptNumber === 3, 'attempt numbers increment');
+  assert(at1.durationMinutes === 18 && at2.durationMinutes === 12 && at3.durationMinutes === 9, 'duration derived + explicit');
+  assert(upSynced !== null && upSynced.solved && upSynced.status === 'Solved', 'UserProblem synced to Solved');
+  assert(upSynced!.totalAttempts === 3 && upSynced!.totalTimeSpent === 39, 'UserProblem aggregates synced');
+  assert(upSynced!.firstSolvedAt !== null && upSynced!.solvedWithoutHint === true, 'first-solve + no-hint flags');
+  assert(upSynced!.favorite === true, 'favorite preserved through attempt sync');
+  assert(history.length === 3 && history[0].attemptNumber === 3, 'history is newest-first');
+  assert(summary.totalAttempts === 3 && summary.solved && summary.averageSolveTime === 9, 'summary aggregates');
+  assert(summary.totalTimeSpent === 39 && summary.hintUsageCount === 1 && summary.editorialUsageCount === 0, 'summary usage totals');
+  assert(summary.latestAttempt?.attemptNumber === 3, 'summary carries the latest attempt');
+
+  // Update an attempt (notes / verdict) — history stays intact.
+  const updated = await attemptService.update(DEMO_USER, at1.id, { notes: 'off-by-one on the window' });
+  assert(updated.notes.includes('off-by-one'), 'attempt update applies');
+
+  // Soft delete #2 → aggregates recompute, history shrinks, record preserved.
+  await attemptService.remove(DEMO_USER, at2.id);
+  const historyAfter = await attemptService.history(DEMO_USER, targetProblemId);
+  const upAfter = await userProblemRepository.findByUserAndProblem(DEMO_USER, targetProblemId);
+  assert(historyAfter.length === 2, 'soft delete removes from history');
+  assert(upAfter!.totalAttempts === 2 && upAfter!.totalTimeSpent === 27 && upAfter!.solved === true, 'aggregates recomputed after delete');
+
+  let deletedThrew = false;
+  try {
+    await attemptService.getById(DEMO_USER, at2.id);
+  } catch {
+    deletedThrew = true;
+  }
+  assert(deletedThrew, 'soft-deleted attempt is not retrievable');
+
+  let badTimeThrew = false;
+  try {
+    await attemptService.create(DEMO_USER, {
+      problemId: targetProblemId, status: 'Started', verdict: 'Unknown', language: 'C++',
+      startTime: mins(1), endTime: mins(10),
+    });
+  } catch {
+    badTimeThrew = true;
+  }
+  assert(badTimeThrew, 'startTime must be before endTime');
+
+  const attemptActivity = await activityService.getRecent(DEMO_USER, 30);
+  assert(
+    attemptActivity.some((a) => a.type === 'problem-solved') &&
+      attemptActivity.some((a) => a.type === 'attempt-started'),
+    'attempt activity events are generated',
+  );
+
   // Mastery weights sanity: all-100 metrics → 100% overall.
   const perfect = masteryService.computeOverall({
     recognition: 100, implementation: 100, standard: 100, variant: 100,
@@ -375,6 +463,28 @@ async function run(): Promise<void> {
   const httpProblemBadId = await getJson('/api/problems/not-an-id');
   const httpProblemMissing = await getJson('/api/problems/64b2f0000000000000000000');
   const httpProblemsBadPage = await getJson('/api/problems?page=abc'); // coerced → 1, still 200
+
+  // Module 2 · Sprint 2 — attempt endpoints over HTTP.
+  const httpAttemptCreate = await sendJson('POST', '/api/attempts', {
+    problemId: targetProblemId, status: 'Started', verdict: 'Unknown', language: 'Python',
+    startTime: mins(5).toISOString(),
+  });
+  const createdAttemptId = (httpAttemptCreate.body.data as { id?: string } | undefined)?.id ?? '';
+  const httpAttemptHistory = await getJson(`/api/problems/${targetProblemId}/attempts`);
+  const httpAttemptSummary = await getJson(`/api/problems/${targetProblemId}/summary`);
+  const httpAttemptGet = await getJson(`/api/attempts/${createdAttemptId}`);
+  const httpAttemptPatch = await sendJson('PATCH', `/api/attempts/${createdAttemptId}`, {
+    status: 'Solved', verdict: 'Accepted', endTime: mins(0).toISOString(),
+  });
+  const httpAttemptDelete = await sendJson('DELETE', `/api/attempts/${createdAttemptId}`);
+  const httpAttemptBadTime = await sendJson('POST', '/api/attempts', {
+    problemId: targetProblemId, status: 'Started', verdict: 'Unknown', language: 'Python',
+    startTime: mins(0).toISOString(), endTime: mins(10).toISOString(),
+  });
+  const httpAttemptMissingProblem = await sendJson('POST', '/api/attempts', {
+    problemId: '64b2f0000000000000000000', status: 'Started', verdict: 'Unknown', language: 'Python',
+    startTime: mins(5).toISOString(),
+  });
   server.close();
 
   console.log(
@@ -415,6 +525,20 @@ async function run(): Promise<void> {
   assert(httpProblemBadId.status === 400, 'GET /problems/:id invalid → 400');
   assert(httpProblemMissing.status === 404, 'GET /problems/:id missing → 404');
   assert(httpProblemsBadPage.status === 200, 'GET /problems bad page is coerced → 200');
+  // Module 2 · Sprint 2 HTTP assertions:
+  console.log(
+    `http attempts: create=${httpAttemptCreate.status} history=${httpAttemptHistory.status} ` +
+      `summary=${httpAttemptSummary.status} get=${httpAttemptGet.status} patch=${httpAttemptPatch.status} ` +
+      `delete=${httpAttemptDelete.status} badTime=${httpAttemptBadTime.status} missingProblem=${httpAttemptMissingProblem.status}`,
+  );
+  assert(httpAttemptCreate.status === 201 && httpAttemptCreate.body.success, 'POST /attempts → 201');
+  assert(httpAttemptHistory.status === 200, 'GET /problems/:id/attempts → 200');
+  assert(httpAttemptSummary.status === 200, 'GET /problems/:id/summary → 200');
+  assert(httpAttemptGet.status === 200, 'GET /attempts/:id → 200');
+  assert(httpAttemptPatch.status === 200, 'PATCH /attempts/:id → 200');
+  assert(httpAttemptDelete.status === 200, 'DELETE /attempts/:id → 200');
+  assert(httpAttemptBadTime.status === 400, 'POST /attempts invalid times → 400');
+  assert(httpAttemptMissingProblem.status === 404, 'POST /attempts missing problem → 404');
 
   console.log('\n✅ ALL ASSERTIONS PASSED');
 

@@ -7,6 +7,7 @@ import progressRoutes from './progress.routes.js';
 import recommendationRoutes from './recommendation.routes.js';
 import dashboardRoutes from './dashboard.routes.js';
 import problemRoutes from './problem.routes.js';
+import attemptRoutes from './attempt.routes.js';
 
 /** Root API router — mounts every feature router under /api. */
 const api = Router();
@@ -38,6 +39,10 @@ api.get('/', (_req, res) => {
         'GET /api/problems/search',
         'GET /api/problems/facets',
         'GET /api/problems/:id',
+        'GET /api/problems/:id/attempts',
+        'GET /api/problems/:id/summary',
+        'POST /api/attempts',
+        'GET|PATCH|DELETE /api/attempts/:id',
       ],
     },
   });
@@ -51,5 +56,6 @@ api.use('/progress', progressRoutes);
 api.use('/recommendation', recommendationRoutes);
 api.use('/dashboard', dashboardRoutes);
 api.use('/problems', problemRoutes);
+api.use('/attempts', attemptRoutes);
 
 export default api;

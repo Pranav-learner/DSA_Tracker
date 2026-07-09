@@ -258,9 +258,12 @@ export type ActivityType =
   | 'topic-unlocked'
   | 'mastery-updated'
   | 'phase-unlocked'
-  | 'phase-completed';
+  | 'phase-completed'
+  | 'attempt-started'
+  | 'attempt-updated'
+  | 'problem-solved';
 
-export type ActivityEntityType = 'topic' | 'phase';
+export type ActivityEntityType = 'topic' | 'phase' | 'problem';
 
 export interface ActivityEvent {
   id: string;
@@ -401,6 +404,87 @@ export interface ProblemFacets {
   patterns: string[];
   statuses: ProblemStatus[];
 }
+
+/* ---- Module 2 · Sprint 2: Attempt Tracking ---- */
+
+export type AttemptStatus = 'Started' | 'Solved' | 'Abandoned';
+export type AttemptVerdict =
+  | 'Accepted'
+  | 'Wrong Answer'
+  | 'TLE'
+  | 'MLE'
+  | 'RE'
+  | 'CE'
+  | 'Unknown';
+export type AttemptLanguage =
+  | 'C++'
+  | 'C'
+  | 'Python'
+  | 'Java'
+  | 'JavaScript'
+  | 'TypeScript'
+  | 'Go'
+  | 'Rust'
+  | 'Kotlin'
+  | 'C#'
+  | 'Other';
+
+export interface Attempt {
+  id: string;
+  userId: string;
+  problemId: string;
+  attemptNumber: number;
+  status: AttemptStatus;
+  verdict: AttemptVerdict;
+  language: AttemptLanguage;
+  startTime: string;
+  endTime: string | null;
+  durationMinutes: number;
+  wrongAttempts: number;
+  usedHint: boolean;
+  usedEditorial: boolean;
+  contestAttempt: boolean;
+  upsolved: boolean;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AttemptSummary {
+  problemId: string;
+  totalAttempts: number;
+  solved: boolean;
+  solvedCount: number;
+  firstSolvedAt: string | null;
+  latestAttemptAt: string | null;
+  totalTimeSpent: number;
+  averageSolveTime: number;
+  hintUsageCount: number;
+  editorialUsageCount: number;
+  solvedWithoutHint: boolean;
+  solvedWithoutEditorial: boolean;
+  latestAttempt: Attempt | null;
+}
+
+/** Body for POST /attempts. */
+export interface CreateAttemptInput {
+  problemId: string;
+  status: AttemptStatus;
+  verdict: AttemptVerdict;
+  language: AttemptLanguage;
+  startTime: string;
+  endTime?: string | null;
+  durationMinutes?: number;
+  wrongAttempts?: number;
+  usedHint?: boolean;
+  usedEditorial?: boolean;
+  contestAttempt?: boolean;
+  upsolved?: boolean;
+  notes?: string;
+}
+
+/** Body for PATCH /attempts/:id (all optional). */
+export type UpdateAttemptInput = Partial<Omit<CreateAttemptInput, 'problemId'>>;
 
 /** Success envelope returned by every backend endpoint. */
 export interface ApiEnvelope<T> {

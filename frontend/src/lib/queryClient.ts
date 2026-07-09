@@ -43,4 +43,7 @@ export const queryKeys = {
   problemsList: (query: ProblemsQuery) => ['problems', 'list', query] as const,
   problem: (id: string) => ['problems', 'detail', id] as const,
   problemFacets: ['problems', 'facets'] as const,
+  // --- Module 2 · Sprint 2: attempt tracking ---
+  attempts: (problemId: string) => ['problems', problemId, 'attempts'] as const,
+  attemptSummary: (problemId: string) => ['problems', problemId, 'summary'] as const,
 };

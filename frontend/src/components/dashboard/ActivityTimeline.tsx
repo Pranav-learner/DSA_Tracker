@@ -9,6 +9,9 @@ import {
   Sparkles,
   Flag,
   History,
+  Code2,
+  PencilLine,
+  PartyPopper,
   type LucideIcon,
 } from 'lucide-react';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -25,6 +28,9 @@ const EVENT_META: Record<ActivityType, EventMeta> = {
   'mastery-updated': { icon: TrendingUp, tile: 'border-warning/40 bg-warning/15 text-warning' },
   'phase-unlocked': { icon: Sparkles, tile: 'border-primary/40 bg-primary/15 text-primary' },
   'phase-completed': { icon: Flag, tile: 'border-success/40 bg-success/15 text-success' },
+  'attempt-started': { icon: Code2, tile: 'border-primary/40 bg-primary/15 text-primary' },
+  'attempt-updated': { icon: PencilLine, tile: 'border-warning/40 bg-warning/15 text-warning' },
+  'problem-solved': { icon: PartyPopper, tile: 'border-success/40 bg-success/15 text-success' },
 };
 
 /**
