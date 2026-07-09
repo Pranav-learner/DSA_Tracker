@@ -1,17 +1,20 @@
-import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, NotebookPen, AlertTriangle, Gauge } from 'lucide-react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { ArrowLeft, NotebookPen, AlertTriangle, Gauge, ArrowRight, BrainCircuit } from 'lucide-react';
 import { useProblem } from '@/hooks/useProblems';
+import { useNotebookForProblem, useCreateNotebook } from '@/hooks/useNotebook';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
+import { CardContainer } from '@/components/common/CardContainer';
 import { ErrorState } from '@/components/common/ErrorState';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { ProblemHeader, PlaceholderCard } from '@/components/problems';
 import { AttemptSummaryCard, AttemptHistory } from '@/components/attempts';
+import { ConfidenceSlider } from '@/components/notebook';
 
 /**
  * Problem Detail — identity + metadata (ProblemHeader), the live Attempt
- * Tracking engine (summary + history), and placeholder cards for the features
- * still to come (Notebook, Mistakes, Confidence — later sprints).
+ * Tracking engine (summary + history), the Pattern Notebook entry point, and
+ * placeholder cards for the features still to come (Mistakes, Confidence).
  */
 export function ProblemDetailPage() {
   const { problemId } = useParams<{ problemId: string }>();
@@ -34,17 +37,15 @@ export function ProblemDetailPage() {
           <AttemptSummaryCard problemId={problem.id} />
           <AttemptHistory problemId={problem.id} />
 
+          {/* Pattern Notebook entry point (Sprint 3) */}
+          <NotebookEntryPoint problemId={problem.id} />
+
           {/* Future workspace features */}
           <div>
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               Coming Soon
             </h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <PlaceholderCard
-                title="Notebook"
-                description="Capture your approach, code and key insights."
-                icon={<NotebookPen className="size-4" />}
-              />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <PlaceholderCard
                 title="Mistakes"
                 description="Track recurring mistakes to learn from them."
@@ -66,6 +67,58 @@ export function ProblemDetailPage() {
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * Notebook entry point on the problem page: open the existing entry (with a
+ * confidence peek) or document the problem for the first time.
+ */
+function NotebookEntryPoint({ problemId }: { problemId: string }) {
+  const { data: entry, isLoading } = useNotebookForProblem(problemId);
+  const createMutation = useCreateNotebook();
+  const navigate = useNavigate();
+
+  if (isLoading) return <Skeleton className="h-24 w-full rounded-lg" />;
+
+  const document = () =>
+    createMutation.mutate(
+      { problemId },
+      { onSuccess: (created) => navigate(`/notebook/${created.id}`) },
+    );
+
+  return (
+    <CardContainer className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-start gap-3">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-accent text-primary">
+          <BrainCircuit className="size-5" />
+        </span>
+        <div>
+          <h3 className="font-semibold">Pattern Notebook</h3>
+          <p className="text-sm text-muted-foreground">
+            {entry ? 'Your structured knowledge entry for this problem.' : 'Turn this problem into reusable knowledge.'}
+          </p>
+        </div>
+      </div>
+
+      {entry ? (
+        <div className="flex items-center gap-4">
+          <div className="w-28">
+            <ConfidenceSlider value={entry.confidence} readOnly />
+          </div>
+          <Button size="sm" asChild>
+            <Link to={`/notebook/${entry.id}`}>
+              Open notebook <ArrowRight className="size-4" />
+            </Link>
+          </Button>
+        </div>
+      ) : (
+        <Button size="sm" onClick={document} disabled={createMutation.isPending}>
+          <NotebookPen className="size-4" />
+          {createMutation.isPending ? 'Creating…' : 'Document this problem'}
+        </Button>
+      )}
+    </CardContainer>
   );
 }
 

@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Map, LibraryBig, Sparkles, Lock } from 'lucide-react';
+import { LayoutDashboard, Map, LibraryBig, BrainCircuit, Sparkles, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface NavItem {
@@ -14,6 +14,7 @@ const NAV: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/roadmap', label: 'Roadmap', icon: Map },
   { to: '/problems', label: 'Problems', icon: LibraryBig },
+  { to: '/notebook', label: 'Notebook', icon: BrainCircuit },
 ];
 
 const FUTURE: NavItem[] = [
@@ -80,7 +81,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       <div className="border-t border-border p-4">
         <p className="text-[11px] text-muted-foreground">
-          Module 2 · Problem Library
+          Module 2 · Knowledge Engine
         </p>
       </div>
     </aside>

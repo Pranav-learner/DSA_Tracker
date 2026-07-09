@@ -7,6 +7,8 @@ import { TopicPage } from '@/pages/TopicPage';
 import { ProblemsPage } from '@/pages/ProblemsPage';
 import { ProblemDetailPage } from '@/pages/ProblemDetailPage';
 import { ProblemPlaceholderPage } from '@/pages/ProblemPlaceholderPage';
+import { NotebookListPage } from '@/pages/NotebookListPage';
+import { NotebookWorkspacePage } from '@/pages/NotebookWorkspacePage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 
 /**
@@ -19,6 +21,8 @@ import { NotFoundPage } from '@/pages/NotFoundPage';
  *   /topic/:id/problem/:pid → Representative-problem placeholder detail
  *   /problems       → Problem Library (searchable catalog)
  *   /problems/:id   → Problem Detail
+ *   /notebook       → Pattern Notebook (knowledge index)
+ *   /notebook/:id   → Notebook Workspace
  *   *               → 404
  */
 export const router = createBrowserRouter([
@@ -33,6 +37,8 @@ export const router = createBrowserRouter([
       { path: 'topic/:topicId/problem/:problemId', element: <ProblemPlaceholderPage /> },
       { path: 'problems', element: <ProblemsPage /> },
       { path: 'problems/:problemId', element: <ProblemDetailPage /> },
+      { path: 'notebook', element: <NotebookListPage /> },
+      { path: 'notebook/:notebookId', element: <NotebookWorkspacePage /> },
     ],
   },
   { path: '*', element: <NotFoundPage /> },
