@@ -2,18 +2,28 @@ import { CalendarClock, CheckCircle2, AlarmClock, Repeat, Clock, Activity } from
 import { useRevisionAnalytics } from '@/hooks/useAnalytics';
 import { SectionHeader } from '@/components/common/SectionHeader';
 import { ErrorState } from '@/components/common/ErrorState';
+import { CardContainer } from '@/components/common/CardContainer';
 import {
   AnalyticsSection,
   AnalyticsGrid,
   MetricCard,
-  PlaceholderChart,
   FilterBar,
   LoadingAnalytics,
+  BarChartCard,
+  ProgressGauge,
+  chartColor,
 } from '@/components/analytics';
 
 /** Revision analytics — reviews completed, frequency, duration + consistency. */
 export function RevisionAnalytics() {
   const { data, isLoading, isError, error, refetch } = useRevisionAnalytics();
+  const counts = data
+    ? [
+        { name: 'Completed', count: data.reviewsCompleted },
+        { name: 'Overdue', count: data.overdueReviews },
+        { name: 'Scheduled', count: data.totalScheduled },
+      ]
+    : [];
 
   return (
     <div className="space-y-6">
@@ -36,7 +46,12 @@ export function RevisionAnalytics() {
           </AnalyticsGrid>
 
           <AnalyticsSection title="Cadence" icon={<CalendarClock className="size-4" />}>
-            <PlaceholderChart title="Reviews completed over time" kind="Timeline" />
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.6fr_1fr]">
+              <BarChartCard title="Review pipeline" data={counts} xKey="name" dataKey="count" name="Reviews" colorful height={260} />
+              <CardContainer className="flex items-center justify-center py-6">
+                <ProgressGauge value={data.revisionConsistencyPercent} label="Consistency" color={chartColor.success} size={180} />
+              </CardContainer>
+            </div>
           </AnalyticsSection>
         </>
       )}

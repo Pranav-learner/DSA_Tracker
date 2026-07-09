@@ -1,4 +1,5 @@
 import { analyticsAggregationService } from '../analytics/services/analyticsAggregation.service.js';
+import { insightActivityService } from '../analytics/services/insightActivity.service.js';
 import { resolveAnalyticsWindow } from '../analytics/validators/analytics.validator.js';
 import { ANALYTICS_JOB, ANALYTICS_DEFAULT_RANGE } from '../config/analytics.js';
 import { env } from '../config/env.js';
@@ -22,7 +23,9 @@ async function runOnce(): Promise<void> {
     // Bust any stale entry, then recompute + cache.
     analyticsAggregationService.invalidate(env.demoUserId);
     await analyticsAggregationService.overview(env.demoUserId, window);
-    logger.info('Analytics refresh job: overview cache warmed');
+    // Module 4 · Sprint 3 — surface notable insights into the activity feed (deduped).
+    const { emitted } = await insightActivityService.emit(env.demoUserId, window);
+    logger.info(`Analytics refresh job: overview warmed, ${emitted} insight activities emitted`);
   } catch (err) {
     logger.warn('Analytics refresh job run failed', err);
   }

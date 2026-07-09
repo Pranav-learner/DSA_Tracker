@@ -60,6 +60,52 @@ export const analyticsRepository = {
     };
   },
 
+  /**
+   * Per-topic problem behaviour — solved/attempted, solve time and hint/editorial
+   * dependency, grouped by the problem's topic. Powers pattern intelligence.
+   */
+  async problemStatsByTopic(userId: string): Promise<
+    Map<
+      string,
+      { attempted: number; solved: number; solvedTime: number; solvedWithHint: number; solvedWithEditorial: number }
+    >
+  > {
+    const rows = await UserProblem.aggregate([
+      { $match: { userId } },
+      { $lookup: { from: 'problems', localField: 'problemId', foreignField: '_id', as: 'p' } },
+      { $unwind: '$p' },
+      {
+        $group: {
+          _id: '$p.topicId',
+          attempted: { $sum: { $cond: [{ $gt: ['$totalAttempts', 0] }, 1, 0] } },
+          solved: { $sum: { $cond: ['$solved', 1, 0] } },
+          solvedTime: { $sum: { $cond: ['$solved', '$totalTimeSpent', 0] } },
+          solvedWithHint: { $sum: { $cond: [{ $and: ['$solved', { $eq: ['$solvedWithoutHint', false] }] }, 1, 0] } },
+          solvedWithEditorial: {
+            $sum: { $cond: [{ $and: ['$solved', { $eq: ['$solvedWithoutEditorial', false] }] }, 1, 0] },
+          },
+        },
+      },
+    ]).exec();
+
+    const map = new Map<
+      string,
+      { attempted: number; solved: number; solvedTime: number; solvedWithHint: number; solvedWithEditorial: number }
+    >();
+    for (const r of rows as Array<{ _id: unknown; attempted: number; solved: number; solvedTime: number; solvedWithHint: number; solvedWithEditorial: number }>) {
+      if (r._id) {
+        map.set(String(r._id), {
+          attempted: r.attempted,
+          solved: r.solved,
+          solvedTime: r.solvedTime,
+          solvedWithHint: r.solvedWithHint,
+          solvedWithEditorial: r.solvedWithEditorial,
+        });
+      }
+    }
+    return map;
+  },
+
   /** Average notebook confidence + entry count (0 when empty). */
   async notebookConfidence(userId: string): Promise<{ averageConfidence: number; count: number }> {
     const [row] = await NotebookEntry.aggregate([

@@ -278,7 +278,11 @@ export type ActivityType =
   | 'confidence-decreased'
   | 'retention-updated'
   | 'knowledge-strengthened'
-  | 'knowledge-at-risk';
+  | 'knowledge-at-risk'
+  | 'insight-generated'
+  | 'pattern-improved'
+  | 'pattern-at-risk'
+  | 'recommendation-created';
 
 export type ActivityEntityType = 'topic' | 'phase' | 'problem' | 'revision';
 
@@ -1208,6 +1212,110 @@ export interface AnalyticsOverview {
   revision: RevisionSummaryAnalytics;
   retention: RetentionSummaryAnalytics;
   activity: ActivitySummary;
+}
+
+/* ---- Module 4 · Sprint 3: Pattern Intelligence & Insights ---- */
+
+export type PatternStatus = 'strong' | 'developing' | 'needs-work';
+export type Severity = 'high' | 'medium' | 'low';
+export type TrendDirection = 'increasing' | 'stable' | 'declining';
+export type InsightType = 'strength' | 'weakness' | 'trend' | 'milestone';
+export type InsightTone = 'positive' | 'negative' | 'neutral';
+export type Priority = 'high' | 'medium' | 'low';
+export type ImpactLevel = 'high' | 'medium' | 'low';
+
+export interface PatternMatrix {
+  understanding: number;
+  recognition: number;
+  implementation: number;
+  optimization: number;
+  contestReadiness: number;
+  confidence: number;
+  retention: number;
+  overallMastery: number;
+}
+
+export interface PatternProfile {
+  patternId: string;
+  title: string;
+  phaseId: string;
+  phaseTitle: string;
+  status: PatternStatus;
+  isWeak: boolean;
+  isStrong: boolean;
+  matrix: PatternMatrix;
+  attemptSuccessRate: number;
+  averageSolveTimeMinutes: number;
+  revisionSuccessRate: number;
+  hintDependency: number;
+  editorialDependency: number;
+  problemsSolved: number;
+  problemsAttempted: number;
+  reviewCount: number;
+  confidenceTrendDirection: 'rising' | 'falling' | 'stable';
+  confidenceTrendDelta: number;
+  overall: number;
+  updatedAt: string | null;
+}
+
+export interface Weakness {
+  id: string;
+  category: string;
+  severity: Severity;
+  title: string;
+  detail: string;
+  entityType: 'topic' | 'pattern' | 'knowledgeEntry' | 'global';
+  entityId: string | null;
+  metric: string;
+  value: number;
+  threshold: number;
+  recommendationHint: string;
+}
+
+export interface Strength {
+  id: string;
+  category: string;
+  title: string;
+  detail: string;
+  entityType: 'topic' | 'pattern' | 'knowledgeEntry' | 'global';
+  entityId: string | null;
+  metric: string;
+  value: number;
+}
+
+export interface Trend {
+  key: string;
+  label: string;
+  current: number;
+  previous: number;
+  delta: number;
+  direction: TrendDirection;
+  unit: string;
+}
+
+export interface LearningInsight {
+  id: string;
+  type: InsightType;
+  tone: InsightTone;
+  title: string;
+  message: string;
+  entityType: 'topic' | 'pattern' | 'knowledgeEntry' | 'phase' | 'global';
+  entityId: string | null;
+  priority: Priority;
+}
+
+export interface AnalyticsRecommendation {
+  id: string;
+  priority: Priority;
+  title: string;
+  reason: string;
+  suggestedAction: string;
+  actionType: 'open-topic' | 'start-revision' | 'review-notebook' | 'practice-problems';
+  to: string;
+  estimatedTimeMinutes: number;
+  learningImpact: ImpactLevel;
+  entityType: 'topic' | 'pattern' | 'knowledgeEntry' | 'global';
+  entityId: string | null;
 }
 
 /** Success envelope returned by every backend endpoint. */

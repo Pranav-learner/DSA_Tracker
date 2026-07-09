@@ -11,3 +11,9 @@ export { ComparisonCard } from './ComparisonCard';
 export { StatisticsPanel, type StatRow } from './StatisticsPanel';
 export { LoadingAnalytics } from './LoadingAnalytics';
 export { EmptyAnalytics } from './EmptyAnalytics';
+
+// Sprint 2 — charts + widgets.
+export * from './charts';
+export * from './widgets';
+// Sprint 3 — pattern intelligence.
+export * from './intelligence';

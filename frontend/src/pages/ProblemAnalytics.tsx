@@ -6,15 +6,17 @@ import {
   AnalyticsSection,
   AnalyticsGrid,
   MetricCard,
-  StatisticsPanel,
-  PlaceholderChart,
   FilterBar,
   LoadingAnalytics,
+  PieChartCard,
+  BarChartCard,
 } from '@/components/analytics';
 
 /** Problem analytics — solved/attempted, success rate + platform/difficulty mix. */
 export function ProblemAnalytics() {
   const { data, isLoading, isError, error, refetch } = useProblemAnalytics();
+  const platform = (data?.platformDistribution ?? []).map((d) => ({ name: d.key, value: d.count }));
+  const difficulty = (data?.difficultyDistribution ?? []).map((d) => ({ name: d.key, count: d.count }));
 
   return (
     <div className="space-y-6">
@@ -36,26 +38,8 @@ export function ProblemAnalytics() {
 
           <AnalyticsSection title="Distributions" icon={<Puzzle className="size-4" />}>
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <StatisticsPanel
-                title="Solved by platform"
-                rows={
-                  data.platformDistribution.length
-                    ? data.platformDistribution.map((d) => ({ label: d.key, value: `${d.count} · ${d.percent}%` }))
-                    : [{ label: 'No solved problems yet', value: '—' }]
-                }
-              />
-              <StatisticsPanel
-                title="Solved by difficulty"
-                rows={
-                  data.difficultyDistribution.length
-                    ? data.difficultyDistribution.map((d) => ({ label: d.key, value: `${d.count} · ${d.percent}%` }))
-                    : [{ label: 'No solved problems yet', value: '—' }]
-                }
-              />
-            </div>
-            <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <PlaceholderChart title="Platform distribution" kind="Donut chart" />
-              <PlaceholderChart title="Difficulty distribution" kind="Bar chart" />
+              <PieChartCard title="Solved by platform" data={platform} height={280} />
+              <BarChartCard title="Solved by difficulty" data={difficulty} xKey="name" dataKey="count" name="Solved" colorful height={280} />
             </div>
           </AnalyticsSection>
         </>

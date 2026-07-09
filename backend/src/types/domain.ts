@@ -148,6 +148,11 @@ export const ACTIVITY_TYPES = [
   'retention-updated',
   'knowledge-strengthened',
   'knowledge-at-risk',
+  // Module 4 · Sprint 3 — pattern intelligence & insights
+  'insight-generated',
+  'pattern-improved',
+  'pattern-at-risk',
+  'recommendation-created',
 ] as const;
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];
 

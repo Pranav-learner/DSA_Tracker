@@ -6,15 +6,22 @@ import {
   AnalyticsSection,
   AnalyticsGrid,
   MetricCard,
-  StatisticsPanel,
-  PlaceholderChart,
   FilterBar,
   LoadingAnalytics,
+  BarChartCard,
+  chartColor,
 } from '@/components/analytics';
 
-/** Learning analytics — completion, mastery, velocity + per-phase breakdown. */
+const short = (s: string) => (s.length > 16 ? `${s.slice(0, 15)}…` : s);
+
+/** Learning analytics — completion, mastery, velocity + per-phase charts. */
 export function LearningAnalytics() {
   const { data, isLoading, isError, error, refetch } = useLearningAnalytics();
+  const phases = (data?.phaseProgress ?? []).map((p) => ({
+    name: short(p.title || p.phaseId),
+    completion: p.completionPercent,
+    mastery: p.mastery,
+  }));
 
   return (
     <div className="space-y-6">
@@ -38,14 +45,8 @@ export function LearningAnalytics() {
 
           <AnalyticsSection title="Phase Progress" icon={<Layers className="size-4" />}>
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <StatisticsPanel
-                title="Completion by phase"
-                rows={data.phaseProgress.map((p) => ({
-                  label: p.title || p.phaseId,
-                  value: `${p.completionPercent}% · ${p.topicsCompleted}/${p.topicsTotal}`,
-                }))}
-              />
-              <PlaceholderChart title="Mastery progression by phase" kind="Bar chart" />
+              <BarChartCard title="Completion by phase" data={phases} xKey="name" dataKey="completion" name="Completion" color={chartColor.primary} horizontal valueSuffix="%" height={280} />
+              <BarChartCard title="Mastery by phase" data={phases} xKey="name" dataKey="mastery" name="Mastery" color={chartColor.success} horizontal valueSuffix="%" height={280} />
             </div>
           </AnalyticsSection>
         </>

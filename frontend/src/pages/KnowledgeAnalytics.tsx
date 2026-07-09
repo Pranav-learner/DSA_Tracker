@@ -2,13 +2,15 @@ import { NotebookPen, Puzzle, BookMarked, Layers3, HeartHandshake, FileText } fr
 import { useKnowledgeAnalytics } from '@/hooks/useAnalytics';
 import { SectionHeader } from '@/components/common/SectionHeader';
 import { ErrorState } from '@/components/common/ErrorState';
+import { CardContainer } from '@/components/common/CardContainer';
 import {
   AnalyticsSection,
   AnalyticsGrid,
   MetricCard,
-  PlaceholderChart,
   FilterBar,
   LoadingAnalytics,
+  ProgressRing,
+  chartColor,
 } from '@/components/analytics';
 
 /** Knowledge analytics — notebook coverage, documentation rate + confidence. */
@@ -35,8 +37,12 @@ export function KnowledgeAnalytics() {
             <MetricCard label="Problems Documented" value={data.representativeProblems} icon={<Puzzle className="size-4" />} />
           </AnalyticsGrid>
 
-          <AnalyticsSection title="Coverage" icon={<Layers3 className="size-4" />}>
-            <PlaceholderChart title="Notebook coverage by phase" kind="Stacked bar" />
+          <AnalyticsSection title="Coverage & Confidence" icon={<Layers3 className="size-4" />}>
+            <CardContainer className="flex flex-wrap items-center justify-around gap-6 py-6">
+              <ProgressRing value={data.coveragePercent} label="Coverage" color={chartColor.primary} size={120} strokeWidth={10} />
+              <ProgressRing value={data.documentationRate} label="Documented" color={chartColor.success} size={120} strokeWidth={10} />
+              <ProgressRing value={data.averageConfidence} label="Confidence" color={chartColor.warning} size={120} strokeWidth={10} />
+            </CardContainer>
           </AnalyticsSection>
         </>
       )}

@@ -6,13 +6,15 @@ import {
   AnalyticsSection,
   AnalyticsGrid,
   MetricCard,
-  StatisticsPanel,
-  PlaceholderChart,
   FilterBar,
   LoadingAnalytics,
+  ContributionHeatmap,
+  TimelineChart,
+  AreaChartCard,
+  chartColor,
 } from '@/components/analytics';
 
-/** Activity analytics — streaks, active days + daily/weekly/monthly buckets. */
+/** Activity analytics — streaks, contribution heatmap + daily/weekly/monthly. */
 export function ActivityAnalytics() {
   const { data, isLoading, isError, error, refetch } = useActivityAnalytics();
 
@@ -34,17 +36,14 @@ export function ActivityAnalytics() {
             <MetricCard label="Total Events" value={data.totalActivities} icon={<Zap className="size-4" />} />
           </AnalyticsGrid>
 
-          <AnalyticsSection title="Cadence" description="Contribution calendar arrives in Sprint 2" icon={<Activity className="size-4" />}>
+          <AnalyticsSection title="Contribution" icon={<Activity className="size-4" />}>
+            <ContributionHeatmap title="Daily activity" icon={<Activity className="size-4" />} data={data.dailyActivity} />
+          </AnalyticsSection>
+
+          <AnalyticsSection title="Cadence" icon={<CalendarDays className="size-4" />}>
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <StatisticsPanel
-                title="Recent months"
-                rows={
-                  data.monthlyActivity.length
-                    ? data.monthlyActivity.slice(-6).map((m) => ({ label: m.date, value: `${m.count} events` }))
-                    : [{ label: 'No activity yet', value: '—' }]
-                }
-              />
-              <PlaceholderChart title="Daily activity heatmap" kind="Contribution calendar" />
+              <AreaChartCard title="Daily activity" data={data.dailyActivity} xKey="date" dataKey="count" name="Events" color={chartColor.primary} height={240} />
+              <TimelineChart title="Monthly activity" data={data.monthlyActivity} name="Events" color={chartColor.success} height={240} />
             </div>
           </AnalyticsSection>
         </>

@@ -77,6 +77,13 @@ api.get('/', (_req, res) => {
         'GET /api/analytics/revision',
         'GET /api/analytics/retention',
         'GET /api/analytics/activity',
+        'GET /api/analytics/patterns',
+        'GET /api/analytics/patterns/:patternId',
+        'GET /api/analytics/weaknesses',
+        'GET /api/analytics/strengths',
+        'GET /api/analytics/insights',
+        'GET /api/analytics/trends',
+        'GET /api/analytics/recommendations',
       ],
     },
   });

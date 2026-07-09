@@ -24,6 +24,8 @@ import {
   Gauge,
   ShieldCheck,
   ShieldAlert,
+  Lightbulb,
+  Sparkle,
   type LucideIcon,
 } from 'lucide-react';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -60,6 +62,10 @@ const EVENT_META: Record<ActivityType, EventMeta> = {
   'retention-updated': { icon: Gauge, tile: 'border-primary/40 bg-primary/15 text-primary' },
   'knowledge-strengthened': { icon: ShieldCheck, tile: 'border-success/40 bg-success/15 text-success' },
   'knowledge-at-risk': { icon: ShieldAlert, tile: 'border-danger/40 bg-danger/15 text-danger' },
+  'insight-generated': { icon: Lightbulb, tile: 'border-primary/40 bg-primary/15 text-primary' },
+  'pattern-improved': { icon: Sparkle, tile: 'border-success/40 bg-success/15 text-success' },
+  'pattern-at-risk': { icon: ShieldAlert, tile: 'border-danger/40 bg-danger/15 text-danger' },
+  'recommendation-created': { icon: Compass, tile: 'border-primary/40 bg-primary/15 text-primary' },
 };
 
 /**

@@ -40,6 +40,7 @@ import { retentionService } from '../src/services/retention.service.js';
 import { analyticsAggregationService } from '../src/analytics/services/analyticsAggregation.service.js';
 import { resolveAnalyticsWindow } from '../src/analytics/validators/analytics.validator.js';
 import { metricsEngine } from '../src/analytics/services/metricsEngine.js';
+import { patternIntelligenceService } from '../src/analytics/services/patternIntelligence.service.js';
 import { problemRepository } from '../src/repositories/problem.repository.js';
 import { userProblemRepository } from '../src/repositories/userProblem.repository.js';
 import {
@@ -835,6 +836,48 @@ async function run(): Promise<void> {
     'analytics activity summary aggregates with streaks',
   );
 
+  // --- Module 4 · Sprint 3: Pattern Intelligence & Insights ---
+  const intel = await patternIntelligenceService.overview(DEMO_USER, anWindow);
+  const anyPattern = intel.patterns[0];
+  console.log(
+    `  intelligence: patterns=${intel.patterns.length} weaknesses=${intel.weaknesses.length} strengths=${intel.strengths.length} ` +
+      `trends=${intel.trends.length} insights=${intel.insights.length} recs=${intel.recommendations.length}` +
+      (anyPattern ? ` | e.g. "${anyPattern.title}" mastery=${anyPattern.matrix.overallMastery}% status=${anyPattern.status}` : ''),
+  );
+  assert(intel.patterns.length >= 1, 'pattern intelligence builds pattern profiles');
+  assert(
+    anyPattern !== undefined &&
+      typeof anyPattern.matrix.recognition === 'number' &&
+      typeof anyPattern.matrix.implementation === 'number' &&
+      typeof anyPattern.matrix.confidence === 'number' &&
+      typeof anyPattern.matrix.retention === 'number' &&
+      anyPattern.matrix.overallMastery >= 0 && anyPattern.matrix.overallMastery <= 100 &&
+      ['strong', 'developing', 'needs-work'].includes(anyPattern.status),
+    'pattern confidence matrix has all dimensions',
+  );
+  assert(
+    intel.weaknesses.every((w) => ['high', 'medium', 'low'].includes(w.severity) && typeof w.threshold === 'number' && w.recommendationHint.length > 0),
+    'weakness detection returns severity + configurable thresholds',
+  );
+  assert(intel.strengths.every((s) => s.value >= 0 && s.entityId !== undefined), 'strength detection returns signals');
+  assert(
+    intel.trends.length >= 6 && intel.trends.every((t) => ['increasing', 'stable', 'declining'].includes(t.direction)),
+    'trend analysis returns directions',
+  );
+  assert(
+    intel.insights.every((i) => ['strength', 'weakness', 'trend', 'milestone'].includes(i.type) && i.title.length > 0),
+    'insight engine generates a dynamic feed',
+  );
+  assert(
+    intel.recommendations.every((r) => ['high', 'medium', 'low'].includes(r.priority) && r.to.startsWith('/') && r.estimatedTimeMinutes > 0),
+    'recommendation center returns actionable, routed recommendations',
+  );
+  // Single-pattern lookup + not-found.
+  const onePattern = await patternIntelligenceService.pattern(DEMO_USER, anyPattern!.patternId);
+  assert(onePattern !== null && onePattern.patternId === anyPattern!.patternId, 'single pattern lookup works');
+  const missingPattern = await patternIntelligenceService.pattern(DEMO_USER, '64b2f0000000000000000000');
+  assert(missingPattern === null, 'unknown pattern returns null');
+
   // MetricsEngine sanity + cache re-hit (second call returns identical, cached object).
   assert(metricsEngine.percentage(3, 4) === 75 && metricsEngine.successRate(0, 0) === 0, 'MetricsEngine computes correctly');
   const anCached = await analyticsAggregationService.learning(DEMO_USER, anWindow);
@@ -1006,6 +1049,17 @@ async function run(): Promise<void> {
   const httpAnActivity = await getJson('/api/analytics/activity?range=all');
   const httpAnBadRange = await getJson('/api/analytics/overview?range=bogus');
   const httpAnBadDates = await getJson('/api/analytics/overview?from=2030-01-01&to=2020-01-01');
+  // Module 4 · Sprint 3 intelligence requests.
+  const httpAnPatterns = await getJson('/api/analytics/patterns');
+  const patternId = (httpAnPatterns.body.data as Array<{ patternId: string }> | undefined)?.[0]?.patternId ?? '';
+  const httpAnPattern = await getJson(`/api/analytics/patterns/${patternId}`);
+  const httpAnWeak = await getJson('/api/analytics/weaknesses');
+  const httpAnStrong = await getJson('/api/analytics/strengths');
+  const httpAnInsights = await getJson('/api/analytics/insights');
+  const httpAnTrends = await getJson('/api/analytics/trends');
+  const httpAnRecs = await getJson('/api/analytics/recommendations');
+  const httpAnPatternMissing = await getJson('/api/analytics/patterns/64b2f0000000000000000000');
+  const httpAnPatternBadId = await getJson('/api/analytics/patterns/not-an-id');
   server.close();
 
   console.log(
@@ -1153,6 +1207,22 @@ async function run(): Promise<void> {
   assert(httpAnActivity.status === 200 && httpAnActivity.body.success, 'GET /analytics/activity → 200');
   assert(httpAnBadRange.status === 400, 'analytics invalid range → 400');
   assert(httpAnBadDates.status === 400, 'analytics inverted date range → 400');
+
+  // Module 4 · Sprint 3 HTTP assertions:
+  console.log(
+    `http intelligence: patterns=${httpAnPatterns.status} pattern=${httpAnPattern.status} weaknesses=${httpAnWeak.status} ` +
+      `strengths=${httpAnStrong.status} insights=${httpAnInsights.status} trends=${httpAnTrends.status} recs=${httpAnRecs.status} ` +
+      `missing=${httpAnPatternMissing.status} badId=${httpAnPatternBadId.status}`,
+  );
+  assert(httpAnPatterns.status === 200 && httpAnPatterns.body.success, 'GET /analytics/patterns → 200');
+  assert(httpAnPattern.status === 200 && httpAnPattern.body.success, 'GET /analytics/patterns/:id → 200');
+  assert(httpAnWeak.status === 200 && httpAnWeak.body.success, 'GET /analytics/weaknesses → 200');
+  assert(httpAnStrong.status === 200 && httpAnStrong.body.success, 'GET /analytics/strengths → 200');
+  assert(httpAnInsights.status === 200 && httpAnInsights.body.success, 'GET /analytics/insights → 200');
+  assert(httpAnTrends.status === 200 && httpAnTrends.body.success, 'GET /analytics/trends → 200');
+  assert(httpAnRecs.status === 200 && httpAnRecs.body.success, 'GET /analytics/recommendations → 200');
+  assert(httpAnPatternMissing.status === 404, 'GET /analytics/patterns unknown → 404');
+  assert(httpAnPatternBadId.status === 400, 'GET /analytics/patterns bad id → 400');
 
   console.log('\n✅ ALL ASSERTIONS PASSED');
 

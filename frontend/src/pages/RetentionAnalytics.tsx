@@ -2,18 +2,28 @@ import { Brain, HeartPulse, HeartHandshake, Trophy, ShieldAlert, RefreshCw } fro
 import { useRetentionAnalytics } from '@/hooks/useAnalytics';
 import { SectionHeader } from '@/components/common/SectionHeader';
 import { ErrorState } from '@/components/common/ErrorState';
+import { CardContainer } from '@/components/common/CardContainer';
 import {
   AnalyticsSection,
   AnalyticsGrid,
   MetricCard,
-  PlaceholderChart,
   FilterBar,
   LoadingAnalytics,
+  PieChartCard,
+  ProgressGauge,
+  chartColor,
 } from '@/components/analytics';
 
 /** Retention analytics — retention, confidence, knowledge health + risk mix. */
 export function RetentionAnalytics() {
   const { data, isLoading, isError, error, refetch } = useRetentionAnalytics();
+  const mix = data
+    ? [
+        { name: 'Mastered', value: data.masteredTopics },
+        { name: 'Needs Review', value: data.needsReviewTopics },
+        { name: 'At Risk', value: data.atRiskTopics },
+      ]
+    : [];
 
   return (
     <div className="space-y-6">
@@ -36,7 +46,12 @@ export function RetentionAnalytics() {
           </AnalyticsGrid>
 
           <AnalyticsSection title="Health" icon={<HeartPulse className="size-4" />}>
-            <PlaceholderChart title="Retention & confidence over time" kind="Timeline" />
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1.4fr]">
+              <CardContainer className="flex items-center justify-center py-6">
+                <ProgressGauge value={data.knowledgeHealthPercent} label="Health" color={chartColor.warning} size={180} />
+              </CardContainer>
+              <PieChartCard title="Knowledge distribution" data={mix} height={260} />
+            </div>
           </AnalyticsSection>
         </>
       )}

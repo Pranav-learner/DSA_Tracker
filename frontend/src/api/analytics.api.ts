@@ -3,11 +3,17 @@ import type {
   ActivitySummary,
   AnalyticsOverview,
   AnalyticsRange,
+  AnalyticsRecommendation,
   KnowledgeSummaryAnalytics,
+  LearningInsight,
   LearningSummary,
+  PatternProfile,
   ProblemSummary,
   RetentionSummaryAnalytics,
   RevisionSummaryAnalytics,
+  Strength,
+  Trend,
+  Weakness,
 } from '@/types';
 
 export interface AnalyticsParams {
@@ -46,4 +52,20 @@ export const analyticsApi = {
     apiGet<RetentionSummaryAnalytics>(`/analytics/retention${toQueryString(params)}`, signal),
   activity: (params: AnalyticsParams = {}, signal?: AbortSignal) =>
     apiGet<ActivitySummary>(`/analytics/activity${toQueryString(params)}`, signal),
+
+  // Module 4 · Sprint 3 — pattern intelligence & insights.
+  patterns: (params: AnalyticsParams = {}, signal?: AbortSignal) =>
+    apiGet<PatternProfile[]>(`/analytics/patterns${toQueryString(params)}`, signal),
+  pattern: (patternId: string, signal?: AbortSignal) =>
+    apiGet<PatternProfile>(`/analytics/patterns/${patternId}`, signal),
+  weaknesses: (params: AnalyticsParams = {}, signal?: AbortSignal) =>
+    apiGet<Weakness[]>(`/analytics/weaknesses${toQueryString(params)}`, signal),
+  strengths: (params: AnalyticsParams = {}, signal?: AbortSignal) =>
+    apiGet<Strength[]>(`/analytics/strengths${toQueryString(params)}`, signal),
+  insights: (params: AnalyticsParams = {}, signal?: AbortSignal) =>
+    apiGet<LearningInsight[]>(`/analytics/insights${toQueryString(params)}`, signal),
+  trends: (params: AnalyticsParams = {}, signal?: AbortSignal) =>
+    apiGet<Trend[]>(`/analytics/trends${toQueryString(params)}`, signal),
+  recommendations: (params: AnalyticsParams = {}, signal?: AbortSignal) =>
+    apiGet<AnalyticsRecommendation[]>(`/analytics/recommendations${toQueryString(params)}`, signal),
 };
