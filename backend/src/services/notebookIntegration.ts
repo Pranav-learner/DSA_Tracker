@@ -1,5 +1,7 @@
 import { activityService } from './activity.service.js';
 import { masteryHooks } from './masteryHooks.js';
+import { revisionScheduleService } from './revisionSchedule.service.js';
+import { logger } from '../utils/logger.js';
 import type { ProblemDocument } from '../models/Problem.js';
 import type { NotebookEntryDocument } from '../models/NotebookEntry.js';
 
@@ -36,6 +38,21 @@ export const notebookIntegration = {
       });
     }
     await this.exposeConfidence(userId, entry);
+    // Module 3: a new knowledge entry auto-schedules a revision (idempotent).
+    await this.scheduleRevision(userId, entry);
+  },
+
+  /** Auto-create a revision schedule for a knowledge entry (best-effort). */
+  async scheduleRevision(userId: string, entry: NotebookEntryDocument): Promise<void> {
+    try {
+      await revisionScheduleService.ensureScheduleFor(userId, {
+        entityType: 'knowledgeEntry',
+        entityId: String(entry._id),
+        title: entry.title,
+      });
+    } catch (err) {
+      logger.warn('Failed to auto-schedule revision for notebook entry', err);
+    }
   },
 
   async onUpdated(

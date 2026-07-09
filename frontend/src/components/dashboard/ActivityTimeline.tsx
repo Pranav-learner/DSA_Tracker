@@ -15,6 +15,9 @@ import {
   NotebookPen,
   BookMarked,
   Compass,
+  CalendarClock,
+  CalendarPlus,
+  AlarmClock,
   type LucideIcon,
 } from 'lucide-react';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -38,6 +41,9 @@ const EVENT_META: Record<ActivityType, EventMeta> = {
   'notebook-updated': { icon: PencilLine, tile: 'border-warning/40 bg-warning/15 text-warning' },
   'problem-documented': { icon: BookMarked, tile: 'border-success/40 bg-success/15 text-success' },
   'recommendation-updated': { icon: Compass, tile: 'border-primary/40 bg-primary/15 text-primary' },
+  'revision-scheduled': { icon: CalendarPlus, tile: 'border-primary/40 bg-primary/15 text-primary' },
+  'revision-due': { icon: CalendarClock, tile: 'border-warning/40 bg-warning/15 text-warning' },
+  'revision-overdue': { icon: AlarmClock, tile: 'border-danger/40 bg-danger/15 text-danger' },
 };
 
 /**

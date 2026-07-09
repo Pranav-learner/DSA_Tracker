@@ -1,6 +1,6 @@
 import { QueryClient } from '@tanstack/react-query';
 import { ApiError } from '@/api/client';
-import type { ProblemsQuery, NotebookQuery } from '@/types';
+import type { ProblemsQuery, NotebookQuery, RevisionQuery } from '@/types';
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -55,4 +55,10 @@ export const queryKeys = {
   notebookEntry: (id: string) => ['notebook', 'detail', id] as const,
   notebookFacets: ['notebook', 'facets'] as const,
   notebookByProblem: (problemId: string) => ['notebook', 'by-problem', problemId] as const,
+  // --- Module 3 · Sprint 1: revision engine ---
+  revision: ['revision'] as const,
+  revisionToday: ['revision', 'today'] as const,
+  revisionCalendar: (range: { from?: string; to?: string }) => ['revision', 'calendar', range] as const,
+  revisionSchedules: (query: RevisionQuery) => ['revision', 'schedules', query] as const,
+  revisionSchedule: (id: string) => ['revision', 'schedule', id] as const,
 };

@@ -3,9 +3,12 @@ import { recommendationService } from './recommendation.service.js';
 import { topicProgressService } from './topicProgress.service.js';
 import { unlockService } from './unlock.service.js';
 import { activityService } from './activity.service.js';
+import { revisionScheduleService } from './revisionSchedule.service.js';
 import { problemRepository } from '../repositories/problem.repository.js';
 import { notebookRepository } from '../repositories/notebook.repository.js';
+import { topicRepository } from '../repositories/topic.repository.js';
 import { ApiError } from '../utils/ApiError.js';
+import { logger } from '../utils/logger.js';
 import { isCompletedStatus, type Difficulty, type MasteryMetrics, type ProblemLearningStatus } from '../types/domain.js';
 import type { ProblemDocument } from '../models/Problem.js';
 import type { NotebookEntryDocument } from '../models/NotebookEntry.js';
@@ -73,7 +76,12 @@ export const learningIntegrationService = {
       });
     }
 
-    return this.buildImpact(after, topicId, problemId, masteryBefore, afterRec);
+    const impact = this.buildImpact(after, topicId, problemId, masteryBefore, afterRec);
+
+    // Module 3: a completed topic auto-schedules a revision (idempotent).
+    if (impact.topicCompleted) await scheduleTopicRevision(userId, topicId);
+
+    return impact;
   },
 
   /** Read-only impact snapshot for a problem (no before/delta). */
@@ -164,4 +172,19 @@ function computeMetricPatch(
 
 function recommendationChanged(a: RecommendationDTO, b: RecommendationDTO): boolean {
   return a.type !== b.type || a.topicId !== b.topicId;
+}
+
+/** Auto-schedule a revision when a topic completes (best-effort, idempotent). */
+async function scheduleTopicRevision(userId: string, topicId: string): Promise<void> {
+  try {
+    const topic = await topicRepository.findById(topicId);
+    if (!topic) return;
+    await revisionScheduleService.ensureScheduleFor(userId, {
+      entityType: 'topic',
+      entityId: topicId,
+      title: topic.title,
+    });
+  } catch (err) {
+    logger.warn('Failed to auto-schedule revision for completed topic', err);
+  }
 }

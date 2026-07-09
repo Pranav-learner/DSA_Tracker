@@ -6,6 +6,7 @@ import type {
   RecommendationDTO,
 } from './learning.dto.js';
 import type { ActivityDTO } from './activity.service.js';
+import type { DashboardRevisionDTO } from './revision.dto.js';
 
 /* Sprint 4 — Dashboard aggregation response DTOs.
  *
@@ -58,4 +59,6 @@ export interface DashboardDTO {
   roadmap: RoadmapSummaryPhaseDTO[];
   /** Recent learning events, newest first. */
   recentActivity: ActivityDTO[];
+  /** Module 3: revision widget (due today / overdue / preview). */
+  revision: DashboardRevisionDTO;
 }

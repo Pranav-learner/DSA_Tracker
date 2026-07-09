@@ -11,12 +11,19 @@ import type { LadderStage } from '../types/domain.js';
 import { masteryService } from '../services/mastery.service.js';
 import { Types } from 'mongoose';
 import { Problem } from '../models/Problem.js';
+import { NotebookEntry } from '../models/NotebookEntry.js';
 import { topicProgressRepository } from '../repositories/topicProgress.repository.js';
 import { learningRepository } from '../repositories/learning.repository.js';
 import { activityRepository } from '../repositories/activity.repository.js';
 import { problemRepository } from '../repositories/problem.repository.js';
 import { userProblemRepository } from '../repositories/userProblem.repository.js';
 import { notebookRepository } from '../repositories/notebook.repository.js';
+import { revisionScheduleRepository } from '../repositories/revisionSchedule.repository.js';
+import {
+  DEFAULT_REVISION_INTERVALS,
+  DEFAULT_EASE_FACTOR,
+  DEFAULT_ENTITY_PRIORITY,
+} from '../config/revision.js';
 import { roadmapSeed } from './data.js';
 import { buildTopicContent } from './content.js';
 import { DEMO_PROGRESS, DEMO_CURRENT_TITLE } from './progress.js';
@@ -104,9 +111,11 @@ async function seed(): Promise<void> {
   const problemCount = await seedProblems();
   await seedUserProblems();
   const notebookCount = await seedNotebook();
+  const revisionCount = await seedRevision();
 
   logger.info(
-    `Seed complete — ${roadmapSeed.length} phases, ${totalTopics} topics, ${problemCount} problems, ${notebookCount} notebook entries.`,
+    `Seed complete — ${roadmapSeed.length} phases, ${totalTopics} topics, ${problemCount} problems, ` +
+      `${notebookCount} notebook entries, ${revisionCount} revision schedules.`,
   );
   await disconnectDatabase();
 }
@@ -336,6 +345,88 @@ async function seedNotebook(): Promise<number> {
 
   logger.info(`  ✓ Notebook seeded (${entryIdByProblemTitle.size} entries).`);
   return entryIdByProblemTitle.size;
+}
+
+/**
+ * Module 3 · Sprint 1: seed revision schedules from the demo user's notebook
+ * entries + completed topics, with varied next-review dates so the daily queue,
+ * calendar and dashboard widget look alive (some overdue, some due, some upcoming).
+ */
+async function seedRevision(): Promise<number> {
+  const userId = env.demoUserId;
+  logger.info(`Seeding revision schedules for '${userId}'…`);
+  await revisionScheduleRepository.deleteByUser(userId);
+
+  const [notebooks, progresses, topics] = await Promise.all([
+    NotebookEntry.find({ userId }).exec(),
+    topicProgressRepository.findByUser(userId),
+    Topic.find().exec(),
+  ]);
+  const completed = progresses.filter((p) => p.status === 'Completed' || p.status === 'Mastered');
+  const topicById = new Map(topics.map((t) => [String(t._id), t]));
+  const now = Date.now();
+  const DAY = 24 * 60 * 60_000;
+  const offsets = [-6, -3, -1, 0, 0, 1, 2, 4, 7, 12]; // overdue → due → upcoming
+  let i = 0;
+
+  const build = (entityType: 'topic' | 'knowledgeEntry', entityId: string, title: string, priority: number) => {
+    const offset = offsets[i % offsets.length];
+    const interval = DEFAULT_REVISION_INTERVALS[Math.min(1 + (i % 4), DEFAULT_REVISION_INTERVALS.length - 1)];
+    i += 1;
+    return {
+      userId,
+      entityType,
+      entityId,
+      title,
+      currentInterval: interval,
+      nextReviewDate: new Date(now + offset * DAY),
+      lastReviewDate: new Date(now - interval * DAY),
+      reviewCount: i % 3,
+      easeFactor: DEFAULT_EASE_FACTOR,
+      priority,
+      status: 'Pending' as const,
+      strategy: 'default',
+    };
+  };
+
+  const docs = [
+    ...notebooks.map((nb) => build('knowledgeEntry', String(nb._id), nb.title, DEFAULT_ENTITY_PRIORITY.knowledgeEntry)),
+    ...completed
+      .map((p) => topicById.get(String(p.topicId)))
+      .filter((t): t is NonNullable<typeof t> => Boolean(t))
+      .map((t) => build('topic', String(t._id), t.title, DEFAULT_ENTITY_PRIORITY.topic)),
+  ];
+  await revisionScheduleRepository.insertMany(docs);
+
+  // A couple of revision activity events for the dashboard timeline (back-dated).
+  const overdueCount = docs.filter((d) => d.nextReviewDate.getTime() < now).length;
+  await activityRepository.insertMany([
+    {
+      userId,
+      type: 'revision-scheduled',
+      entityType: 'revision',
+      entityId: 'seed',
+      title: `${docs.length} revisions scheduled`,
+      description: 'Your spaced-review plan is ready.',
+      createdAt: new Date(now - 3 * 60_000),
+    },
+    ...(overdueCount > 0
+      ? [
+          {
+            userId,
+            type: 'revision-overdue' as const,
+            entityType: 'revision' as const,
+            entityId: 'seed',
+            title: `${overdueCount} revisions overdue`,
+            description: 'Catch up on overdue reviews to protect retention.',
+            createdAt: new Date(now - 45 * 60_000),
+          },
+        ]
+      : []),
+  ]);
+
+  logger.info(`  ✓ Revision seeded (${docs.length} schedules, ${overdueCount} overdue).`);
+  return docs.length;
 }
 
 seed()

@@ -265,9 +265,12 @@ export type ActivityType =
   | 'notebook-created'
   | 'notebook-updated'
   | 'problem-documented'
-  | 'recommendation-updated';
+  | 'recommendation-updated'
+  | 'revision-scheduled'
+  | 'revision-due'
+  | 'revision-overdue';
 
-export type ActivityEntityType = 'topic' | 'phase' | 'problem';
+export type ActivityEntityType = 'topic' | 'phase' | 'problem' | 'revision';
 
 export interface ActivityEvent {
   id: string;
@@ -314,6 +317,7 @@ export interface Dashboard {
   currentPhaseProgress: DashboardPhaseProgress | null;
   roadmap: RoadmapSummaryPhase[];
   recentActivity: ActivityEvent[];
+  revision: DashboardRevision;
 }
 
 export interface RoadmapStats {
@@ -693,6 +697,121 @@ export interface CompleteProblemInput {
   language?: AttemptLanguage;
   durationMinutes?: number;
   notes?: string;
+}
+
+/* ---- Module 3 · Sprint 1: Revision Engine ---- */
+
+export type RevisionEntityType = 'topic' | 'pattern' | 'knowledgeEntry';
+export type RevisionStatus = 'Pending' | 'Due' | 'Completed' | 'Overdue' | 'Archived';
+export type RevisionUrgency = 'overdue' | 'due' | 'upcoming';
+
+export interface RevisionSchedule {
+  id: string;
+  userId: string;
+  entityType: RevisionEntityType;
+  entityId: string;
+  title: string;
+  currentInterval: number;
+  nextReviewDate: string;
+  lastReviewDate: string | null;
+  reviewCount: number;
+  easeFactor: number;
+  priority: number;
+  strategy: string;
+  status: RevisionStatus;
+  urgency: RevisionUrgency;
+  daysUntilReview: number;
+  estimatedMinutes: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RevisionQueueSummary {
+  dueTodayCount: number;
+  overdueCount: number;
+  upcomingCount: number;
+  totalScheduled: number;
+  estimatedReviewMinutes: number;
+}
+
+export interface RevisionQueue {
+  overdue: RevisionSchedule[];
+  dueToday: RevisionSchedule[];
+  upcoming: RevisionSchedule[];
+  summary: RevisionQueueSummary;
+}
+
+export interface RevisionCalendarItem {
+  id: string;
+  title: string;
+  entityType: RevisionEntityType;
+  urgency: RevisionUrgency;
+  priority: number;
+}
+
+export interface RevisionCalendarDay {
+  date: string;
+  overdue: number;
+  due: number;
+  upcoming: number;
+  total: number;
+  items: RevisionCalendarItem[];
+}
+
+export interface RevisionCalendar {
+  from: string;
+  to: string;
+  days: RevisionCalendarDay[];
+}
+
+export interface DashboardRevision {
+  dueTodayCount: number;
+  overdueCount: number;
+  upcomingCount: number;
+  totalScheduled: number;
+  estimatedReviewMinutes: number;
+  preview: RevisionSchedule[];
+}
+
+export type RevisionSortField = 'nextReviewDate' | 'priority' | 'createdAt' | 'title';
+
+export interface RevisionQuery {
+  page?: number;
+  pageSize?: number;
+  status?: RevisionStatus;
+  entityType?: RevisionEntityType;
+  from?: string;
+  to?: string;
+  sort?: RevisionSortField;
+  order?: 'asc' | 'desc';
+}
+
+export interface PaginatedRevisionSchedules {
+  items: RevisionSchedule[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
+export interface CreateScheduleInput {
+  entityType: RevisionEntityType;
+  entityId: string;
+  title: string;
+  strategy?: string;
+  priority?: number;
+  nextReviewDate?: string;
+  allowDuplicate?: boolean;
+}
+
+export interface UpdateScheduleInput {
+  title?: string;
+  priority?: number;
+  status?: 'Pending' | 'Completed' | 'Archived';
+  strategy?: string;
+  nextReviewDate?: string;
 }
 
 /** Success envelope returned by every backend endpoint. */

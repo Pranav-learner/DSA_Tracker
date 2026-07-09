@@ -9,6 +9,7 @@ import dashboardRoutes from './dashboard.routes.js';
 import problemRoutes from './problem.routes.js';
 import attemptRoutes from './attempt.routes.js';
 import notebookRoutes from './notebook.routes.js';
+import revisionRoutes from './revision.routes.js';
 
 /** Root API router — mounts every feature router under /api. */
 const api = Router();
@@ -51,6 +52,10 @@ api.get('/', (_req, res) => {
         'GET /api/problems/:id/workspace',
         'POST /api/problems/:id/complete',
         'GET /api/problems/:id/learning-impact',
+        'GET|POST /api/revision/schedules',
+        'GET|PATCH|DELETE /api/revision/schedules/:id',
+        'GET /api/revision/today',
+        'GET /api/revision/calendar',
       ],
     },
   });
@@ -66,5 +71,6 @@ api.use('/dashboard', dashboardRoutes);
 api.use('/problems', problemRoutes);
 api.use('/attempts', attemptRoutes);
 api.use('/notebook', notebookRoutes);
+api.use('/revision', revisionRoutes);
 
 export default api;

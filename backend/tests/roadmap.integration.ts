@@ -32,6 +32,8 @@ import { attemptService } from '../src/services/attempt.service.js';
 import { notebookService } from '../src/services/notebook.service.js';
 import { workspaceService } from '../src/services/workspace.service.js';
 import { learningIntegrationService } from '../src/services/learningIntegration.service.js';
+import { revisionScheduleService } from '../src/services/revisionSchedule.service.js';
+import { revisionQueueService } from '../src/services/revisionQueue.service.js';
 import { problemRepository } from '../src/repositories/problem.repository.js';
 import { userProblemRepository } from '../src/repositories/userProblem.repository.js';
 import {
@@ -544,6 +546,82 @@ async function run(): Promise<void> {
     'completion generates problem + topic-progress activity',
   );
 
+  // --- Module 3 · Sprint 1: Revision Scheduler & Daily Queue ---
+  const RDAY = 24 * 60 * 60_000;
+  const rIso = (offsetDays: number) => new Date(seedNow.getTime() + offsetDays * RDAY).toISOString();
+
+  const overdueSched = await revisionScheduleService.create(DEMO_USER, {
+    entityType: 'pattern', entityId: 'pattern:sw', title: 'Sliding Window pattern', priority: 5, nextReviewDate: rIso(-2),
+  });
+  const dueSched = await revisionScheduleService.create(DEMO_USER, {
+    entityType: 'pattern', entityId: 'pattern:tp', title: 'Two Pointers pattern', priority: 4, nextReviewDate: rIso(0),
+  });
+  const upSched = await revisionScheduleService.create(DEMO_USER, {
+    entityType: 'pattern', entityId: 'pattern:ps', title: 'Prefix Sum pattern', priority: 3, nextReviewDate: rIso(3),
+  });
+
+  const defaultSched = await revisionScheduleService.create(DEMO_USER, {
+    entityType: 'pattern', entityId: 'pattern:default', title: 'Default-strategy pattern',
+  });
+
+  let rDupThrew = false;
+  try {
+    await revisionScheduleService.create(DEMO_USER, { entityType: 'pattern', entityId: 'pattern:sw', title: 'dup' });
+  } catch {
+    rDupThrew = true;
+  }
+  const ensured = await revisionScheduleService.ensureScheduleFor(DEMO_USER, {
+    entityType: 'pattern', entityId: 'pattern:sw', title: 'dup',
+  });
+
+  const rList = await revisionScheduleService.list(DEMO_USER, { page: 1, pageSize: 100, sort: 'nextReviewDate', order: 'asc' });
+  const queue = await revisionQueueService.getToday(DEMO_USER);
+  const cal = await revisionQueueService.getCalendar(DEMO_USER, new Date(seedNow.getTime() - 7 * RDAY), new Date(seedNow.getTime() + 30 * RDAY));
+
+  console.log(
+    `revision: schedules=${rList.total} auto(knowledgeEntry)=${rList.items.filter((s) => s.entityType === 'knowledgeEntry').length} | ` +
+      `queue overdue=${queue.overdue.length} due=${queue.dueToday.length} upcoming=${queue.upcoming.length} ` +
+      `est=${queue.summary.estimatedReviewMinutes}m | calendarDays=${cal.days.length}`,
+  );
+
+  assert(overdueSched.urgency === 'overdue' && overdueSched.status === 'Overdue', 'past date → Overdue');
+  assert(dueSched.urgency === 'due' && dueSched.status === 'Due', 'today → Due');
+  assert(upSched.urgency === 'upcoming' && upSched.status === 'Pending', 'future → upcoming/Pending');
+  assert(defaultSched.currentInterval === 1 && defaultSched.daysUntilReview === 1, 'default strategy → first review in 1 day');
+  assert(rDupThrew, 'duplicate schedule for same entity rejected');
+  assert(ensured === null, 'ensureScheduleFor is idempotent (no-op when active exists)');
+  assert(rList.total >= 4, 'schedules listed');
+  assert(rList.items.some((s) => s.entityType === 'knowledgeEntry'), 'notebook creation auto-scheduled a revision');
+  assert(queue.overdue.length >= 1 && queue.dueToday.length >= 1 && queue.upcoming.length >= 1, 'daily queue buckets populated');
+  assert(queue.summary.estimatedReviewMinutes > 0 && queue.summary.totalScheduled === rList.total, 'queue summary counts');
+  assert(cal.days.some((d) => d.total > 0), 'calendar groups revision events by date');
+
+  const updatedSched = await revisionScheduleService.update(DEMO_USER, upSched.id, { priority: 5, title: 'Prefix Sum (edited)' });
+  assert(updatedSched.priority === 5 && updatedSched.title === 'Prefix Sum (edited)', 'schedule update applies');
+
+  const recalced = await revisionScheduleService.recalculate(DEMO_USER, overdueSched.id);
+  assert(recalced.reviewCount === overdueSched.reviewCount + 1 && recalced.daysUntilReview >= 0, 'recalculate advances the review');
+
+  await revisionScheduleService.remove(DEMO_USER, dueSched.id);
+  let rGone = false;
+  try {
+    await revisionScheduleService.getById(DEMO_USER, dueSched.id);
+  } catch {
+    rGone = true;
+  }
+  assert(rGone, 'deleted schedule is not retrievable');
+
+  const dashWithRevision = await dashboardService.get(DEMO_USER);
+  assert(
+    typeof dashWithRevision.revision.dueTodayCount === 'number' &&
+      dashWithRevision.revision.totalScheduled >= 1 &&
+      Array.isArray(dashWithRevision.revision.preview),
+    'dashboard exposes the revision widget',
+  );
+
+  const rActivity = await activityService.getRecent(DEMO_USER, 50);
+  assert(rActivity.some((a) => a.type === 'revision-scheduled'), 'revision-scheduled activity generated');
+
   // Mastery weights sanity: all-100 metrics → 100% overall.
   const perfect = masteryService.computeOverall({
     recognition: 100, implementation: 100, standard: 100, variant: 100,
@@ -650,6 +728,22 @@ async function run(): Promise<void> {
   const httpImpact = await getJson(`/api/problems/${s4HttpProblemId}/learning-impact`);
   const httpWorkspaceBadId = await getJson('/api/problems/not-an-id/workspace');
   const httpCompleteMissing = await sendJson('POST', '/api/problems/64b2f0000000000000000000/complete', {});
+
+  // Module 3 · Sprint 1 — revision endpoints over HTTP.
+  const httpRevCreate = await sendJson('POST', '/api/revision/schedules', {
+    entityType: 'pattern', entityId: 'pattern:http', title: 'HTTP pattern', nextReviewDate: rIso(0),
+  });
+  const createdRevId = (httpRevCreate.body.data as { id?: string } | undefined)?.id ?? '';
+  const httpRevList = await getJson('/api/revision/schedules?pageSize=5&status=Overdue');
+  const httpRevGet = await getJson(`/api/revision/schedules/${createdRevId}`);
+  const httpRevPatch = await sendJson('PATCH', `/api/revision/schedules/${createdRevId}`, { priority: 5 });
+  const httpRevToday = await getJson('/api/revision/today');
+  const httpRevCalendar = await getJson('/api/revision/calendar');
+  const httpRevDelete = await sendJson('DELETE', `/api/revision/schedules/${createdRevId}`);
+  const httpRevDup = await sendJson('POST', '/api/revision/schedules', {
+    entityType: 'pattern', entityId: 'pattern:sw', title: 'dup',
+  });
+  const httpRevBadId = await getJson('/api/revision/schedules/not-an-id');
   server.close();
 
   console.log(
@@ -731,6 +825,21 @@ async function run(): Promise<void> {
   assert(httpImpact.status === 200, 'GET /problems/:id/learning-impact → 200');
   assert(httpWorkspaceBadId.status === 400, 'workspace invalid id → 400');
   assert(httpCompleteMissing.status === 404, 'complete missing problem → 404');
+  // Module 3 · Sprint 1 HTTP assertions:
+  console.log(
+    `http revision: create=${httpRevCreate.status} list=${httpRevList.status} get=${httpRevGet.status} ` +
+      `patch=${httpRevPatch.status} today=${httpRevToday.status} calendar=${httpRevCalendar.status} ` +
+      `delete=${httpRevDelete.status} dup=${httpRevDup.status} badId=${httpRevBadId.status}`,
+  );
+  assert(httpRevCreate.status === 201 && httpRevCreate.body.success, 'POST /revision/schedules → 201');
+  assert(httpRevList.status === 200, 'GET /revision/schedules → 200');
+  assert(httpRevGet.status === 200, 'GET /revision/schedules/:id → 200');
+  assert(httpRevPatch.status === 200, 'PATCH /revision/schedules/:id → 200');
+  assert(httpRevToday.status === 200 && httpRevToday.body.success, 'GET /revision/today → 200');
+  assert(httpRevCalendar.status === 200 && httpRevCalendar.body.success, 'GET /revision/calendar → 200');
+  assert(httpRevDelete.status === 200, 'DELETE /revision/schedules/:id → 200');
+  assert(httpRevDup.status === 409, 'duplicate schedule → 409');
+  assert(httpRevBadId.status === 400, 'invalid schedule id → 400');
 
   console.log('\n✅ ALL ASSERTIONS PASSED');
 
