@@ -17,6 +17,10 @@ export interface ContestUiState {
   sort: ContestSortField;
   order: 'asc' | 'desc';
   ratingPlatform: ContestPlatform | null;
+  // --- Sprint 2: workspace UI ---
+  selectedProblem: string | null;
+  timelineFilter: string | null;
+  problemStatusFilter: 'all' | 'solved' | 'attempted' | 'skipped';
 }
 
 const initialState: ContestUiState = {
@@ -30,6 +34,9 @@ const initialState: ContestUiState = {
   sort: 'startTime',
   order: 'desc',
   ratingPlatform: null,
+  selectedProblem: null,
+  timelineFilter: null,
+  problemStatusFilter: 'all',
 };
 
 const contestSlice = createSlice({
@@ -66,6 +73,15 @@ const contestSlice = createSlice({
     setRatingPlatform(state, action: PayloadAction<ContestPlatform | null>) {
       state.ratingPlatform = action.payload;
     },
+    setSelectedProblem(state, action: PayloadAction<string | null>) {
+      state.selectedProblem = state.selectedProblem === action.payload ? null : action.payload;
+    },
+    setTimelineFilter(state, action: PayloadAction<string | null>) {
+      state.timelineFilter = state.timelineFilter === action.payload ? null : action.payload;
+    },
+    setProblemStatusFilter(state, action: PayloadAction<'all' | 'solved' | 'attempted' | 'skipped'>) {
+      state.problemStatusFilter = action.payload;
+    },
     resetContestFilters(state) {
       state.search = '';
       state.platform = null;
@@ -87,6 +103,9 @@ export const {
   setContestDateRange,
   setContestSort,
   setRatingPlatform,
+  setSelectedProblem,
+  setTimelineFilter,
+  setProblemStatusFilter,
   resetContestFilters,
 } = contestSlice.actions;
 export default contestSlice.reducer;

@@ -1,5 +1,5 @@
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Trash2, ListTree, Clock3, FileText, RefreshCw, Lock } from 'lucide-react';
+import { ArrowLeft, Trash2, ListTree, Clock3, BarChart3, FileText, RefreshCw, Lock, LayoutGrid, ArrowRight } from 'lucide-react';
 import { useContest, useDeleteContest } from '@/hooks/useContests';
 import { ErrorState } from '@/components/common/ErrorState';
 import { CardContainer } from '@/components/common/CardContainer';
@@ -9,10 +9,8 @@ import { RatingDelta } from '@/components/contest';
 import { formatRatingChange } from '@/lib/contest';
 
 const PLACEHOLDER_SECTIONS = [
-  { title: 'Problems', icon: ListTree, note: 'Per-problem tracking arrives in Sprint 2.' },
-  { title: 'Timeline', icon: Clock3, note: 'Submission timeline arrives in Sprint 2.' },
-  { title: 'Postmortem', icon: FileText, note: 'Contest postmortem arrives in a later sprint.' },
-  { title: 'Upsolve', icon: RefreshCw, note: 'The upsolve workflow arrives in a later sprint.' },
+  { title: 'Postmortem', icon: FileText, note: 'Contest postmortem arrives in Sprint 3.' },
+  { title: 'Upsolve', icon: RefreshCw, note: 'The upsolve workflow arrives in Sprint 3.' },
 ];
 
 /** Contest Detail — contest information + placeholders for future sprints. */
@@ -42,9 +40,14 @@ export function ContestDetail() {
           <ContestHeader
             contest={data}
             actions={
-              <Button variant="ghost" size="sm" onClick={onDelete} disabled={remove.isPending} className="text-danger hover:text-danger">
-                <Trash2 className="size-4" /> Delete
-              </Button>
+              <>
+                <Button asChild size="sm">
+                  <Link to={`/contests/${data.id}/workspace`}><LayoutGrid className="size-4" /> Open Workspace</Link>
+                </Button>
+                <Button variant="ghost" size="sm" onClick={onDelete} disabled={remove.isPending} className="text-danger hover:text-danger">
+                  <Trash2 className="size-4" /> Delete
+                </Button>
+              </>
             }
           />
 
@@ -61,6 +64,22 @@ export function ContestDetail() {
               <p className="text-sm text-muted-foreground">{data.notes}</p>
             </CardContainer>
           )}
+
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {[
+              { to: `/contests/${data.id}/workspace`, icon: LayoutGrid, label: 'Workspace' },
+              { to: `/contests/${data.id}/problems`, icon: ListTree, label: 'Problems' },
+              { to: `/contests/${data.id}/timeline`, icon: Clock3, label: 'Timeline' },
+              { to: `/contests/${data.id}/performance`, icon: BarChart3, label: 'Performance' },
+            ].map(({ to, icon: Icon, label }) => (
+              <Link key={label} to={to}>
+                <CardContainer interactive className="flex items-center justify-between gap-2 py-3">
+                  <span className="inline-flex items-center gap-2 text-sm font-medium"><Icon className="size-4 text-primary" /> {label}</span>
+                  <ArrowRight className="size-4 text-muted-foreground" />
+                </CardContainer>
+              </Link>
+            ))}
+          </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {PLACEHOLDER_SECTIONS.map(({ title, icon: Icon, note }) => (

@@ -23,7 +23,10 @@ import { revisionScheduleRepository } from '../repositories/revisionSchedule.rep
 import { revisionSessionRepository } from '../repositories/revisionSession.repository.js';
 import { retentionRepository } from '../repositories/retention.repository.js';
 import { contestRepository } from '../contests/repositories/contest.repository.js';
+import { contestProblemRepository } from '../contests/repositories/contestProblem.repository.js';
+import { contestTimelineRepository } from '../contests/repositories/contestTimeline.repository.js';
 import { ratingService } from '../contests/services/rating.service.js';
+import { contestPerformanceService } from '../contests/services/contestPerformance.service.js';
 import { getContestProvider } from '../contests/providers/contestProvider.js';
 import type { ContestPlatform, ContestType } from '../types/domain.js';
 import {
@@ -628,6 +631,60 @@ async function seedContests(): Promise<number> {
   await contestRepository.insertMany(docs);
   await ratingService.rebuild(userId);
 
+  // Module 5 · Sprint 2 — build a full workspace for the most recent contest.
+  const featured = await contestRepository.findByContestId(userId, 'Codeforces', '1962');
+  if (featured) {
+    const cRef = featured._id;
+    const start = featured.startTime.getTime();
+    const min = (m: number) => new Date(start + m * 60_000);
+    // A → F with realistic outcomes (A,B,C solved; D attempted; E skipped; F untouched).
+    const problems = [
+      { index: 'A', code: '1962A', name: 'Equal Distribution', diff: '800', solved: true, attempts: 1, time: 6, penalty: 6, skipped: false },
+      { index: 'B', code: '1962B', name: 'Increase/Decrease/Copy', diff: '1000', solved: true, attempts: 2, time: 19, penalty: 39, skipped: false },
+      { index: 'C', code: '1962C', name: 'Paint the Array', diff: '1300', solved: true, attempts: 3, time: 41, penalty: 81, skipped: false },
+      { index: 'D', code: '1962D', name: 'Range Update Point Query', diff: '1700', solved: false, attempts: 2, time: 28, penalty: 0, skipped: false },
+      { index: 'E', code: '1962E', name: 'Tree Sum', diff: '2100', solved: false, attempts: 0, time: 0, penalty: 0, skipped: true },
+      { index: 'F', code: '1962F', name: 'Sarah & Grid', diff: '2500', solved: false, attempts: 0, time: 0, penalty: 0, skipped: false },
+    ];
+    await contestProblemRepository.insertMany(
+      problems.map((p) => ({
+        contestRef: cRef,
+        userId,
+        problemCode: p.code,
+        problemName: p.name,
+        platformProblemId: p.code,
+        url: `https://codeforces.com/contest/1962/problem/${p.index}`,
+        index: p.index,
+        difficulty: p.diff,
+        tags: [],
+        solved: p.solved,
+        skipped: p.skipped,
+        attempted: p.attempts > 0 || p.solved,
+        attempts: p.attempts,
+        firstAttemptAt: p.attempts > 0 || p.solved ? min(p.time > 6 ? p.time - 6 : 1) : null,
+        solvedAt: p.solved ? min(p.time) : null,
+        totalTimeSpent: p.time,
+        penalty: p.penalty,
+      })),
+    );
+
+    // A readable timeline.
+    await contestTimelineRepository.insertMany([
+      { contestRef: cRef, userId, timestamp: min(0), eventType: 'contest-started', problemCode: '', description: 'Contest started' },
+      { contestRef: cRef, userId, timestamp: min(1), eventType: 'problem-opened', problemCode: '1962A', description: 'Opened A' },
+      { contestRef: cRef, userId, timestamp: min(6), eventType: 'accepted', problemCode: '1962A', description: 'Accepted A' },
+      { contestRef: cRef, userId, timestamp: min(8), eventType: 'problem-opened', problemCode: '1962B', description: 'Opened B' },
+      { contestRef: cRef, userId, timestamp: min(15), eventType: 'wrong-answer', problemCode: '1962B', description: 'Wrong answer on B' },
+      { contestRef: cRef, userId, timestamp: min(19), eventType: 'accepted', problemCode: '1962B', description: 'Accepted B' },
+      { contestRef: cRef, userId, timestamp: min(22), eventType: 'problem-opened', problemCode: '1962C', description: 'Opened C' },
+      { contestRef: cRef, userId, timestamp: min(41), eventType: 'accepted', problemCode: '1962C', description: 'Accepted C' },
+      { contestRef: cRef, userId, timestamp: min(92), eventType: 'tle', problemCode: '1962D', description: 'TLE on D' },
+      { contestRef: cRef, userId, timestamp: min(120), eventType: 'contest-finished', problemCode: '', description: 'Contest finished' },
+    ]);
+
+    await contestPerformanceService.recalculate(userId, String(cRef));
+  }
+
   // A back-dated activity for the timeline.
   await activityRepository.insertMany([
     {
@@ -641,7 +698,7 @@ async function seedContests(): Promise<number> {
     },
   ]);
 
-  logger.info(`  ✓ Contests seeded (${docs.length}).`);
+  logger.info(`  ✓ Contests seeded (${docs.length}, +workspace for CF 1962).`);
   return docs.length;
 }
 

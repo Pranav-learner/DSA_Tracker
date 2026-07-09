@@ -85,6 +85,8 @@ export interface DashboardContestDTO {
   latestContest: ContestDTO | null;
   recentRatingChange: number | null;
   averageRank: number;
+  /** Sprint 2: the latest contest's workspace performance snapshot. */
+  latestPerformance: { totalSolved: number; wrongAttempts: number; penalty: number; averageSolveTime: number } | null;
 }
 
 /** Normalised, validated query for the contest list. */

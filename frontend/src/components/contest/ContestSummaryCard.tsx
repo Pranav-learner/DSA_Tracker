@@ -36,14 +36,22 @@ export function ContestSummaryCard({ contest, className }: { contest: DashboardC
           <Link to={`/contests/${contest.latestContest.id}`} className="block truncate text-sm font-medium hover:text-primary">
             {contest.latestContest.contestName}
           </Link>
-          <p className="inline-flex items-center gap-3 text-xs text-muted-foreground">
+          <p className="inline-flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
             <span>{formatContestDate(contest.latestContest.startTime)}</span>
             {contest.latestContest.rank !== null && (
               <span className="inline-flex items-center gap-1">
                 <Trophy className="size-3" /> Rank {contest.latestContest.rank}
               </span>
             )}
+            {contest.latestPerformance && (
+              <span className="text-success">{contest.latestPerformance.totalSolved} solved · {contest.latestPerformance.penalty} pen</span>
+            )}
           </p>
+          {contest.latestPerformance && (
+            <Link to={`/contests/${contest.latestContest.id}/workspace`} className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+              Resume analysis <ArrowRight className="size-3" />
+            </Link>
+          )}
         </div>
       ) : (
         <p className="text-sm text-muted-foreground">No contests logged yet.</p>

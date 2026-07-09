@@ -285,7 +285,10 @@ export type ActivityType =
   | 'recommendation-created'
   | 'contest-added'
   | 'contest-updated'
-  | 'rating-updated';
+  | 'rating-updated'
+  | 'contest-started'
+  | 'contest-finished'
+  | 'contest-problem-solved';
 
 export type ActivityEntityType = 'topic' | 'phase' | 'problem' | 'revision' | 'contest';
 
@@ -1499,6 +1502,7 @@ export interface DashboardContest {
   latestContest: Contest | null;
   recentRatingChange: number | null;
   averageRank: number;
+  latestPerformance: { totalSolved: number; wrongAttempts: number; penalty: number; averageSolveTime: number } | null;
 }
 
 export interface ContestQuery {
@@ -1533,6 +1537,119 @@ export interface CreateContestInput {
 }
 
 export type UpdateContestInput = Partial<Omit<CreateContestInput, 'platform' | 'contestId'>>;
+
+/* ---- Module 5 · Sprint 2: Contest Workspace ---- */
+
+export type ContestEventType =
+  | 'contest-started'
+  | 'problem-opened'
+  | 'submission'
+  | 'accepted'
+  | 'wrong-answer'
+  | 'tle'
+  | 'mle'
+  | 're'
+  | 'skipped'
+  | 'contest-finished';
+
+export type ContestProblemStatus = 'solved' | 'attempted' | 'skipped' | 'unattempted';
+
+export interface ContestProblem {
+  id: string;
+  contestRef: string;
+  problemCode: string;
+  problemName: string;
+  platformProblemId: string;
+  url: string;
+  index: string;
+  difficulty: string;
+  tags: string[];
+  solved: boolean;
+  skipped: boolean;
+  attempted: boolean;
+  attempts: number;
+  firstAttemptAt: string | null;
+  solvedAt: string | null;
+  totalTimeSpent: number;
+  penalty: number;
+  status: ContestProblemStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ContestTimelineEvent {
+  id: string;
+  contestRef: string;
+  timestamp: string;
+  eventType: ContestEventType;
+  problemRef: string | null;
+  problemCode: string;
+  description: string;
+  offsetMinutes: number | null;
+}
+
+export interface ContestPerformance {
+  contestRef: string;
+  totalSolved: number;
+  totalAttempts: number;
+  wrongAttempts: number;
+  penalty: number;
+  averageSolveTime: number;
+  fastestSolve: number | null;
+  slowestSolve: number | null;
+  contestDurationMinutes: number;
+  problemSuccessRate: number;
+  solvedProblems: string[];
+  unsolvedProblems: string[];
+  skippedProblems: string[];
+}
+
+export interface ContestStatistics {
+  acceptanceRate: number;
+  problemsAttempted: number;
+  problemsSkipped: number;
+  averageAttempts: number;
+  averageSolveTime: number;
+  contestEfficiency: number;
+  contestPace: number;
+}
+
+export interface ContestWorkspace {
+  contest: Contest;
+  problems: ContestProblem[];
+  performance: ContestPerformance;
+  timeline: ContestTimelineEvent[];
+  statistics: ContestStatistics;
+  notes: string;
+}
+
+export interface CreateContestProblemInput {
+  problemCode: string;
+  problemName: string;
+  platformProblemId?: string;
+  url?: string;
+  index?: string;
+  difficulty?: string;
+  tags?: string[];
+  solved?: boolean;
+  skipped?: boolean;
+  attempted?: boolean;
+  attempts?: number;
+  firstAttemptAt?: string | null;
+  solvedAt?: string | null;
+  totalTimeSpent?: number;
+  penalty?: number;
+}
+
+export type UpdateContestProblemInput = Partial<Omit<CreateContestProblemInput, 'problemCode'>>;
+
+export interface CreateTimelineEventInput {
+  eventType: ContestEventType;
+  timestamp?: string;
+  problemRef?: string | null;
+  problemCode?: string;
+  description?: string;
+}
 
 /** Success envelope returned by every backend endpoint. */
 export interface ApiEnvelope<T> {

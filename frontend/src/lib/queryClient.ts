@@ -88,4 +88,9 @@ export const queryKeys = {
   contestFacets: ['contests', 'facets'] as const,
   ratings: (platform: string) => ['ratings', platform] as const,
   ratingHistory: (platform: string) => ['ratings', 'history', platform] as const,
+  // --- Module 5 · Sprint 2: contest workspace ---
+  contestWorkspace: (id: string) => ['contests', 'workspace', id] as const,
+  contestProblems: (id: string) => ['contests', 'problems', id] as const,
+  contestTimeline: (id: string) => ['contests', 'timeline', id] as const,
+  contestPerformance: (id: string) => ['contests', 'performance', id] as const,
 };

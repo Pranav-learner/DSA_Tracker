@@ -48,6 +48,11 @@ const ContestDetail = lazy(() => import('@/pages/ContestDetail').then((m) => ({ 
 const ContestNew = lazy(() => import('@/pages/ContestNew').then((m) => ({ default: m.ContestNew })));
 const RatingHistory = lazy(() => import('@/pages/RatingHistory').then((m) => ({ default: m.RatingHistory })));
 const ContestStatistics = lazy(() => import('@/pages/ContestStatistics').then((m) => ({ default: m.ContestStatistics })));
+// Module 5 · Sprint 2 — contest workspace.
+const ContestWorkspacePage = lazy(() => import('@/pages/ContestWorkspacePage').then((m) => ({ default: m.ContestWorkspacePage })));
+const ContestTimelinePage = lazy(() => import('@/pages/ContestTimelinePage').then((m) => ({ default: m.ContestTimelinePage })));
+const ContestPerformancePage = lazy(() => import('@/pages/ContestPerformancePage').then((m) => ({ default: m.ContestPerformancePage })));
+const ProblemBreakdownPage = lazy(() => import('@/pages/ProblemBreakdownPage').then((m) => ({ default: m.ProblemBreakdownPage })));
 
 /** Wrap a lazily-loaded analytics page in a Suspense skeleton fallback. */
 function analyticsLazy(node: ReactNode): ReactNode {
@@ -119,6 +124,10 @@ export const router = createBrowserRouter([
       { path: 'contests/ratings', element: analyticsLazy(<RatingHistory />) },
       { path: 'contests/stats', element: analyticsLazy(<ContestStatistics />) },
       { path: 'contests/:id', element: analyticsLazy(<ContestDetail />) },
+      { path: 'contests/:id/workspace', element: analyticsLazy(<ContestWorkspacePage />) },
+      { path: 'contests/:id/timeline', element: analyticsLazy(<ContestTimelinePage />) },
+      { path: 'contests/:id/performance', element: analyticsLazy(<ContestPerformancePage />) },
+      { path: 'contests/:id/problems', element: analyticsLazy(<ProblemBreakdownPage />) },
     ],
   },
   { path: '*', element: <NotFoundPage /> },

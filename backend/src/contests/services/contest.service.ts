@@ -1,5 +1,6 @@
 import { contestRepository } from '../repositories/contest.repository.js';
 import { ratingService } from './rating.service.js';
+import { contestPerformanceService } from './contestPerformance.service.js';
 import { getContestProvider, listContestProviders } from '../providers/contestProvider.js';
 import { activityService } from '../../services/activity.service.js';
 import { ApiError } from '../../utils/ApiError.js';
@@ -48,11 +49,16 @@ function toDTO(doc: ContestDocument): ContestDTO {
   };
 }
 
-async function requireOwned(userId: string, id: string): Promise<ContestDocument> {
+/** Load a contest and assert the caller owns it (shared by the workspace module). */
+export async function requireOwnedContest(userId: string, id: string): Promise<ContestDocument> {
   const doc = await contestRepository.findById(id);
   if (!doc) throw ApiError.notFound(`Contest '${id}' not found`);
   if (doc.userId !== userId) throw new ApiError(403, 'You do not own this contest');
   return doc;
+}
+
+async function requireOwned(userId: string, id: string): Promise<ContestDocument> {
+  return requireOwnedContest(userId, id);
 }
 
 /**
@@ -187,6 +193,18 @@ export const contestService = {
       ratingService.summary(userId),
     ]);
     const latestContest = latest[0] ? toDTO(latest[0]) : null;
+    let latestPerformance: DashboardContestDTO['latestPerformance'] = null;
+    if (latest[0]) {
+      const perf = await contestPerformanceService.get(userId, String(latest[0]._id), latest[0].durationMinutes);
+      if (perf.totalSolved > 0 || perf.totalAttempts > 0) {
+        latestPerformance = {
+          totalSolved: perf.totalSolved,
+          wrongAttempts: perf.wrongAttempts,
+          penalty: perf.penalty,
+          averageSolveTime: perf.averageSolveTime,
+        };
+      }
+    }
     return {
       totalContests: s.total,
       currentRating: ratingSummary.currentRating,
@@ -194,6 +212,7 @@ export const contestService = {
       latestContest,
       recentRatingChange: ratingSummary.lastRatingChange,
       averageRank: s.avgRank,
+      latestPerformance,
     };
   },
 

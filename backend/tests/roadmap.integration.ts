@@ -48,6 +48,7 @@ import { renderPdf } from '../src/reports/renderers/pdf.renderer.js';
 import { renderCsv } from '../src/reports/renderers/csv.renderer.js';
 import { contestService } from '../src/contests/services/contest.service.js';
 import { ratingService } from '../src/contests/services/rating.service.js';
+import { contestWorkspaceService } from '../src/contests/services/contestWorkspace.service.js';
 import { problemRepository } from '../src/repositories/problem.repository.js';
 import { userProblemRepository } from '../src/repositories/userProblem.repository.js';
 import {
@@ -985,6 +986,63 @@ async function run(): Promise<void> {
   const contestActivity = await activityService.getRecent(DEMO_USER, 120);
   assert(contestActivity.some((a) => a.type === 'contest-added') && contestActivity.some((a) => a.type === 'rating-updated'), 'contest activity events generated');
 
+  // --- Module 5 · Sprint 2: Contest Workspace, Performance & Timeline ---
+  const wpA = await contestWorkspaceService.addProblem(DEMO_USER, c1.id, {
+    problemCode: '2000A', problemName: 'Alpha', index: 'A', difficulty: '800', solved: true, attempts: 1, totalTimeSpent: 5, penalty: 5, skipped: false, attempted: true,
+  });
+  await contestWorkspaceService.addProblem(DEMO_USER, c1.id, {
+    problemCode: '2000B', problemName: 'Beta', index: 'B', difficulty: '1200', solved: false, attempts: 3, totalTimeSpent: 22, penalty: 0, skipped: false, attempted: true,
+  });
+  const wpC = await contestWorkspaceService.addProblem(DEMO_USER, c1.id, {
+    problemCode: '2000C', problemName: 'Gamma', index: 'C', difficulty: '1600', solved: false, attempts: 0, totalTimeSpent: 0, penalty: 0, skipped: true, attempted: false,
+  });
+  void wpC;
+  assert(wpA.status === 'solved' && wpA.penalty === 5, 'workspace problem created with derived status');
+
+  let dupProblemThrew = false;
+  try {
+    await contestWorkspaceService.addProblem(DEMO_USER, c1.id, { problemCode: '2000A', problemName: 'dup', solved: false, attempts: 0, totalTimeSpent: 0, penalty: 0, skipped: false, attempted: false });
+  } catch { dupProblemThrew = true; }
+  assert(dupProblemThrew, 'duplicate contest problem is rejected');
+
+  // Solving B via update recomputes performance + records a solved activity.
+  const wpB = await contestWorkspaceService.updateProblem(DEMO_USER, (await contestWorkspaceService.getProblems(DEMO_USER, c1.id)).find((p) => p.problemCode === '2000B')!.id, { solved: true, totalTimeSpent: 30, penalty: 90 });
+  assert(wpB.solved && wpB.status === 'solved', 'workspace problem update marks solved');
+
+  await contestWorkspaceService.addTimelineEvent(DEMO_USER, c1.id, { eventType: 'contest-started', description: 'Go' });
+  await contestWorkspaceService.addTimelineEvent(DEMO_USER, c1.id, { eventType: 'accepted', problemCode: '2000A', description: 'AC A' });
+  await contestWorkspaceService.addTimelineEvent(DEMO_USER, c1.id, { eventType: 'contest-finished', description: 'Done' });
+
+  const workspace = await contestWorkspaceService.getWorkspace(DEMO_USER, c1.id);
+  console.log(
+    `  workspace: problems=${workspace.problems.length} solved=${workspace.performance.totalSolved} penalty=${workspace.performance.penalty} ` +
+      `avgSolve=${workspace.performance.averageSolveTime} fastest=${workspace.performance.fastestSolve} timeline=${workspace.timeline.length} ` +
+      `accept=${workspace.statistics.acceptanceRate}% pace=${workspace.statistics.contestPace}/h`,
+  );
+  assert(
+    workspace.problems.length === 3 && workspace.performance.totalSolved === 2 &&
+      workspace.performance.wrongAttempts === 2 && workspace.performance.penalty === 95 &&
+      workspace.performance.fastestSolve === 5 && workspace.performance.slowestSolve === 30,
+    'workspace performance aggregates from problems',
+  );
+  assert(
+    workspace.statistics.problemsAttempted === 2 && workspace.statistics.problemsSkipped === 1 &&
+      workspace.statistics.acceptanceRate === 100 && workspace.timeline.length === 3 &&
+      workspace.timeline[0].eventType === 'contest-started' && typeof workspace.timeline[0].offsetMinutes === 'number',
+    'workspace statistics + timeline compose',
+  );
+
+  const wsActivity = await activityService.getRecent(DEMO_USER, 60);
+  assert(
+    wsActivity.some((a) => a.type === 'contest-problem-solved') && wsActivity.some((a) => a.type === 'contest-started') && wsActivity.some((a) => a.type === 'contest-finished'),
+    'contest workspace activity events generated',
+  );
+
+  // Deleting a problem re-aggregates performance.
+  await contestWorkspaceService.removeProblem(DEMO_USER, wpA.id);
+  const wsAfter = await contestWorkspaceService.getWorkspace(DEMO_USER, c1.id);
+  assert(wsAfter.problems.length === 2 && wsAfter.performance.totalSolved === 1, 'deleting a problem re-aggregates performance');
+
   // Delete removes the rating point too.
   await contestService.remove(DEMO_USER, c2.id);
   const afterDelete = await ratingService.history(DEMO_USER);
@@ -1206,6 +1264,19 @@ async function run(): Promise<void> {
   const httpContestDup = await sendJson('POST', '/api/contests', { platform: 'LeetCode', contestId: 'http-weekly-400', contestName: 'dup', contestType: 'Rated', startTime: new Date().toISOString(), durationMinutes: 90 });
   const httpContestBadPlatform = await sendJson('POST', '/api/contests', { platform: 'Nope', contestId: 'x', contestName: 'x', contestType: 'Rated', startTime: new Date().toISOString(), durationMinutes: 90 });
   const httpContestBadId = await getJson('/api/contests/not-an-id');
+  // Module 5 · Sprint 2 workspace requests (before deleting the contest).
+  const httpWsProblemAdd = await sendJson('POST', `/api/contests/${createdContestId}/problems`, {
+    problemCode: 'wc400-a', problemName: 'Q1', index: 'A', solved: true, attempts: 1, totalTimeSpent: 4, penalty: 4,
+  });
+  const httpWsProblems = await getJson(`/api/contests/${createdContestId}/problems`);
+  const httpWsTimelineAdd = await sendJson('POST', `/api/contests/${createdContestId}/timeline`, { eventType: 'contest-started', description: 'go' });
+  const httpWsTimeline = await getJson(`/api/contests/${createdContestId}/timeline`);
+  const httpWsPerformance = await getJson(`/api/contests/${createdContestId}/performance`);
+  const httpWsWorkspace = await getJson(`/api/contests/${createdContestId}/workspace`);
+  const wsProblemId = (httpWsProblemAdd.body.data as { id?: string } | undefined)?.id ?? '';
+  const httpWsProblemPatch = await sendJson('PATCH', `/api/contests/problems/${wsProblemId}`, { totalTimeSpent: 6 });
+  const httpWsProblemDelete = await sendJson('DELETE', `/api/contests/problems/${wsProblemId}`);
+  const httpWsBadEvent = await sendJson('POST', `/api/contests/${createdContestId}/timeline`, { eventType: 'nope' });
   const httpContestDelete = await sendJson('DELETE', `/api/contests/${createdContestId}`);
   server.close();
 
@@ -1411,6 +1482,22 @@ async function run(): Promise<void> {
   assert(httpRatings.status === 200 && httpRatings.body.success, 'GET /ratings → 200');
   assert(httpRatingHistory.status === 200 && httpRatingHistory.body.success, 'GET /ratings/history → 200');
   assert(httpRatingCurrent.status === 200 && httpRatingCurrent.body.success, 'GET /ratings/current → 200');
+
+  // Module 5 · Sprint 2 HTTP assertions:
+  console.log(
+    `http workspace: problemAdd=${httpWsProblemAdd.status} problems=${httpWsProblems.status} timelineAdd=${httpWsTimelineAdd.status} ` +
+      `timeline=${httpWsTimeline.status} performance=${httpWsPerformance.status} workspace=${httpWsWorkspace.status} ` +
+      `patch=${httpWsProblemPatch.status} delete=${httpWsProblemDelete.status} badEvent=${httpWsBadEvent.status}`,
+  );
+  assert(httpWsProblemAdd.status === 201 && httpWsProblemAdd.body.success, 'POST /contests/:id/problems → 201');
+  assert(httpWsProblems.status === 200 && httpWsProblems.body.success, 'GET /contests/:id/problems → 200');
+  assert(httpWsTimelineAdd.status === 201, 'POST /contests/:id/timeline → 201');
+  assert(httpWsTimeline.status === 200 && httpWsTimeline.body.success, 'GET /contests/:id/timeline → 200');
+  assert(httpWsPerformance.status === 200 && httpWsPerformance.body.success, 'GET /contests/:id/performance → 200');
+  assert(httpWsWorkspace.status === 200 && httpWsWorkspace.body.success, 'GET /contests/:id/workspace → 200');
+  assert(httpWsProblemPatch.status === 200, 'PATCH /contests/problems/:id → 200');
+  assert(httpWsProblemDelete.status === 200, 'DELETE /contests/problems/:id → 200');
+  assert(httpWsBadEvent.status === 400, 'invalid timeline event → 400');
 
   console.log('\n✅ ALL ASSERTIONS PASSED');
 

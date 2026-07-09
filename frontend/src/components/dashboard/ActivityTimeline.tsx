@@ -71,6 +71,9 @@ const EVENT_META: Record<ActivityType, EventMeta> = {
   'contest-added': { icon: Swords, tile: 'border-primary/40 bg-primary/15 text-primary' },
   'contest-updated': { icon: PencilLine, tile: 'border-warning/40 bg-warning/15 text-warning' },
   'rating-updated': { icon: Medal, tile: 'border-success/40 bg-success/15 text-success' },
+  'contest-started': { icon: Play, tile: 'border-primary/40 bg-primary/15 text-primary' },
+  'contest-finished': { icon: Flag, tile: 'border-success/40 bg-success/15 text-success' },
+  'contest-problem-solved': { icon: CheckCircle2, tile: 'border-success/40 bg-success/15 text-success' },
 };
 
 /**

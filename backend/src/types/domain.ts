@@ -157,6 +157,10 @@ export const ACTIVITY_TYPES = [
   'contest-added',
   'contest-updated',
   'rating-updated',
+  // Module 5 · Sprint 2 — contest workspace
+  'contest-started',
+  'contest-finished',
+  'contest-problem-solved',
 ] as const;
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];
 
@@ -238,6 +242,21 @@ export type ContestPlatform = (typeof CONTEST_PLATFORMS)[number];
 /** Whether a contest counted toward rating. */
 export const CONTEST_TYPES = ['Rated', 'Unrated', 'Virtual'] as const;
 export type ContestType = (typeof CONTEST_TYPES)[number];
+
+/** Contest workspace timeline event types (Sprint 2). */
+export const CONTEST_EVENT_TYPES = [
+  'contest-started',
+  'problem-opened',
+  'submission',
+  'accepted',
+  'wrong-answer',
+  'tle',
+  'mle',
+  're',
+  'skipped',
+  'contest-finished',
+] as const;
+export type ContestEventType = (typeof CONTEST_EVENT_TYPES)[number];
 
 /* ------------------------------------------------------------------ *
  *  Module 2 · Sprint 1 — Problem Library
