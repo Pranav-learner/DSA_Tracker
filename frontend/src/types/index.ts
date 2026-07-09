@@ -288,7 +288,12 @@ export type ActivityType =
   | 'rating-updated'
   | 'contest-started'
   | 'contest-finished'
-  | 'contest-problem-solved';
+  | 'contest-problem-solved'
+  | 'contest-reflected'
+  | 'upsolve-created'
+  | 'upsolve-completed'
+  | 'contest-knowledge-added'
+  | 'learning-goal-created';
 
 export type ActivityEntityType = 'topic' | 'phase' | 'problem' | 'revision' | 'contest';
 
@@ -1503,6 +1508,7 @@ export interface DashboardContest {
   recentRatingChange: number | null;
   averageRank: number;
   latestPerformance: { totalSolved: number; wrongAttempts: number; penalty: number; averageSolveTime: number } | null;
+  pendingUpsolve: number;
 }
 
 export interface ContestQuery {
@@ -1649,6 +1655,123 @@ export interface CreateTimelineEventInput {
   problemRef?: string | null;
   problemCode?: string;
   description?: string;
+}
+
+/* ---- Module 5 · Sprint 3: Contest Learning Engine ---- */
+
+export type UpsolveStatus = 'Pending' | 'In Progress' | 'Completed' | 'Skipped';
+export type UpsolvePriority = 'high' | 'medium' | 'low';
+
+export interface LearningGoal {
+  text: string;
+  topicId: string | null;
+  done: boolean;
+}
+
+export interface ContestPostmortem {
+  id: string;
+  contestRef: string;
+  overallPerformance: string;
+  whatWentWell: string;
+  whatWentWrong: string;
+  biggestMistake: string;
+  biggestLearning: string;
+  nextFocus: string;
+  timeManagementNotes: string;
+  strengths: string[];
+  weaknesses: string[];
+  missedPatterns: string[];
+  implementationMistakes: string[];
+  debuggingMistakes: string[];
+  algorithmGaps: string[];
+  learningGoals: LearningGoal[];
+  summary: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type UpsertPostmortemInput = Partial<
+  Pick<
+    ContestPostmortem,
+    | 'overallPerformance'
+    | 'whatWentWell'
+    | 'whatWentWrong'
+    | 'biggestMistake'
+    | 'biggestLearning'
+    | 'nextFocus'
+    | 'timeManagementNotes'
+    | 'strengths'
+    | 'weaknesses'
+    | 'missedPatterns'
+    | 'implementationMistakes'
+    | 'debuggingMistakes'
+    | 'algorithmGaps'
+    | 'summary'
+  >
+> & { learningGoals?: { text: string; topicId?: string | null; done?: boolean }[] };
+
+export interface UpsolveTask {
+  id: string;
+  contestRef: string;
+  contestProblemRef: string;
+  topicId: string | null;
+  pattern: string;
+  priority: UpsolvePriority;
+  status: UpsolveStatus;
+  estimatedTime: number;
+  linkedKnowledgeEntry: string | null;
+  linkedRevisionSchedule: string | null;
+  problemCode: string;
+  problemName: string;
+  url: string;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpsolveQueue {
+  pending: UpsolveTask[];
+  inProgress: UpsolveTask[];
+  completed: UpsolveTask[];
+  skipped: UpsolveTask[];
+  counts: { pending: number; inProgress: number; completed: number; skipped: number; total: number };
+  estimatedRemainingMinutes: number;
+}
+
+export interface ContestPatternAnalysis {
+  patternsSolved: string[];
+  patternsMissed: string[];
+  patternsToPractice: { pattern: string; topicId: string | null; reason: string }[];
+}
+
+export interface AlgorithmGap {
+  label: string;
+  detail: string;
+  topicId: string | null;
+  severity: 'high' | 'medium' | 'low';
+}
+
+export interface ContestLearning {
+  contestRef: string;
+  postmortem: ContestPostmortem | null;
+  upsolve: UpsolveTask[];
+  patternAnalysis: ContestPatternAnalysis;
+  algorithmGaps: AlgorithmGap[];
+  suggestedLearningGoals: string[];
+}
+
+export interface UpsolveQueryInput {
+  status?: UpsolveStatus;
+  priority?: UpsolvePriority;
+  contestId?: string;
+}
+
+export interface UpdateUpsolveInput {
+  status?: UpsolveStatus;
+  priority?: UpsolvePriority;
+  topicId?: string | null;
+  pattern?: string;
+  estimatedTime?: number;
 }
 
 /** Success envelope returned by every backend endpoint. */

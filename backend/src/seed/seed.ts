@@ -27,6 +27,8 @@ import { contestProblemRepository } from '../contests/repositories/contestProble
 import { contestTimelineRepository } from '../contests/repositories/contestTimeline.repository.js';
 import { ratingService } from '../contests/services/rating.service.js';
 import { contestPerformanceService } from '../contests/services/contestPerformance.service.js';
+import { contestLearningService } from '../contests/services/contestLearning.service.js';
+import { contestPostmortemRepository } from '../contests/repositories/contestPostmortem.repository.js';
 import { getContestProvider } from '../contests/providers/contestProvider.js';
 import type { ContestPlatform, ContestType } from '../types/domain.js';
 import {
@@ -683,6 +685,29 @@ async function seedContests(): Promise<number> {
     ]);
 
     await contestPerformanceService.recalculate(userId, String(cRef));
+
+    // Module 5 · Sprint 3 — a postmortem + auto-generated upsolve queue.
+    await contestPostmortemRepository.create({
+      contestRef: cRef,
+      userId,
+      overallPerformance: 'Solid — solved A–C cleanly, stalled on D.',
+      whatWentWell: 'Fast on the first three problems; clean implementations.',
+      whatWentWrong: 'Spent too long debugging D and never opened E.',
+      biggestMistake: 'Ignored the constraints on D and TLE\'d twice.',
+      biggestLearning: 'Recognise range-update patterns earlier.',
+      nextFocus: 'Segment trees / difference arrays.',
+      timeManagementNotes: 'C took 19 minutes — could be faster.',
+      strengths: ['Fast recognition on easy problems', 'Clean implementation'],
+      weaknesses: ['Range-update data structures', 'Time management under pressure'],
+      missedPatterns: ['Difference arrays', 'Segment tree with lazy propagation'],
+      algorithmGaps: ['Lazy propagation', 'Persistent structures'],
+      learningGoals: [
+        { text: 'Drill segment-tree lazy propagation', topicId: null, done: false },
+        { text: 'Upsolve D within 48 hours', topicId: null, done: false },
+      ],
+      summary: 'Performance: Solid. Went well: fast on A–C. Went wrong: stalled on D. Next focus: segment trees.',
+    });
+    await contestLearningService.generateUpsolveTasks(userId, String(cRef));
   }
 
   // A back-dated activity for the timeline.

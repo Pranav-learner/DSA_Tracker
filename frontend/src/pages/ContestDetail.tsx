@@ -1,5 +1,5 @@
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Trash2, ListTree, Clock3, BarChart3, FileText, RefreshCw, Lock, LayoutGrid, ArrowRight } from 'lucide-react';
+import { ArrowLeft, Trash2, ListTree, Clock3, BarChart3, GraduationCap, LayoutGrid, ArrowRight } from 'lucide-react';
 import { useContest, useDeleteContest } from '@/hooks/useContests';
 import { ErrorState } from '@/components/common/ErrorState';
 import { CardContainer } from '@/components/common/CardContainer';
@@ -8,12 +8,7 @@ import { ContestHeader, RatingCard, ContestSkeleton } from '@/components/contest
 import { RatingDelta } from '@/components/contest';
 import { formatRatingChange } from '@/lib/contest';
 
-const PLACEHOLDER_SECTIONS = [
-  { title: 'Postmortem', icon: FileText, note: 'Contest postmortem arrives in Sprint 3.' },
-  { title: 'Upsolve', icon: RefreshCw, note: 'The upsolve workflow arrives in Sprint 3.' },
-];
-
-/** Contest Detail — contest information + placeholders for future sprints. */
+/** Contest Detail — contest information + entry into the workspace / learning. */
 export function ContestDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -65,9 +60,10 @@ export function ContestDetail() {
             </CardContainer>
           )}
 
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
             {[
               { to: `/contests/${data.id}/workspace`, icon: LayoutGrid, label: 'Workspace' },
+              { to: `/contests/${data.id}/learning`, icon: GraduationCap, label: 'Reflect & Upsolve' },
               { to: `/contests/${data.id}/problems`, icon: ListTree, label: 'Problems' },
               { to: `/contests/${data.id}/timeline`, icon: Clock3, label: 'Timeline' },
               { to: `/contests/${data.id}/performance`, icon: BarChart3, label: 'Performance' },
@@ -78,22 +74,6 @@ export function ContestDetail() {
                   <ArrowRight className="size-4 text-muted-foreground" />
                 </CardContainer>
               </Link>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {PLACEHOLDER_SECTIONS.map(({ title, icon: Icon, note }) => (
-              <CardContainer key={title} className="flex items-center gap-3 opacity-70">
-                <span className="flex size-9 items-center justify-center rounded-lg border border-border bg-accent text-muted-foreground">
-                  <Icon className="size-4" />
-                </span>
-                <div className="flex-1">
-                  <p className="inline-flex items-center gap-1.5 text-sm font-medium">
-                    {title} <Lock className="size-3 text-muted-foreground" />
-                  </p>
-                  <p className="text-xs text-muted-foreground">{note}</p>
-                </div>
-              </CardContainer>
             ))}
           </div>
 

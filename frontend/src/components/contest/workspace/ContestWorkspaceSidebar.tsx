@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Gauge, Clock, BarChart3, ListTree, FileText, RefreshCw, Lock, ArrowRight } from 'lucide-react';
+import { Gauge, Clock, BarChart3, ListTree, GraduationCap, ArrowRight } from 'lucide-react';
 import { CardContainer } from '@/components/common/CardContainer';
 import { ContestMetricCard } from './ContestMetricCard';
 import { formatMinutes } from '@/lib/contestWorkspace';
@@ -17,20 +17,10 @@ export function ContestWorkspaceSidebar({ contestId, performance }: { contestId:
       </div>
 
       <CardContainer className="space-y-1">
+        <NavRow to={`/contests/${contestId}/learning`} icon={<GraduationCap className="size-4" />} label="Reflect & Upsolve" />
         <NavRow to={`/contests/${contestId}/timeline`} icon={<Clock className="size-4" />} label="Timeline" />
         <NavRow to={`/contests/${contestId}/performance`} icon={<BarChart3 className="size-4" />} label="Performance" />
         <NavRow to={`/contests/${contestId}/problems`} icon={<ListTree className="size-4" />} label="Problem breakdown" />
-      </CardContainer>
-
-      <CardContainer className="space-y-2">
-        <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Coming soon</p>
-        {['Postmortem', 'Upsolve Queue'].map((label) => (
-          <span key={label} className="flex items-center gap-2 text-sm text-muted-foreground/60">
-            {label === 'Postmortem' ? <FileText className="size-4" /> : <RefreshCw className="size-4" />}
-            {label}
-            <Lock className="ml-auto size-3" />
-          </span>
-        ))}
       </CardContainer>
     </aside>
   );

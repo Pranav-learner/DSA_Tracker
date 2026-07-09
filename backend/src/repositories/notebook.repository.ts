@@ -102,6 +102,11 @@ export const notebookRepository = {
     return row ?? { entries: 0, patternsLearned: 0, topicsCovered: 0, representativeProblems: 0 };
   },
 
+  /** First notebook entry documenting a topic (for contest knowledge linking). */
+  findFirstByTopic(userId: string, topicId: string): Promise<NotebookEntryDocument | null> {
+    return NotebookEntry.findOne({ userId, topicId }).sort({ updatedAt: -1 }).exec();
+  },
+
   countByUser(userId: string): Promise<number> {
     return NotebookEntry.countDocuments({ userId }).exec();
   },

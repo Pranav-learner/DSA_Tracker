@@ -28,6 +28,9 @@ import {
   Sparkle,
   Swords,
   Medal,
+  ClipboardList,
+  ListPlus,
+  Target,
   type LucideIcon,
 } from 'lucide-react';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -74,6 +77,11 @@ const EVENT_META: Record<ActivityType, EventMeta> = {
   'contest-started': { icon: Play, tile: 'border-primary/40 bg-primary/15 text-primary' },
   'contest-finished': { icon: Flag, tile: 'border-success/40 bg-success/15 text-success' },
   'contest-problem-solved': { icon: CheckCircle2, tile: 'border-success/40 bg-success/15 text-success' },
+  'contest-reflected': { icon: ClipboardList, tile: 'border-primary/40 bg-primary/15 text-primary' },
+  'upsolve-created': { icon: ListPlus, tile: 'border-primary/40 bg-primary/15 text-primary' },
+  'upsolve-completed': { icon: CheckCircle2, tile: 'border-success/40 bg-success/15 text-success' },
+  'contest-knowledge-added': { icon: BookMarked, tile: 'border-success/40 bg-success/15 text-success' },
+  'learning-goal-created': { icon: Target, tile: 'border-warning/40 bg-warning/15 text-warning' },
 };
 
 /**

@@ -53,6 +53,9 @@ const ContestWorkspacePage = lazy(() => import('@/pages/ContestWorkspacePage').t
 const ContestTimelinePage = lazy(() => import('@/pages/ContestTimelinePage').then((m) => ({ default: m.ContestTimelinePage })));
 const ContestPerformancePage = lazy(() => import('@/pages/ContestPerformancePage').then((m) => ({ default: m.ContestPerformancePage })));
 const ProblemBreakdownPage = lazy(() => import('@/pages/ProblemBreakdownPage').then((m) => ({ default: m.ProblemBreakdownPage })));
+// Module 5 · Sprint 3 — contest learning.
+const ContestLearningPage = lazy(() => import('@/pages/ContestLearningPage').then((m) => ({ default: m.ContestLearningPage })));
+const UpsolveQueuePage = lazy(() => import('@/pages/UpsolveQueuePage').then((m) => ({ default: m.UpsolveQueuePage })));
 
 /** Wrap a lazily-loaded analytics page in a Suspense skeleton fallback. */
 function analyticsLazy(node: ReactNode): ReactNode {
@@ -128,6 +131,8 @@ export const router = createBrowserRouter([
       { path: 'contests/:id/timeline', element: analyticsLazy(<ContestTimelinePage />) },
       { path: 'contests/:id/performance', element: analyticsLazy(<ContestPerformancePage />) },
       { path: 'contests/:id/problems', element: analyticsLazy(<ProblemBreakdownPage />) },
+      { path: 'contests/:id/learning', element: analyticsLazy(<ContestLearningPage />) },
+      { path: 'upsolve', element: analyticsLazy(<UpsolveQueuePage />) },
     ],
   },
   { path: '*', element: <NotFoundPage /> },

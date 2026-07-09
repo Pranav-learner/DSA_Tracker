@@ -21,6 +21,9 @@ export interface ContestUiState {
   selectedProblem: string | null;
   timelineFilter: string | null;
   problemStatusFilter: 'all' | 'solved' | 'attempted' | 'skipped';
+  // --- Sprint 3: learning UI ---
+  upsolveStatusFilter: 'all' | 'Pending' | 'In Progress' | 'Completed' | 'Skipped';
+  reflectionEditing: boolean;
 }
 
 const initialState: ContestUiState = {
@@ -37,6 +40,8 @@ const initialState: ContestUiState = {
   selectedProblem: null,
   timelineFilter: null,
   problemStatusFilter: 'all',
+  upsolveStatusFilter: 'all',
+  reflectionEditing: false,
 };
 
 const contestSlice = createSlice({
@@ -82,6 +87,12 @@ const contestSlice = createSlice({
     setProblemStatusFilter(state, action: PayloadAction<'all' | 'solved' | 'attempted' | 'skipped'>) {
       state.problemStatusFilter = action.payload;
     },
+    setUpsolveStatusFilter(state, action: PayloadAction<ContestUiState['upsolveStatusFilter']>) {
+      state.upsolveStatusFilter = action.payload;
+    },
+    setReflectionEditing(state, action: PayloadAction<boolean>) {
+      state.reflectionEditing = action.payload;
+    },
     resetContestFilters(state) {
       state.search = '';
       state.platform = null;
@@ -106,6 +117,8 @@ export const {
   setSelectedProblem,
   setTimelineFilter,
   setProblemStatusFilter,
+  setUpsolveStatusFilter,
+  setReflectionEditing,
   resetContestFilters,
 } = contestSlice.actions;
 export default contestSlice.reducer;

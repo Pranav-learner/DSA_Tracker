@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Swords, TrendingUp, Trophy, ArrowRight, Plus } from 'lucide-react';
+import { Swords, TrendingUp, Trophy, ArrowRight, Plus, ListTodo } from 'lucide-react';
 import { CardContainer } from '@/components/common/CardContainer';
 import { Button } from '@/components/ui/button';
 import { PlatformBadge } from './PlatformBadge';
@@ -55,6 +55,13 @@ export function ContestSummaryCard({ contest, className }: { contest: DashboardC
         </div>
       ) : (
         <p className="text-sm text-muted-foreground">No contests logged yet.</p>
+      )}
+
+      {contest.pendingUpsolve > 0 && (
+        <Link to="/upsolve" className="flex items-center justify-between gap-2 rounded-lg border border-warning/40 bg-warning/[0.06] px-3 py-2 text-sm text-warning transition-colors hover:bg-warning/[0.1]">
+          <span className="inline-flex items-center gap-2"><ListTodo className="size-4" /> {contest.pendingUpsolve} upsolve pending</span>
+          <ArrowRight className="size-3.5" />
+        </Link>
       )}
 
       <div className="flex items-center gap-2">

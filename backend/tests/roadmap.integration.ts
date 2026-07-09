@@ -49,6 +49,10 @@ import { renderCsv } from '../src/reports/renderers/csv.renderer.js';
 import { contestService } from '../src/contests/services/contest.service.js';
 import { ratingService } from '../src/contests/services/rating.service.js';
 import { contestWorkspaceService } from '../src/contests/services/contestWorkspace.service.js';
+import { postmortemService } from '../src/contests/services/postmortem.service.js';
+import { upsolveService } from '../src/contests/services/upsolve.service.js';
+import { contestLearningService } from '../src/contests/services/contestLearning.service.js';
+import { topicProgressService as tpService } from '../src/services/topicProgress.service.js';
 import { problemRepository } from '../src/repositories/problem.repository.js';
 import { userProblemRepository } from '../src/repositories/userProblem.repository.js';
 import {
@@ -1043,6 +1047,49 @@ async function run(): Promise<void> {
   const wsAfter = await contestWorkspaceService.getWorkspace(DEMO_USER, c1.id);
   assert(wsAfter.problems.length === 2 && wsAfter.performance.totalSolved === 1, 'deleting a problem re-aggregates performance');
 
+  // --- Module 5 · Sprint 3: Contest Learning Engine (postmortem + upsolve) ---
+  const pm = await postmortemService.upsert(DEMO_USER, c1.id, {
+    overallPerformance: 'Good', whatWentWell: 'Fast start', whatWentWrong: 'Stalled on C', biggestLearning: 'Recognise patterns earlier', nextFocus: 'DP',
+    strengths: ['Speed'], weaknesses: ['DP recognition'], learningGoals: [{ text: 'Drill DP', done: false }],
+  });
+  console.log(`  learning: postmortem summary="${pm.summary.slice(0, 40)}…" goals=${pm.learningGoals.length}`);
+  assert(pm.summary.length > 0 && pm.learningGoals.length === 1 && pm.strengths.includes('Speed'), 'postmortem upsert with rule-based summary');
+  const pmRead = await postmortemService.getByContest(DEMO_USER, c1.id);
+  assert(pmRead !== null && pmRead.id === pm.id, 'postmortem is retrievable');
+
+  // Generate upsolve tasks (C is skipped → one task).
+  const genTasks = await contestLearningService.generateUpsolveTasks(DEMO_USER, c1.id);
+  assert(genTasks.length >= 1 && genTasks[0].status === 'Pending' && genTasks[0].estimatedTime > 0, 'upsolve tasks auto-generated from unsolved problems');
+
+  // Complete an upsolve task with a topic → Learning Engine sync.
+  const beforeMastery = (await progressService.getOverview(DEMO_USER)).topics.find((t) => t.topicId === sw.id)?.mastery ?? 0;
+  const upCompleted = await upsolveService.update(DEMO_USER, genTasks[0].id, { status: 'Completed', topicId: sw.id });
+  const afterMastery = (await progressService.getOverview(DEMO_USER)).topics.find((t) => t.topicId === sw.id)?.mastery ?? 0;
+  console.log(`  upsolve: status=${upCompleted.status} revisionLinked=${upCompleted.linkedRevisionSchedule !== null} mastery ${beforeMastery}→${afterMastery}`);
+  assert(upCompleted.status === 'Completed' && upCompleted.completedAt !== null, 'upsolve task completes');
+  assert(upCompleted.linkedRevisionSchedule !== null, 'completing upsolve enrols the topic in revision (reused RevisionScheduleService)');
+  assert(afterMastery >= beforeMastery, 'completing upsolve updated mastery (reused TopicProgressService)');
+  void tpService;
+
+  // Queue + learning workspace aggregate.
+  const upQueue = await upsolveService.queue(DEMO_USER);
+  const learning = await contestLearningService.getLearning(DEMO_USER, c1.id);
+  console.log(
+    `  queue: pending=${upQueue.counts.pending} completed=${upQueue.counts.completed} remaining=${upQueue.estimatedRemainingMinutes}m | ` +
+      `learning: upsolve=${learning.upsolve.length} solvedPatterns=${learning.patternAnalysis.patternsSolved.length} gaps=${learning.algorithmGaps.length} goals=${learning.suggestedLearningGoals.length}`,
+  );
+  assert(upQueue.counts.completed >= 1 && upQueue.counts.total >= 1, 'upsolve queue groups by status');
+  assert(
+    learning.postmortem !== null && Array.isArray(learning.patternAnalysis.patternsToPractice) && Array.isArray(learning.algorithmGaps) && learning.suggestedLearningGoals.length >= 1,
+    'contest learning workspace aggregates (pattern intelligence reused)',
+  );
+
+  const learnActivity = await activityService.getRecent(DEMO_USER, 80);
+  assert(
+    learnActivity.some((a) => a.type === 'contest-reflected') && learnActivity.some((a) => a.type === 'upsolve-created') && learnActivity.some((a) => a.type === 'upsolve-completed'),
+    'contest learning activity events generated',
+  );
+
   // Delete removes the rating point too.
   await contestService.remove(DEMO_USER, c2.id);
   const afterDelete = await ratingService.history(DEMO_USER);
@@ -1277,6 +1324,20 @@ async function run(): Promise<void> {
   const httpWsProblemPatch = await sendJson('PATCH', `/api/contests/problems/${wsProblemId}`, { totalTimeSpent: 6 });
   const httpWsProblemDelete = await sendJson('DELETE', `/api/contests/problems/${wsProblemId}`);
   const httpWsBadEvent = await sendJson('POST', `/api/contests/${createdContestId}/timeline`, { eventType: 'nope' });
+  // Module 5 · Sprint 3 learning requests.
+  const httpPmUpsert = await sendJson('POST', `/api/contests/${createdContestId}/postmortem`, { overallPerformance: 'ok', biggestLearning: 'learn' });
+  const httpPmGet = await getJson(`/api/contests/${createdContestId}/postmortem`);
+  // Add an unsolved problem so upsolve generation has something to queue.
+  await sendJson('POST', `/api/contests/${createdContestId}/problems`, { problemCode: 'wc400-b', problemName: 'Q2', index: 'B', solved: false, attempts: 2, totalTimeSpent: 12, penalty: 0 });
+  const httpUpsolveGen = await sendJson('POST', `/api/contests/${createdContestId}/upsolve`, {});
+  const httpLearning = await getJson(`/api/contests/${createdContestId}/learning`);
+  const httpUpsolveList = await getJson('/api/upsolve');
+  const httpUpsolveQueue = await getJson('/api/upsolve/queue');
+  const genList = (httpUpsolveGen.body.data as Array<{ id: string }> | undefined) ?? [];
+  const upsolveId = genList[0]?.id ?? '';
+  const httpUpsolveGet = await getJson(`/api/upsolve/${upsolveId}`);
+  const httpUpsolvePatch = await sendJson('PATCH', `/api/upsolve/${upsolveId}`, { status: 'In Progress' });
+  const httpUpsolveBad = await getJson('/api/upsolve/not-an-id');
   const httpContestDelete = await sendJson('DELETE', `/api/contests/${createdContestId}`);
   server.close();
 
@@ -1498,6 +1559,21 @@ async function run(): Promise<void> {
   assert(httpWsProblemPatch.status === 200, 'PATCH /contests/problems/:id → 200');
   assert(httpWsProblemDelete.status === 200, 'DELETE /contests/problems/:id → 200');
   assert(httpWsBadEvent.status === 400, 'invalid timeline event → 400');
+
+  // Module 5 · Sprint 3 HTTP assertions:
+  console.log(
+    `http learning: pmUpsert=${httpPmUpsert.status} pmGet=${httpPmGet.status} upsolveGen=${httpUpsolveGen.status} learning=${httpLearning.status} ` +
+      `list=${httpUpsolveList.status} queue=${httpUpsolveQueue.status} get=${httpUpsolveGet.status} patch=${httpUpsolvePatch.status} badId=${httpUpsolveBad.status}`,
+  );
+  assert(httpPmUpsert.status === 200 && httpPmUpsert.body.success, 'POST /contests/:id/postmortem → 200');
+  assert(httpPmGet.status === 200 && httpPmGet.body.success, 'GET /contests/:id/postmortem → 200');
+  assert(httpUpsolveGen.status === 201 && Array.isArray(httpUpsolveGen.body.data), 'POST /contests/:id/upsolve → 201 (generate)');
+  assert(httpLearning.status === 200 && httpLearning.body.success, 'GET /contests/:id/learning → 200');
+  assert(httpUpsolveList.status === 200 && httpUpsolveList.body.success, 'GET /upsolve → 200');
+  assert(httpUpsolveQueue.status === 200 && httpUpsolveQueue.body.success, 'GET /upsolve/queue → 200');
+  assert(httpUpsolveGet.status === 200 && httpUpsolveGet.body.success, 'GET /upsolve/:id → 200');
+  assert(httpUpsolvePatch.status === 200, 'PATCH /upsolve/:id → 200');
+  assert(httpUpsolveBad.status === 400, 'invalid upsolve id → 400');
 
   console.log('\n✅ ALL ASSERTIONS PASSED');
 

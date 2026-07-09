@@ -161,6 +161,12 @@ export const ACTIVITY_TYPES = [
   'contest-started',
   'contest-finished',
   'contest-problem-solved',
+  // Module 5 · Sprint 3 — contest learning engine
+  'contest-reflected',
+  'upsolve-created',
+  'upsolve-completed',
+  'contest-knowledge-added',
+  'learning-goal-created',
 ] as const;
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];
 
@@ -242,6 +248,14 @@ export type ContestPlatform = (typeof CONTEST_PLATFORMS)[number];
 /** Whether a contest counted toward rating. */
 export const CONTEST_TYPES = ['Rated', 'Unrated', 'Virtual'] as const;
 export type ContestType = (typeof CONTEST_TYPES)[number];
+
+/** Upsolve task lifecycle (Sprint 3). */
+export const UPSOLVE_STATUSES = ['Pending', 'In Progress', 'Completed', 'Skipped'] as const;
+export type UpsolveStatus = (typeof UPSOLVE_STATUSES)[number];
+
+/** Upsolve task priority. */
+export const UPSOLVE_PRIORITIES = ['high', 'medium', 'low'] as const;
+export type UpsolvePriority = (typeof UPSOLVE_PRIORITIES)[number];
 
 /** Contest workspace timeline event types (Sprint 2). */
 export const CONTEST_EVENT_TYPES = [

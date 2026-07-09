@@ -1,6 +1,7 @@
 import { contestRepository } from '../repositories/contest.repository.js';
 import { ratingService } from './rating.service.js';
 import { contestPerformanceService } from './contestPerformance.service.js';
+import { upsolveTaskRepository } from '../repositories/upsolveTask.repository.js';
 import { getContestProvider, listContestProviders } from '../providers/contestProvider.js';
 import { activityService } from '../../services/activity.service.js';
 import { ApiError } from '../../utils/ApiError.js';
@@ -192,6 +193,7 @@ export const contestService = {
       contestRepository.findAll(userId),
       ratingService.summary(userId),
     ]);
+    const upsolveCounts = await upsolveTaskRepository.statusCounts(userId);
     const latestContest = latest[0] ? toDTO(latest[0]) : null;
     let latestPerformance: DashboardContestDTO['latestPerformance'] = null;
     if (latest[0]) {
@@ -213,6 +215,7 @@ export const contestService = {
       recentRatingChange: ratingSummary.lastRatingChange,
       averageRank: s.avgRank,
       latestPerformance,
+      pendingUpsolve: (upsolveCounts.Pending ?? 0) + (upsolveCounts['In Progress'] ?? 0),
     };
   },
 

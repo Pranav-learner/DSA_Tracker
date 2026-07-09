@@ -9,10 +9,17 @@ import type {
   ContestStats,
   ContestTimelineEvent,
   ContestWorkspace,
+  ContestLearning,
+  ContestPostmortem,
   CreateContestInput,
   CreateContestProblemInput,
   CreateTimelineEventInput,
   PaginatedContests,
+  UpdateUpsolveInput,
+  UpsertPostmortemInput,
+  UpsolveQueryInput,
+  UpsolveQueue,
+  UpsolveTask,
   RatingHistoryPoint,
   RatingSummary,
   UpdateContestInput,
@@ -49,6 +56,26 @@ export const contestWorkspaceApi = {
   updateProblem: (problemId: string, patch: UpdateContestProblemInput) => apiSend<ContestProblem>('PATCH', `/contests/problems/${problemId}`, patch),
   removeProblem: (problemId: string) => apiSend<{ id: string; deleted: boolean }>('DELETE', `/contests/problems/${problemId}`),
   addTimelineEvent: (id: string, input: CreateTimelineEventInput) => apiSend<ContestTimelineEvent>('POST', `/contests/${id}/timeline`, input),
+};
+
+/** Contest learning: postmortem + upsolve (Sprint 3). */
+export const contestLearningApi = {
+  learning: (id: string, signal?: AbortSignal) => apiGet<ContestLearning>(`/contests/${id}/learning`, signal),
+  getPostmortem: (id: string, signal?: AbortSignal) => apiGet<ContestPostmortem | null>(`/contests/${id}/postmortem`, signal),
+  savePostmortem: (id: string, input: UpsertPostmortemInput) => apiSend<ContestPostmortem>('POST', `/contests/${id}/postmortem`, input),
+  generateUpsolve: (id: string) => apiSend<UpsolveTask[]>('POST', `/contests/${id}/upsolve`, {}),
+};
+
+export const upsolveApi = {
+  list: (query: UpsolveQueryInput = {}, signal?: AbortSignal) => {
+    const p = new URLSearchParams();
+    for (const [k, v] of Object.entries(query)) if (v) p.set(k, String(v));
+    const qs = p.toString();
+    return apiGet<UpsolveTask[]>(`/upsolve${qs ? `?${qs}` : ''}`, signal);
+  },
+  queue: (signal?: AbortSignal) => apiGet<UpsolveQueue>('/upsolve/queue', signal),
+  getById: (id: string, signal?: AbortSignal) => apiGet<UpsolveTask>(`/upsolve/${id}`, signal),
+  update: (id: string, patch: UpdateUpsolveInput) => apiSend<UpsolveTask>('PATCH', `/upsolve/${id}`, patch),
 };
 
 export const ratingApi = {

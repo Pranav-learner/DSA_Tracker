@@ -93,4 +93,11 @@ export const queryKeys = {
   contestProblems: (id: string) => ['contests', 'problems', id] as const,
   contestTimeline: (id: string) => ['contests', 'timeline', id] as const,
   contestPerformance: (id: string) => ['contests', 'performance', id] as const,
+  // --- Module 5 · Sprint 3: contest learning ---
+  contestLearning: (id: string) => ['contests', 'learning', id] as const,
+  contestPostmortem: (id: string) => ['contests', 'postmortem', id] as const,
+  upsolve: ['upsolve'] as const,
+  upsolveList: (query: object) => ['upsolve', 'list', query] as const,
+  upsolveQueue: ['upsolve', 'queue'] as const,
+  upsolveTask: (id: string) => ['upsolve', 'task', id] as const,
 };

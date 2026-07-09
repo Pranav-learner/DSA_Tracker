@@ -13,7 +13,7 @@ import revisionRoutes from './revision.routes.js';
 import retentionRoutes, { confidenceRouter } from './retention.routes.js';
 import analyticsRoutes from '../analytics/routes/analytics.routes.js';
 import reportRoutes from '../reports/routes/report.routes.js';
-import { contestRouter, ratingRouter } from '../contests/routes/contest.routes.js';
+import { contestRouter, ratingRouter, upsolveRouter } from '../contests/routes/contest.routes.js';
 
 /** Root API router — mounts every feature router under /api. */
 const api = Router();
@@ -102,6 +102,12 @@ api.get('/', (_req, res) => {
         'PATCH|DELETE /api/contests/problems/:problemId',
         'GET|POST /api/contests/:id/timeline',
         'GET /api/contests/:id/performance',
+        'GET /api/contests/:id/learning',
+        'GET|POST|PATCH /api/contests/:id/postmortem',
+        'POST /api/contests/:id/upsolve',
+        'GET /api/upsolve',
+        'GET /api/upsolve/queue',
+        'GET|PATCH /api/upsolve/:id',
         'GET /api/ratings',
         'GET /api/ratings/history',
         'GET /api/ratings/current',
@@ -127,5 +133,6 @@ api.use('/analytics', analyticsRoutes);
 api.use('/reports', reportRoutes);
 api.use('/contests', contestRouter);
 api.use('/ratings', ratingRouter);
+api.use('/upsolve', upsolveRouter);
 
 export default api;
