@@ -2095,6 +2095,107 @@ export interface AchievementsQuery {
   unlocked?: boolean;
 }
 
+/* ---- Module 7 · Sprint 1: AI Mentor — Platform & Chat ---- */
+
+export type ChatRole = 'system' | 'user' | 'assistant';
+export type AiIntent =
+  | 'general'
+  | 'study-plan'
+  | 'contest'
+  | 'revision'
+  | 'notebook'
+  | 'pattern'
+  | 'interview'
+  | 'analytics'
+  | 'unknown';
+export type ProviderId = 'openai' | 'anthropic' | 'gemini' | 'ollama' | 'mock';
+
+export interface ModelInfo {
+  id: string;
+  label: string;
+  contextWindow: number;
+}
+
+export interface ProviderInfo {
+  id: ProviderId;
+  label: string;
+  models: ModelInfo[];
+  capabilities: { streaming: boolean; contextWindow: number };
+  available: boolean;
+  health: string;
+}
+
+export interface ProvidersResponse {
+  providers: ProviderInfo[];
+  defaultProvider: ProviderId;
+}
+
+export interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
+
+export interface AIContextSection {
+  key: string;
+  title: string;
+  summary: string;
+  data?: Record<string, unknown>;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: ChatRole;
+  content: string;
+  provider: string | null;
+  model: string | null;
+  usage: TokenUsage;
+  responseTime: number;
+  context: { intent: AiIntent; sections: { key: string; title: string }[] } | null;
+  createdAt: string;
+}
+
+export interface Conversation {
+  id: string;
+  title: string;
+  messageCount: number;
+  lastMessageAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ConversationDetail extends Conversation {
+  messages: ChatMessage[];
+}
+
+export interface ChatResult {
+  conversationId: string;
+  intent: AiIntent;
+  provider: ProviderId;
+  fellBack: boolean;
+  contextSections: AIContextSection[];
+  userMessage: ChatMessage;
+  assistantMessage: ChatMessage;
+}
+
+export interface AISettings {
+  preferredProvider: ProviderId;
+  preferredModel: string;
+  temperature: number;
+  maxTokens: number;
+  streamingEnabled: boolean;
+  updatedAt: string | null;
+}
+
+export type UpdateAISettingsInput = Partial<Omit<AISettings, 'updatedAt'>>;
+
+/** A streaming chat event (parsed from the SSE stream). */
+export type ChatStreamEvent =
+  | { type: 'start'; conversationId: string | null }
+  | { type: 'token'; delta: string }
+  | { type: 'done'; result: ChatResult }
+  | { type: 'error'; code: string; message: string };
+
 /** Success envelope returned by every backend endpoint. */
 export interface ApiEnvelope<T> {
   success: true;

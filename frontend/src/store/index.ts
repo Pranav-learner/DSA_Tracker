@@ -13,6 +13,7 @@ import retentionReducer from './slices/retentionSlice';
 import analyticsReducer from './slices/analyticsSlice';
 import contestReducer from './slices/contestSlice';
 import gamificationReducer from './slices/gamificationSlice';
+import aiReducer from './slices/aiSlice';
 
 /**
  * Redux store — holds **UI state only**. Server data (phases, topics) is owned
@@ -34,6 +35,7 @@ export const store = configureStore({
     analytics: analyticsReducer,
     contest: contestReducer,
     gamification: gamificationReducer,
+    ai: aiReducer,
   },
 });
 

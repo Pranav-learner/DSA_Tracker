@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Map, LibraryBig, BrainCircuit, CalendarClock, Brain, BarChart3, Gauge, FileText, Swords, Trophy, Sparkles, Award, Lock } from 'lucide-react';
+import { LayoutDashboard, Map, LibraryBig, BrainCircuit, CalendarClock, Brain, BarChart3, Gauge, FileText, Swords, Trophy, Sparkles, Award, Bot, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface NavItem {
@@ -20,6 +20,7 @@ const NAV: NavItem[] = [
   { to: '/progression', label: 'Progression', icon: Sparkles },
   { to: '/gamification', label: 'Gamification', icon: Trophy },
   { to: '/achievements', label: 'Achievements', icon: Award },
+  { to: '/ai', label: 'AI Mentor', icon: Bot },
   { to: '/analytics', label: 'Analytics', icon: BarChart3 },
   { to: '/analytics/executive', label: 'Executive', icon: Gauge },
   { to: '/reports', label: 'Reports', icon: FileText },
@@ -90,7 +91,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       <div className="border-t border-border p-4">
         <p className="text-[11px] text-muted-foreground">
-          Module 6 · Gamification Engine
+          Module 7 · AI Mentor Engine
         </p>
       </div>
     </aside>

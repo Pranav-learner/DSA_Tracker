@@ -22,6 +22,7 @@ import { BadgesPage } from '@/pages/BadgesPage';
 import { ChallengesPage } from '@/pages/ChallengesPage';
 import { ProgressProfilePage } from '@/pages/ProgressProfilePage';
 import { CelebrationCenterPage } from '@/pages/CelebrationCenterPage';
+import { AIWorkspace } from '@/pages/AIWorkspace';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 
 // Analytics pages are lazy-loaded so the heavy charting library (Recharts) is
@@ -114,6 +115,8 @@ export const router = createBrowserRouter([
       { path: 'challenges', element: <ChallengesPage /> },
       { path: 'profile', element: <ProgressProfilePage /> },
       { path: 'celebrations', element: <CelebrationCenterPage /> },
+      // Module 7 · Sprint 1 — AI Mentor workspace.
+      { path: 'ai', element: <AIWorkspace /> },
       { path: 'analytics', element: analyticsLazy(<AnalyticsHome />) },
       { path: 'analytics/learning', element: analyticsLazy(<LearningAnalytics />) },
       { path: 'analytics/problems', element: analyticsLazy(<ProblemAnalytics />) },

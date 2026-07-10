@@ -15,6 +15,7 @@
     "test:smoke": "tsx tests/roadmap.integration.ts",
     "test:gamification": "tsx tests/gamification.smoke.ts",
     "test:achievements": "tsx tests/achievements.smoke.ts",
+    "test:ai": "tsx tests/ai.smoke.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

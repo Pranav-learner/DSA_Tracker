@@ -120,4 +120,10 @@ export const queryKeys = {
   badges: ['gamification', 'badges'] as const,
   challenges: ['gamification', 'challenges'] as const,
   celebrations: (query: object) => ['gamification', 'celebrations', query] as const,
+  // --- Module 7 · Sprint 1: AI mentor ---
+  ai: ['ai'] as const,
+  aiConversations: ['ai', 'conversations'] as const,
+  aiConversation: (id: string) => ['ai', 'conversations', id] as const,
+  aiSettings: ['ai', 'settings'] as const,
+  aiProviders: ['ai', 'providers'] as const,
 };

@@ -15,6 +15,7 @@ import analyticsRoutes from '../analytics/routes/analytics.routes.js';
 import reportRoutes from '../reports/routes/report.routes.js';
 import { contestRouter, ratingRouter, upsolveRouter, competitiveRouter } from '../contests/routes/contest.routes.js';
 import { gamificationRouter, initGamification } from '../gamification/index.js';
+import { aiRouter } from '../ai/index.js';
 
 // Module 6 · Sprint 1 — subscribe the Reward Engine to the activity bus. Done at
 // router-construction time so it is active for both the server and integration
@@ -133,6 +134,11 @@ api.get('/', (_req, res) => {
         'GET /api/gamification/badges',
         'GET|PATCH /api/gamification/challenges',
         'GET|POST /api/gamification/celebrations',
+        'POST /api/ai/chat',
+        'GET|POST /api/ai/conversations',
+        'GET|PATCH|DELETE /api/ai/conversations/:id',
+        'GET|PATCH /api/ai/settings',
+        'GET /api/ai/providers',
       ],
     },
   });
@@ -158,5 +164,6 @@ api.use('/ratings', ratingRouter);
 api.use('/upsolve', upsolveRouter);
 api.use('/contest', competitiveRouter);
 api.use('/gamification', gamificationRouter);
+api.use('/ai', aiRouter);
 
 export default api;
