@@ -2,12 +2,19 @@ import type { Request, Response } from 'express';
 import { aiOrchestratorService } from '../orchestrator/aiOrchestrator.service.js';
 import { conversationService } from '../services/conversation.service.js';
 import { aiSettingsService } from '../services/aiSettings.service.js';
+import { workspaceService } from '../services/workspace.service.js';
+import { suggestionService } from '../services/suggestion.service.js';
+import { contextComposerService } from '../context/contextComposer.service.js';
 import { AI_DEFAULTS } from '../../config/ai.js';
 import {
   parseChat,
   parseSettings,
   parseCreateConversation,
-  parseRenameConversation,
+  parsePatchConversation,
+  parseExport,
+  parseSearchQuery,
+  parseContextQuery,
+  contextOptionsFromQuery,
 } from '../validators/ai.validator.js';
 import { sanitizePrompt } from '../middleware/sanitize.js';
 import { AIError } from '../types/ai.types.js';
@@ -36,7 +43,15 @@ export const postChat = asyncHandler(async (req: Request, res: Response) => {
   const message = sanitizePrompt(body.message);
   if (!message) throw ApiError.badRequest('Message is empty after sanitization');
 
-  const input = { conversationId: body.conversationId, message, provider: body.provider, model: body.model };
+  const input = {
+    conversationId: body.conversationId,
+    message,
+    provider: body.provider,
+    model: body.model,
+    intent: body.intent,
+    profiles: body.profiles,
+    excludeSections: body.excludeSections,
+  };
 
   if (!body.stream) {
     // Non-streaming: one JSON response.
@@ -88,9 +103,10 @@ export const postChat = asyncHandler(async (req: Request, res: Response) => {
   }
 });
 
-/** GET /api/ai/conversations — the user's conversation list. */
+/** GET /api/ai/conversations — the user's conversation list (?archived=true includes archived). */
 export const getConversations = asyncHandler(async (req: Request, res: Response) => {
-  const conversations = await conversationService.list(currentUserId(req));
+  const includeArchived = req.query.archived === 'true';
+  const conversations = await conversationService.list(currentUserId(req), { includeArchived });
   res.status(200).json(ok(conversations, { count: conversations.length }));
 });
 
@@ -107,11 +123,52 @@ export const createConversation = asyncHandler(async (req: Request, res: Respons
   res.status(201).json(ok(conversation));
 });
 
-/** PATCH /api/ai/conversations/:id — rename. */
-export const renameConversation = asyncHandler(async (req: Request, res: Response) => {
-  const { title } = parseRenameConversation(req.body);
-  const conversation = await conversationService.rename(currentUserId(req), req.params.id, title);
+/** PATCH /api/ai/conversations/:id — rename / pin / archive. */
+export const patchConversation = asyncHandler(async (req: Request, res: Response) => {
+  const patch = parsePatchConversation(req.body);
+  const conversation = await conversationService.update(currentUserId(req), req.params.id, patch);
   res.status(200).json(ok(conversation));
+});
+
+/** GET /api/ai/conversations/search?q= — search title + message content. */
+export const searchConversations = asyncHandler(async (req: Request, res: Response) => {
+  const { q } = parseSearchQuery(req.query);
+  const results = await conversationService.search(currentUserId(req), q);
+  res.status(200).json(ok(results, { count: results.length, query: q }));
+});
+
+/** POST /api/ai/conversations/export — export a conversation (markdown/json). */
+export const exportConversation = asyncHandler(async (req: Request, res: Response) => {
+  const { conversationId, format } = parseExport(req.body);
+  const result = await conversationService.export(currentUserId(req), conversationId, format);
+  res.status(200).json(ok(result));
+});
+
+/** GET /api/ai/context — the composed context for an intent (what the AI knows). */
+export const getContext = asyncHandler(async (req: Request, res: Response) => {
+  const opts = contextOptionsFromQuery(parseContextQuery(req.query));
+  const context = await contextComposerService.compose(currentUserId(req), opts);
+  res.status(200).json(ok(context));
+});
+
+/** GET /api/ai/context/preview — candidate sections with included/optional flags. */
+export const getContextPreview = asyncHandler(async (req: Request, res: Response) => {
+  const opts = contextOptionsFromQuery(parseContextQuery(req.query));
+  const preview = await contextComposerService.preview(currentUserId(req), opts);
+  res.status(200).json(ok(preview));
+});
+
+/** GET /api/ai/suggestions — personalised prompt suggestions. */
+export const getSuggestions = asyncHandler(async (req: Request, res: Response) => {
+  const snapshot = await workspaceService.getSnapshot(currentUserId(req));
+  const suggestions = suggestionService.generate(snapshot);
+  res.status(200).json(ok(suggestions, { count: suggestions.length }));
+});
+
+/** GET /api/ai/workspace — snapshot + suggestions + recent + recommendation + quick actions. */
+export const getWorkspace = asyncHandler(async (req: Request, res: Response) => {
+  const workspace = await workspaceService.getWorkspace(currentUserId(req));
+  res.status(200).json(ok(workspace));
 });
 
 /** DELETE /api/ai/conversations/:id. */

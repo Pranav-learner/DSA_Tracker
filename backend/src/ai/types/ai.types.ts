@@ -94,9 +94,26 @@ export interface AIContextSection {
   data?: Record<string, unknown>;
 }
 
-/** The full structured context the ContextBuilder assembles for a request. */
+/**
+ * Named, reusable context profiles (Sprint 2). Each profile is a bundle of
+ * context sections; the ContextComposer merges the profiles an intent needs.
+ */
+export const CONTEXT_PROFILES = [
+  'learning',
+  'knowledge',
+  'revision',
+  'contest',
+  'analytics',
+  'gamification',
+  'conversation',
+] as const;
+export type ContextProfileName = (typeof CONTEXT_PROFILES)[number];
+
+/** The full structured context the ContextComposer assembles for a request. */
 export interface AIContext {
   intent: AiIntent;
+  /** The profiles that were merged to produce this context. */
+  profiles: ContextProfileName[];
   sections: AIContextSection[];
   generatedAt: string;
   /** Rough token estimate of the serialized context (for budgeting/telemetry). */

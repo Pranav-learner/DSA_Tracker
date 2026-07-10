@@ -12,6 +12,9 @@ import { MongoMemoryServer } from 'mongodb-memory-server';
 import { connectDatabase, disconnectDatabase } from '../src/config/db.js';
 import { intentRouterService } from '../src/ai/router/intentRouter.service.js';
 import { contextBuilderService } from '../src/ai/context/contextBuilder.service.js';
+import { contextComposerService } from '../src/ai/context/contextComposer.service.js';
+import { workspaceService } from '../src/ai/services/workspace.service.js';
+import { suggestionService } from '../src/ai/services/suggestion.service.js';
 import { promptBuilderService } from '../src/ai/prompts/promptBuilder.service.js';
 import { aiOrchestratorService } from '../src/ai/orchestrator/aiOrchestrator.service.js';
 import { conversationService } from '../src/ai/services/conversation.service.js';
@@ -129,6 +132,54 @@ async function main(): Promise<void> {
       rejected = true;
     }
     check('settings reject an invalid model for a provider', rejected);
+
+    // ── 10. Context Intelligence: composer + profiles + preview ────────
+    const composed = await contextComposerService.compose(USER, { intent: 'study-plan' });
+    check('composer merges the study-plan profiles', composed.profiles.includes('learning') && composed.profiles.includes('gamification'));
+    check('composer always includes the core learner-profile', composed.sections.some((s) => s.key === 'learner-profile'));
+
+    const excluded = await contextComposerService.compose(USER, { intent: 'study-plan', excludeSections: ['learning-plan'] });
+    check('composer honours excluded sections', !excluded.sections.some((s) => s.key === 'learning-plan'));
+
+    const preview = await contextComposerService.preview(USER, { intent: 'study-plan', excludeSections: ['learning-plan'] });
+    check('preview marks the core section as non-optional', preview.sections.find((s) => s.key === 'learner-profile')?.optional === false);
+    check('preview marks an excluded optional section as not included', preview.sections.find((s) => s.key === 'learning-plan')?.included === false);
+    check('preview reports an included-token total', preview.includedTokens > 0);
+
+    // ── 11. Slash-command intent override in chat ──────────────────────
+    const overridden = await aiOrchestratorService.chat(USER, { message: 'help me', intent: 'contest', profiles: ['contest', 'gamification'] });
+    check('chat honours the slash-command intent override', overridden.intent === 'contest');
+    check('chat records the profiles used', overridden.profiles.includes('contest'));
+
+    // ── 12. Workspace + personalised suggestions ───────────────────────
+    const snapshot = await workspaceService.getSnapshot(USER);
+    check('snapshot exposes streak + revision + recommendation shape', typeof snapshot.currentStreak === 'number' && typeof snapshot.revisionDue === 'number');
+    const suggestions = suggestionService.generate(snapshot);
+    check('suggestions are generated (and mapped to intents)', suggestions.length > 0 && suggestions.every((s) => Boolean(s.intent)));
+    const workspace = await workspaceService.getWorkspace(USER);
+    check('workspace bundles snapshot + suggestions + quick actions', Boolean(workspace.snapshot) && workspace.suggestions.length > 0 && workspace.quickActions.length > 0);
+
+    // ── 13. Conversation intelligence: pin / archive / search / export ──
+    const conv = await conversationService.create(USER, 'Sliding window deep dive');
+    await conversationService.update(USER, conv.id, { pinned: true });
+    const pinned = (await conversationService.list(USER)).find((c) => c.id === conv.id);
+    check('a conversation can be pinned', pinned?.pinned === true);
+
+    await conversationService.update(USER, conv.id, { archived: true });
+    check('archived conversations are hidden by default', !(await conversationService.list(USER)).some((c) => c.id === conv.id));
+    check('archived conversations show when requested', (await conversationService.list(USER, { includeArchived: true })).some((c) => c.id === conv.id));
+
+    const found = await conversationService.search(USER, 'sliding window');
+    check('conversation search finds by title', found.some((c) => c.id === conv.id));
+
+    // Chat into a conversation, then export + check metadata was recorded.
+    const chatForExport = await aiOrchestratorService.chat(USER, { message: 'Explain two pointers' });
+    const md = await conversationService.export(USER, chatForExport.conversationId, 'markdown');
+    check('markdown export contains the mentor turns', md.content.includes('## Mentor') && md.filename.endsWith('.md'));
+    const json = await conversationService.export(USER, chatForExport.conversationId, 'json');
+    check('json export is valid + excludes internal context', !json.content.includes('contextSnapshot') && JSON.parse(json.content).messages.length === 2);
+    const metaConv = (await conversationService.list(USER)).find((c) => c.id === chatForExport.conversationId);
+    check('conversation metadata (lastIntent/tokens) is recorded', Boolean(metaConv?.lastIntent) && (metaConv?.totalTokens ?? 0) > 0);
 
     console.log(`\n✅ AI platform smoke test passed — ${pass} checks.`);
   } finally {

@@ -14,8 +14,11 @@ export const conversationRepository = {
     return Conversation.create({ userId, title });
   },
 
-  findByUser(userId: string, limit = 50): Promise<ConversationDocument[]> {
-    return Conversation.find({ userId }).sort({ updatedAt: -1 }).limit(limit).exec();
+  /** Sidebar list — pinned first, archived excluded unless requested. */
+  findByUser(userId: string, opts: { includeArchived?: boolean; limit?: number } = {}): Promise<ConversationDocument[]> {
+    const q: Record<string, unknown> = { userId };
+    if (!opts.includeArchived) q.archived = false;
+    return Conversation.find(q).sort({ pinned: -1, updatedAt: -1 }).limit(opts.limit ?? 100).exec();
   },
 
   findById(userId: string, id: string): Promise<ConversationDocument | null> {
@@ -24,6 +27,34 @@ export const conversationRepository = {
 
   update(userId: string, id: string, update: Partial<IConversation>): Promise<ConversationDocument | null> {
     return Conversation.findOneAndUpdate({ _id: id, userId }, { $set: update }, { new: true }).exec();
+  },
+
+  /** Update denormalised metadata after an assistant turn (intent/provider/tokens). */
+  recordTurnMeta(id: string, meta: { intent: string; provider: string | null; model: string | null; tokens: number }): Promise<ConversationDocument | null> {
+    return Conversation.findByIdAndUpdate(
+      id,
+      { $set: { lastIntent: meta.intent, lastProvider: meta.provider, lastModel: meta.model }, $inc: { totalTokens: meta.tokens } },
+      { new: true },
+    ).exec();
+  },
+
+  /**
+   * Search a user's conversations by title OR message content. Title matches
+   * rank first; content matches pull in conversations whose messages match.
+   */
+  async search(userId: string, query: string, limit = 30): Promise<ConversationDocument[]> {
+    const rx = new RegExp(escapeRegex(query), 'i');
+    const byTitle = await Conversation.find({ userId, title: rx }).sort({ updatedAt: -1 }).limit(limit).exec();
+    const titleIds = new Set(byTitle.map((c) => String(c._id)));
+
+    // Conversations whose message content matches (excluding already-found titles).
+    const msgConvoIds = await ConversationMessage.find({ userId, content: rx }).distinct('conversationId').exec();
+    const extraIds = msgConvoIds.map(String).filter((id) => !titleIds.has(id));
+    const byContent = extraIds.length
+      ? await Conversation.find({ userId, _id: { $in: extraIds } }).sort({ updatedAt: -1 }).limit(limit).exec()
+      : [];
+
+    return [...byTitle, ...byContent].slice(0, limit);
   },
 
   /** Bump message count + timestamps after a turn is appended. */
@@ -70,3 +101,8 @@ export const conversationRepository = {
     ]);
   },
 };
+
+/** Escape user input for safe use inside a RegExp (search). */
+function escapeRegex(input: string): string {
+  return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}

@@ -4,7 +4,7 @@ import { ApiError } from '../../utils/ApiError.js';
 import { AI_LIMITS } from '../../config/ai.js';
 import type { ConversationDocument } from '../../models/Conversation.js';
 import type { ConversationMessageDocument } from '../../models/ConversationMessage.js';
-import type { ConversationDTO, ConversationDetailDTO, MessageDTO } from '../dto/ai.dto.js';
+import type { ConversationDTO, ConversationDetailDTO, MessageDTO, ConversationExportDTO } from '../dto/ai.dto.js';
 import type { HistoryTurn } from '../prompts/promptBuilder.service.js';
 import type { AiIntent } from '../types/ai.types.js';
 
@@ -14,13 +14,21 @@ function toConversationDTO(doc: ConversationDocument): ConversationDTO {
     title: doc.title,
     messageCount: doc.messageCount,
     lastMessageAt: doc.lastMessageAt ? doc.lastMessageAt.toISOString() : null,
+    pinned: doc.pinned,
+    archived: doc.archived,
+    lastIntent: doc.lastIntent,
+    lastProvider: doc.lastProvider,
+    lastModel: doc.lastModel,
+    totalTokens: doc.totalTokens,
     createdAt: doc.createdAt.toISOString(),
     updatedAt: doc.updatedAt.toISOString(),
   };
 }
 
 function toMessageDTO(doc: ConversationMessageDocument): MessageDTO {
-  const snap = doc.contextSnapshot as { intent?: AiIntent; sections?: { key: string; title: string }[] } | null;
+  const snap = doc.contextSnapshot as
+    | { intent?: AiIntent; profiles?: string[]; sections?: { key: string; title: string }[] }
+    | null;
   return {
     id: String(doc._id),
     role: doc.role,
@@ -29,7 +37,7 @@ function toMessageDTO(doc: ConversationMessageDocument): MessageDTO {
     model: doc.model,
     usage: { promptTokens: doc.promptTokens, completionTokens: doc.completionTokens, totalTokens: doc.totalTokens },
     responseTime: doc.responseTime,
-    context: snap?.intent ? { intent: snap.intent, sections: snap.sections ?? [] } : null,
+    context: snap?.intent ? { intent: snap.intent, profiles: snap.profiles ?? [], sections: snap.sections ?? [] } : null,
     createdAt: doc.createdAt.toISOString(),
   };
 }
@@ -40,8 +48,16 @@ function toMessageDTO(doc: ConversationMessageDocument): MessageDTO {
  * conversation ownership is enforced here (no cross-user access path).
  */
 export const conversationService = {
-  async list(userId: string): Promise<ConversationDTO[]> {
-    const docs = await conversationRepository.findByUser(userId);
+  async list(userId: string, opts: { includeArchived?: boolean } = {}): Promise<ConversationDTO[]> {
+    const docs = await conversationRepository.findByUser(userId, opts);
+    return docs.map(toConversationDTO);
+  },
+
+  /** Full-text-ish search across the user's conversations (title + content). */
+  async search(userId: string, query: string): Promise<ConversationDTO[]> {
+    const q = query.trim();
+    if (!q) return [];
+    const docs = await conversationRepository.search(userId, q);
     return docs.map(toConversationDTO);
   },
 
@@ -57,9 +73,68 @@ export const conversationService = {
   },
 
   async rename(userId: string, id: string, title: string): Promise<ConversationDTO> {
+    return this.update(userId, id, { title: title.trim() || 'New conversation' });
+  },
+
+  /** Patch a conversation: rename, pin/unpin, archive/unarchive. */
+  async update(
+    userId: string,
+    id: string,
+    patch: { title?: string; pinned?: boolean; archived?: boolean },
+  ): Promise<ConversationDTO> {
     await this.requireOwned(userId, id);
-    const doc = await conversationRepository.update(userId, id, { title: title.trim() || 'New conversation' });
+    const clean: Record<string, unknown> = {};
+    if (patch.title !== undefined) clean.title = patch.title.trim() || 'New conversation';
+    if (patch.pinned !== undefined) clean.pinned = patch.pinned;
+    if (patch.archived !== undefined) clean.archived = patch.archived;
+    const doc = await conversationRepository.update(userId, id, clean);
     return toConversationDTO(doc!);
+  },
+
+  /** Update denormalised per-conversation metadata after an assistant turn. */
+  async recordTurnMeta(
+    conversationId: string,
+    meta: { intent: string; provider: string | null; model: string | null; tokens: number },
+  ): Promise<void> {
+    await conversationRepository.recordTurnMeta(conversationId, meta);
+  },
+
+  /**
+   * Export a conversation as Markdown or JSON. Deliberately LIMITS the exported
+   * data: only role, content and timestamps (plus light assistant metadata) —
+   * never the internal context snapshot or system prompt.
+   */
+  async export(userId: string, id: string, format: 'markdown' | 'json'): Promise<ConversationExportDTO> {
+    const conv = await this.requireOwned(userId, id);
+    const messages = await conversationRepository.findMessages(id);
+    const turns = messages
+      .filter((m) => m.role === 'user' || m.role === 'assistant')
+      .map((m) => ({
+        role: m.role,
+        content: m.content,
+        createdAt: m.createdAt.toISOString(),
+        ...(m.role === 'assistant' ? { provider: m.provider, model: m.model } : {}),
+      }));
+
+    const slug = conv.title.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'conversation';
+
+    if (format === 'json') {
+      return {
+        filename: `${slug}.json`,
+        format,
+        contentType: 'application/json',
+        content: JSON.stringify({ title: conv.title, exportedAt: new Date().toISOString(), messages: turns }, null, 2),
+      };
+    }
+
+    const md = [
+      `# ${conv.title}`,
+      ``,
+      `_Exported ${new Date().toISOString()} · ${turns.length} messages_`,
+      ``,
+      ...turns.map((t) => `## ${t.role === 'user' ? 'You' : 'Mentor'}\n\n${t.content}`),
+    ].join('\n');
+    return { filename: `${slug}.md`, format, contentType: 'text/markdown', content: md };
   },
 
   async remove(userId: string, id: string): Promise<void> {

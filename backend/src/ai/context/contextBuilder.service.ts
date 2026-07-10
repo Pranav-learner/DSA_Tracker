@@ -1,68 +1,136 @@
 import { dashboardService } from '../../services/dashboard.service.js';
 import { gamificationProfileService } from '../../gamification/services/gamificationProfile.service.js';
 import { activityService } from '../../services/activity.service.js';
+import { notebookService } from '../../services/notebook.service.js';
+import { patternIntelligenceService } from '../../analytics/services/patternIntelligence.service.js';
+import { contestReadinessService } from '../../contests/services/contestReadiness.service.js';
+import { resolveAnalyticsWindow } from '../../analytics/validators/analytics.validator.js';
 import { estimateTokens } from '../utils/tokens.js';
 import { logger } from '../../utils/logger.js';
+import { INTENT_PROFILES, sectionsForProfiles } from './profiles.js';
 import type { AIContext, AIContextSection, AiIntent } from '../types/ai.types.js';
 import type { DashboardDTO } from '../../services/dashboard.dto.js';
 import type { GamificationProfileDTO } from '../../gamification/dto/gamification.dto.js';
 import type { ActivityDTO } from '../../services/activity.service.js';
+import type { PaginatedDTO } from '../../services/problem.dto.js';
+import type { NotebookListItemDTO } from '../../services/notebook.dto.js';
+import type { WeaknessDTO, StrengthDTO } from '../../analytics/dto/intelligence.dto.js';
+import type { ContestReadinessDTO } from '../../contests/dto/competitive.dto.js';
 
-/** Which context sections each intent needs (learner-profile is always included). */
-const INTENT_SECTIONS: Record<AiIntent, string[]> = {
-  general: ['recent-activity'],
-  'study-plan': ['learning-plan', 'progression'],
-  contest: ['contest', 'progression'],
-  revision: ['revision'],
-  notebook: ['knowledge'],
-  pattern: ['knowledge', 'progression'],
-  interview: ['progression', 'knowledge'],
-  analytics: ['analytics-health', 'progression'],
-  unknown: ['recent-activity'],
+/** The lazily-fetched data sources a section can be built from. */
+type SourceKey = 'dashboard' | 'profile' | 'activity' | 'notebook' | 'weaknesses' | 'strengths' | 'readiness';
+
+interface ContextSources {
+  dashboard?: DashboardDTO | null;
+  profile?: GamificationProfileDTO | null;
+  activity?: ActivityDTO[] | null;
+  notebook?: PaginatedDTO<NotebookListItemDTO> | null;
+  weaknesses?: WeaknessDTO[] | null;
+  strengths?: StrengthDTO[] | null;
+  readiness?: ContestReadinessDTO | null;
+}
+
+/** Which source(s) each section needs — drives lazy fetching (no over-fetch). */
+const SECTION_SOURCES: Record<string, SourceKey[]> = {
+  'learner-profile': ['dashboard', 'profile'],
+  'learning-plan': ['dashboard'],
+  progression: ['profile'],
+  revision: ['dashboard'],
+  knowledge: ['dashboard'],
+  'notebook-entries': ['notebook'],
+  'weak-patterns': ['weaknesses'],
+  'strong-patterns': ['strengths'],
+  'analytics-health': ['dashboard'],
+  contest: ['dashboard'],
+  'contest-readiness': ['readiness'],
+  'recent-activity': ['activity'],
 };
 
+/** Fetchers per source (best-effort — wrapped by `safe`). */
+const FETCHERS: Record<SourceKey, (userId: string) => Promise<unknown>> = {
+  dashboard: (u) => dashboardService.get(u),
+  profile: (u) => gamificationProfileService.getProfile(u),
+  activity: (u) => activityService.getRecent(u, 6),
+  notebook: (u) => notebookService.list(u, { page: 1, pageSize: 5, sort: 'recent', order: 'desc' }),
+  weaknesses: (u) => patternIntelligenceService.weaknesses(u, resolveAnalyticsWindow({})),
+  strengths: (u) => patternIntelligenceService.strengths(u, resolveAnalyticsWindow({})),
+  readiness: (u) => contestReadinessService.compute(u),
+};
+
+/** Canonical section order for a stable, readable prompt. */
+const SECTION_ORDER = [
+  'learner-profile',
+  'learning-plan',
+  'progression',
+  'weak-patterns',
+  'strong-patterns',
+  'revision',
+  'knowledge',
+  'notebook-entries',
+  'analytics-health',
+  'contest',
+  'contest-readiness',
+  'recent-activity',
+];
+
 /**
- * ContextBuilderService — assembles the structured learner context for a request.
+ * ContextBuilderService — builds structured context sections from EXISTING module
+ * services (Sprint 2 refactor).
  *
- * CRITICAL boundary: it consumes only existing *services* (which return DTOs) and
- * NEVER reads business models/repositories or the database directly. Each section
- * is a concise, human-readable summary derived from a DTO — raw models are never
- * exposed to the LLM. Every fetch is best-effort: a failing section is logged and
- * omitted (a context error never fails the whole request).
+ * CRITICAL boundary (unchanged): it consumes only services (DTOs), never business
+ * models/repositories/the database, and never exposes raw models to the LLM. It
+ * now builds sections *by key* with lazy source fetching, so the ContextComposer
+ * can request exactly the sections a profile needs — nothing more is sent to the
+ * LLM. Every fetch is best-effort: a failing source omits its section.
  */
 export const contextBuilderService = {
-  async build(userId: string, intent: AiIntent): Promise<AIContext> {
-    // One dashboard + one profile call covers most sections (no N+1 fan-out).
-    const [dashboard, profile] = await Promise.all([
-      safe(() => dashboardService.get(userId), 'dashboard'),
-      safe(() => gamificationProfileService.getProfile(userId), 'profile'),
-    ]);
+  /** Build the requested sections (lazily fetching only the sources they need). */
+  async buildSections(userId: string, keys: string[]): Promise<AIContextSection[]> {
+    const wanted = new Set(keys);
+    const neededSources = new Set<SourceKey>();
+    for (const key of wanted) for (const s of SECTION_SOURCES[key] ?? []) neededSources.add(s);
 
-    const wanted = new Set(['learner-profile', ...(INTENT_SECTIONS[intent] ?? [])]);
+    const sources: ContextSources = {};
+    await Promise.all(
+      [...neededSources].map(async (s) => {
+        sources[s] = (await safe(() => FETCHERS[s](userId), s)) as never;
+      }),
+    );
+
     const sections: AIContextSection[] = [];
-    const push = (s: AIContextSection | null) => {
-      if (s) sections.push(s);
-    };
-
-    if (wanted.has('learner-profile')) push(this.learnerProfile(dashboard, profile));
-    if (wanted.has('progression')) push(this.progression(profile));
-    if (wanted.has('learning-plan')) push(this.learningPlan(dashboard));
-    if (wanted.has('revision')) push(this.revision(dashboard));
-    if (wanted.has('knowledge')) push(this.knowledge(dashboard));
-    if (wanted.has('analytics-health')) push(this.analyticsHealth(dashboard));
-    if (wanted.has('contest')) push(this.contest(dashboard));
-    if (wanted.has('recent-activity')) {
-      const activity = await safe(() => activityService.getRecent(userId, 6), 'activity');
-      push(this.recentActivity(activity));
+    for (const key of SECTION_ORDER) {
+      if (!wanted.has(key)) continue;
+      const section = BUILDERS[key]?.(sources);
+      if (section) sections.push(section);
     }
-
-    const tokenEstimate = estimateTokens(sections.map((s) => `${s.title}\n${s.summary}`).join('\n\n'));
-    return { intent, sections, generatedAt: new Date().toISOString(), tokenEstimate };
+    return sections;
   },
 
-  /* -- section builders (each pure over a DTO) -- */
+  /** Convenience: full context for an intent using its default profiles. */
+  async build(userId: string, intent: AiIntent): Promise<AIContext> {
+    const profiles = INTENT_PROFILES[intent] ?? [];
+    const sections = await this.buildSections(userId, sectionsForProfiles(profiles));
+    return {
+      intent,
+      profiles,
+      sections,
+      generatedAt: new Date().toISOString(),
+      tokenEstimate: estimateSections(sections),
+    };
+  },
+};
 
-  learnerProfile(d: DashboardDTO | null, p: GamificationProfileDTO | null): AIContextSection | null {
+/** Token estimate of the serialized sections. */
+export function estimateSections(sections: AIContextSection[]): number {
+  return estimateTokens(sections.map((s) => `${s.title}\n${s.summary}`).join('\n\n'));
+}
+
+/* ------------------------------------------------------------------ *
+ *  Section builders — each pure over the fetched sources.
+ * ------------------------------------------------------------------ */
+
+const BUILDERS: Record<string, (s: ContextSources) => AIContextSection | null> = {
+  'learner-profile': ({ dashboard: d, profile: p }) => {
     if (!d && !p) return null;
     const lines: string[] = [];
     if (p) {
@@ -73,17 +141,12 @@ export const contextBuilderService = {
     if (d) {
       if (d.currentPhase) lines.push(`Current phase: ${d.currentPhase.title}.`);
       if (d.currentTopic) lines.push(`Current topic: ${d.currentTopic.title} (mastery ${d.currentMastery}%).`);
-      lines.push(`Overall completion ${d.overall.completionPercent}%, ${d.overall.topicsCompleted}/${d.overall.topicsTotal} topics, average mastery ${d.overall.overallMastery}%.`);
+      lines.push(`Overall completion ${d.overall.completionPercent}%, ${d.overall.topicsCompleted}/${d.overall.topicsTotal} topics.`);
     }
-    return {
-      key: 'learner-profile',
-      title: 'Learner Profile',
-      summary: lines.join(' '),
-      data: p ? { level: p.progression.level, xp: p.progression.totalXP, streak: p.progression.currentStreak } : undefined,
-    };
+    return { key: 'learner-profile', title: 'Learner Profile', summary: lines.join(' ') };
   },
 
-  progression(p: GamificationProfileDTO | null): AIContextSection | null {
+  progression: ({ profile: p }) => {
     if (!p) return null;
     const inProgress = p.achievements.inProgress.slice(0, 3).map((a) => `${a.title} (${a.progress}/${a.maxProgress})`);
     const challenges = p.challenges.active.slice(0, 3).map((c) => `${c.title} ${c.currentProgress}/${c.targetValue}`);
@@ -93,13 +156,11 @@ export const contextBuilderService = {
       summary: [
         inProgress.length ? `Next milestones: ${inProgress.join('; ')}.` : '',
         challenges.length ? `Active challenges: ${challenges.join('; ')}.` : '',
-      ]
-        .filter(Boolean)
-        .join(' '),
+      ].filter(Boolean).join(' ') || 'No active goals.',
     };
   },
 
-  learningPlan(d: DashboardDTO | null): AIContextSection | null {
+  'learning-plan': ({ dashboard: d }) => {
     if (!d) return null;
     const r = d.recommendation;
     return {
@@ -109,7 +170,7 @@ export const contextBuilderService = {
     };
   },
 
-  revision(d: DashboardDTO | null): AIContextSection | null {
+  revision: ({ dashboard: d }) => {
     if (!d) return null;
     const rev = d.revision;
     const ret = d.retention;
@@ -120,17 +181,35 @@ export const contextBuilderService = {
     };
   },
 
-  knowledge(d: DashboardDTO | null): AIContextSection | null {
+  knowledge: ({ dashboard: d }) => {
     if (!d) return null;
     const k = d.knowledge;
     return {
       key: 'knowledge',
       title: 'Knowledge Base',
-      summary: `${k.knowledgeEntries} notebook entries covering ${k.topicsCovered} topics; ${k.patternsLearned} patterns learned, ${k.patternsPending} pending. Notebook coverage ${k.notebookCoveragePercent}%.`,
+      summary: `${k.knowledgeEntries} notebook entries covering ${k.topicsCovered} topics; ${k.patternsLearned} patterns learned, ${k.patternsPending} pending. Coverage ${k.notebookCoveragePercent}%.`,
     };
   },
 
-  analyticsHealth(d: DashboardDTO | null): AIContextSection | null {
+  'notebook-entries': ({ notebook: n }) => {
+    if (!n || n.items.length === 0) return null;
+    const items = n.items.slice(0, 5).map((e) => `• ${e.title} — ${e.pattern} (confidence ${e.confidence}%)`);
+    return { key: 'notebook-entries', title: 'Recent Notebook Entries', summary: items.join('\n') };
+  },
+
+  'weak-patterns': ({ weaknesses: w }) => {
+    if (!w || w.length === 0) return null;
+    const items = w.slice(0, 4).map((x) => `• ${x.title} (${x.metric} ${x.value})`);
+    return { key: 'weak-patterns', title: 'Weak Areas', summary: items.join('\n') };
+  },
+
+  'strong-patterns': ({ strengths: s }) => {
+    if (!s || s.length === 0) return null;
+    const items = s.slice(0, 4).map((x) => `• ${x.title} (${x.metric} ${x.value})`);
+    return { key: 'strong-patterns', title: 'Strengths', summary: items.join('\n') };
+  },
+
+  'analytics-health': ({ dashboard: d }) => {
     if (!d) return null;
     const h = d.health;
     return {
@@ -140,23 +219,29 @@ export const contextBuilderService = {
     };
   },
 
-  contest(d: DashboardDTO | null): AIContextSection | null {
+  contest: ({ dashboard: d }) => {
     if (!d) return null;
     const c = d.contest;
-    if (c.totalContests === 0) {
-      return { key: 'contest', title: 'Contests', summary: 'No contests recorded yet.' };
-    }
+    if (c.totalContests === 0) return { key: 'contest', title: 'Contests', summary: 'No contests recorded yet.' };
     return {
       key: 'contest',
       title: 'Contests',
-      summary: `${c.totalContests} contests, current rating ${c.currentRating ?? 'n/a'} (peak ${c.highestRating ?? 'n/a'}). Latest change ${c.recentRatingChange ?? 0}. ${c.pendingUpsolve} problems pending upsolve.`,
+      summary: `${c.totalContests} contests, current rating ${c.currentRating ?? 'n/a'} (peak ${c.highestRating ?? 'n/a'}). Latest change ${c.recentRatingChange ?? 0}. ${c.pendingUpsolve} pending upsolve.`,
     };
   },
 
-  recentActivity(activity: ActivityDTO[] | null): AIContextSection | null {
-    if (!activity || activity.length === 0) return null;
-    const items = activity.slice(0, 5).map((a) => `• ${a.title}`);
-    return { key: 'recent-activity', title: 'Recent Activity', summary: items.join('\n') };
+  'contest-readiness': ({ readiness: r }) => {
+    if (!r) return null;
+    return {
+      key: 'contest-readiness',
+      title: 'Contest Readiness',
+      summary: `Readiness ${r.overall}/100 (${r.status}). Strong: ${r.strongAreas.slice(0, 3).join(', ') || 'n/a'}. Weak: ${r.weakAreas.slice(0, 3).join(', ') || 'n/a'}.`,
+    };
+  },
+
+  'recent-activity': ({ activity: a }) => {
+    if (!a || a.length === 0) return null;
+    return { key: 'recent-activity', title: 'Recent Activity', summary: a.slice(0, 5).map((x) => `• ${x.title}`).join('\n') };
   },
 };
 
@@ -165,7 +250,7 @@ async function safe<T>(fn: () => Promise<T>, label: string): Promise<T | null> {
   try {
     return await fn();
   } catch (err) {
-    logger.warn(`ContextBuilder: '${label}' section unavailable`, err);
+    logger.warn(`ContextBuilder: source '${label}' unavailable`, err);
     return null;
   }
 }

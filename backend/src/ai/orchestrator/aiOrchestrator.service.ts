@@ -1,5 +1,5 @@
 import { intentRouterService } from '../router/intentRouter.service.js';
-import { contextBuilderService } from '../context/contextBuilder.service.js';
+import { contextComposerService } from '../context/contextComposer.service.js';
 import { promptBuilderService } from '../prompts/promptBuilder.service.js';
 import { llmGateway } from '../services/llmGateway.js';
 import { responseValidator } from '../services/responseValidator.js';
@@ -9,7 +9,7 @@ import { providerRegistry } from '../providers/registry.js';
 import { PROVIDER_CATALOGUE } from '../../config/ai.js';
 import { Types } from 'mongoose';
 import type { ChatResultDTO } from '../dto/ai.dto.js';
-import type { TokenSink, ProviderId, LLMResult, AIContext } from '../types/ai.types.js';
+import type { TokenSink, ProviderId, LLMResult, AIContext, AiIntent, ContextProfileName } from '../types/ai.types.js';
 
 export interface ChatInput {
   conversationId?: string;
@@ -17,6 +17,12 @@ export interface ChatInput {
   /** Optional per-request provider/model override (else the user's settings). */
   provider?: ProviderId;
   model?: string;
+  /** Slash-command intent override (else the IntentRouter classifies). */
+  intent?: AiIntent;
+  /** Explicit context profiles (from a slash command). */
+  profiles?: ContextProfileName[];
+  /** Context sections toggled off in the Context Preview. */
+  excludeSections?: string[];
 }
 
 export interface ChatOptions {
@@ -67,9 +73,15 @@ export const aiOrchestratorService = {
       responseTime: 0,
     });
 
-    // 4. Classify → build context → assemble prompt.
-    const intent = intentRouterService.classify(message);
-    const context = await contextBuilderService.build(userId, intent);
+    // 4. Classify (or honour a slash-command override) → COMPOSE context →
+    //    assemble prompt. The composer merges only the profiles this intent needs
+    //    and drops any sections the learner toggled off in the Context Preview.
+    const intent = input.intent ?? intentRouterService.classify(message);
+    const context = await contextComposerService.compose(userId, {
+      intent,
+      profiles: input.profiles,
+      excludeSections: input.excludeSections,
+    });
     const messages = promptBuilderService.build({ context, history, userMessage: message });
 
     // 5. Call the provider (streaming or not) through the gateway.
@@ -97,9 +109,19 @@ export const aiOrchestratorService = {
       responseTime: result.responseTimeMs,
     });
 
+    // Update conversation-level metadata (intent/provider/model/tokens) for the
+    // sidebar + metadata card.
+    await conversationService.recordTurnMeta(conversationId, {
+      intent,
+      provider: result.provider,
+      model: result.model,
+      tokens: result.usage.totalTokens,
+    });
+
     return {
       conversationId,
       intent,
+      profiles: context.profiles,
       provider,
       fellBack,
       contextSections: context.sections,
@@ -118,6 +140,7 @@ export const aiOrchestratorService = {
   snapshot(context: AIContext): Record<string, unknown> {
     return {
       intent: context.intent,
+      profiles: context.profiles,
       sections: context.sections.map((s) => ({ key: s.key, title: s.title })),
       tokenEstimate: context.tokenEstimate,
       generatedAt: context.generatedAt,

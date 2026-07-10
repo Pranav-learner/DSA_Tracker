@@ -2151,15 +2151,30 @@ export interface ChatMessage {
   model: string | null;
   usage: TokenUsage;
   responseTime: number;
-  context: { intent: AiIntent; sections: { key: string; title: string }[] } | null;
+  context: { intent: AiIntent; profiles: string[]; sections: { key: string; title: string }[] } | null;
   createdAt: string;
 }
+
+export type ContextProfileName =
+  | 'learning'
+  | 'knowledge'
+  | 'revision'
+  | 'contest'
+  | 'analytics'
+  | 'gamification'
+  | 'conversation';
 
 export interface Conversation {
   id: string;
   title: string;
   messageCount: number;
   lastMessageAt: string | null;
+  pinned: boolean;
+  archived: boolean;
+  lastIntent: string | null;
+  lastProvider: string | null;
+  lastModel: string | null;
+  totalTokens: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -2171,11 +2186,86 @@ export interface ConversationDetail extends Conversation {
 export interface ChatResult {
   conversationId: string;
   intent: AiIntent;
+  profiles: ContextProfileName[];
   provider: ProviderId;
   fellBack: boolean;
   contextSections: AIContextSection[];
   userMessage: ChatMessage;
   assistantMessage: ChatMessage;
+}
+
+/* ---- Module 7 · Sprint 2: Mentor Workspace & Context Intelligence ---- */
+
+export interface AIContext {
+  intent: AiIntent;
+  profiles: ContextProfileName[];
+  sections: AIContextSection[];
+  generatedAt: string;
+  tokenEstimate: number;
+}
+
+export interface ContextPreviewSection {
+  key: string;
+  title: string;
+  included: boolean;
+  optional: boolean;
+  tokenEstimate: number;
+  preview: string;
+}
+
+export interface ContextPreview {
+  intent: AiIntent;
+  profiles: ContextProfileName[];
+  sections: ContextPreviewSection[];
+  includedTokens: number;
+  overBudget: boolean;
+}
+
+export interface LearningSnapshot {
+  currentPhase: string | null;
+  currentTopic: string | null;
+  mastery: number;
+  revisionDue: number;
+  weakestPattern: string | null;
+  strongestPattern: string | null;
+  currentStreak: number;
+  contestReadiness: number | null;
+  recommendation: { title: string; message: string; actionLabel: string; actionTo: string } | null;
+}
+
+export interface SuggestedPrompt {
+  id: string;
+  text: string;
+  intent: AiIntent;
+  command: string | null;
+  reason: string;
+}
+
+export interface QuickAction {
+  command: string;
+  label: string;
+  intent: AiIntent;
+}
+
+export interface AIWorkspaceData {
+  snapshot: LearningSnapshot;
+  suggestions: SuggestedPrompt[];
+  recentConversations: Conversation[];
+  recommendation: LearningSnapshot['recommendation'];
+  quickActions: QuickAction[];
+}
+
+export interface ConversationExport {
+  filename: string;
+  format: 'markdown' | 'json';
+  contentType: string;
+  content: string;
+}
+
+export interface UpdateConversationInput {
+  title?: string;
+  pinned?: boolean;
+  archived?: boolean;
 }
 
 export interface AISettings {

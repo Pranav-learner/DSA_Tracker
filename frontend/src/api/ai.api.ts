@@ -8,6 +8,14 @@ import type {
   AISettings,
   UpdateAISettingsInput,
   ProvidersResponse,
+  AIWorkspaceData,
+  SuggestedPrompt,
+  ContextPreview,
+  AIContext,
+  ConversationExport,
+  UpdateConversationInput,
+  AiIntent,
+  ContextProfileName,
 } from '@/types';
 
 export interface ChatRequest {
@@ -15,6 +23,11 @@ export interface ChatRequest {
   conversationId?: string;
   provider?: string;
   model?: string;
+  /** Slash-command context override. */
+  intent?: AiIntent;
+  profiles?: ContextProfileName[];
+  /** Context sections toggled off in the Context Preview. */
+  excludeSections?: string[];
 }
 
 /**
@@ -105,14 +118,30 @@ export const aiApi = {
   /** Non-streaming chat (fallback when streaming is disabled). */
   chat: (body: ChatRequest) => apiSend<ChatResult>('POST', '/ai/chat', { ...body, stream: false }),
 
-  listConversations: (signal?: AbortSignal) => apiGet<Conversation[]>('/ai/conversations', signal),
+  listConversations: (includeArchived = false, signal?: AbortSignal) =>
+    apiGet<Conversation[]>(`/ai/conversations${includeArchived ? '?archived=true' : ''}`, signal),
   getConversation: (id: string, signal?: AbortSignal) => apiGet<ConversationDetail>(`/ai/conversations/${id}`, signal),
   createConversation: (title?: string) => apiSend<Conversation>('POST', '/ai/conversations', { title }),
-  renameConversation: (id: string, title: string) => apiSend<Conversation>('PATCH', `/ai/conversations/${id}`, { title }),
+  updateConversation: (id: string, patch: UpdateConversationInput) => apiSend<Conversation>('PATCH', `/ai/conversations/${id}`, patch),
   deleteConversation: (id: string) => apiSend<{ deleted: boolean }>('DELETE', `/ai/conversations/${id}`),
+  searchConversations: (q: string, signal?: AbortSignal) =>
+    apiGet<Conversation[]>(`/ai/conversations/search?q=${encodeURIComponent(q)}`, signal),
+  exportConversation: (conversationId: string, format: 'markdown' | 'json') =>
+    apiSend<ConversationExport>('POST', '/ai/conversations/export', { conversationId, format }),
 
   getSettings: (signal?: AbortSignal) => apiGet<AISettings>('/ai/settings', signal),
   updateSettings: (patch: UpdateAISettingsInput) => apiSend<AISettings>('PATCH', '/ai/settings', patch),
 
   getProviders: (signal?: AbortSignal) => apiGet<ProvidersResponse>('/ai/providers', signal),
+
+  // --- Sprint 2 ---
+  getWorkspace: (signal?: AbortSignal) => apiGet<AIWorkspaceData>('/ai/workspace', signal),
+  getSuggestions: (signal?: AbortSignal) => apiGet<SuggestedPrompt[]>('/ai/suggestions', signal),
+  getContext: (intent: string, signal?: AbortSignal) => apiGet<AIContext>(`/ai/context?intent=${intent}`, signal),
+  getContextPreview: (params: { intent: string; profiles?: string[]; exclude?: string[] }, signal?: AbortSignal) => {
+    const q = new URLSearchParams({ intent: params.intent });
+    if (params.profiles?.length) q.set('profiles', params.profiles.join(','));
+    if (params.exclude?.length) q.set('exclude', params.exclude.join(','));
+    return apiGet<ContextPreview>(`/ai/context/preview?${q.toString()}`, signal);
+  },
 };

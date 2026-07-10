@@ -122,8 +122,15 @@ export const queryKeys = {
   celebrations: (query: object) => ['gamification', 'celebrations', query] as const,
   // --- Module 7 · Sprint 1: AI mentor ---
   ai: ['ai'] as const,
-  aiConversations: ['ai', 'conversations'] as const,
-  aiConversation: (id: string) => ['ai', 'conversations', id] as const,
+  /** All conversation-list queries (prefix — invalidate to refresh every filter). */
+  aiConversationsRoot: ['ai', 'conversations', 'list'] as const,
+  aiConversations: (includeArchived: boolean) => ['ai', 'conversations', 'list', { includeArchived }] as const,
+  aiConversation: (id: string) => ['ai', 'conversations', 'detail', id] as const,
   aiSettings: ['ai', 'settings'] as const,
   aiProviders: ['ai', 'providers'] as const,
+  // --- Module 7 · Sprint 2: mentor workspace ---
+  aiWorkspace: ['ai', 'workspace'] as const,
+  aiSuggestions: ['ai', 'suggestions'] as const,
+  aiContextPreview: (params: object) => ['ai', 'context', 'preview', params] as const,
+  aiConversationSearch: (q: string) => ['ai', 'conversations', 'search', q] as const,
 };
