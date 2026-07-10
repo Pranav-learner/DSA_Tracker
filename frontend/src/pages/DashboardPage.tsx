@@ -14,6 +14,7 @@ import {
   ArrowRight,
   Swords,
   Trophy,
+  Bot,
 } from 'lucide-react';
 import { useDashboard } from '@/hooks/useDashboard';
 import { ContestSummaryCard } from '@/components/contest';
@@ -36,6 +37,7 @@ import {
   QuickActionsPanel,
   ProgressionDashboardCard,
   GamificationDashboardCard,
+  AiMentorCard,
 } from '@/components/dashboard';
 import { greeting } from '@/lib/utils';
 
@@ -220,6 +222,21 @@ export function DashboardPage() {
 
         {/* Right insight panel */}
         <aside className="space-y-8 xl:sticky xl:top-24 xl:self-start">
+          <DashboardSection
+            title="AI Mentor"
+            description="Context-aware coaching"
+            icon={<Bot className="size-4" />}
+            action={
+              <Button variant="link" size="sm" asChild>
+                <Link to="/ai">
+                  Open mentor <ArrowRight className="size-4" />
+                </Link>
+              </Button>
+            }
+          >
+            <AiMentorCard />
+          </DashboardSection>
+
           <DashboardSection title="Quick Actions" icon={<Zap className="size-4" />}>
             <QuickActionsPanel actions={quickActions} />
           </DashboardSection>

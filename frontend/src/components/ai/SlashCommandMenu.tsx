@@ -31,14 +31,19 @@ export function SlashCommandMenu({ query, onSelect, className }: SlashCommandMen
   useEffect(() => {
     if (!matches.length) return;
     const onKey = (e: KeyboardEvent) => {
+      // Handled in the capture phase and stopped so the input's Enter-to-send /
+      // caret navigation doesn't also fire while the palette is open.
       if (e.key === 'ArrowDown') {
         e.preventDefault();
+        e.stopPropagation();
         setIndex((i) => (i + 1) % matches.length);
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
+        e.stopPropagation();
         setIndex((i) => (i - 1 + matches.length) % matches.length);
       } else if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
         e.preventDefault();
+        e.stopPropagation();
         onSelect(matches[index]);
       }
     };

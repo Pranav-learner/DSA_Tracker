@@ -26,3 +26,5 @@ export { QuickActionsPanel } from './QuickActionsPanel';
 export { ProgressionDashboardCard } from './ProgressionDashboardCard';
 // Module 6 · Sprint 2 — achievements / challenges / celebrations widget.
 export { GamificationDashboardCard } from './GamificationDashboardCard';
+// Module 7 · Sprint 2 — AI Mentor entry point (self-fetches from the AI workspace API).
+export { AiMentorCard } from './AiMentorCard';
