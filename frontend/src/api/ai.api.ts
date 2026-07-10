@@ -20,6 +20,19 @@ import type {
   CoachMeta,
   CoachResponse,
   CoachStreamEvent,
+  MentorOverview,
+  Workflow,
+  WorkflowsResponse,
+  WorkflowKey,
+  WorkflowStatus,
+  RecommendationsResponse,
+  Recommendation,
+  RecommendationStatus,
+  MentorBrief,
+  BriefKind,
+  TimelineEntry,
+  TimelineEntryType,
+  MentorAction,
 } from '@/types';
 
 export interface CoachRequest {
@@ -162,6 +175,27 @@ export const aiApi = {
   coach: (body: CoachRequest) => apiSend<CoachResponse>('POST', '/ai/coach', { ...body, stream: false }),
   listCoaches: (signal?: AbortSignal) => apiGet<CoachesResponse>('/ai/coaches', signal),
   getCoach: (id: string, signal?: AbortSignal) => apiGet<CoachMeta>(`/ai/coaches/${id}`, signal),
+
+  // --- Sprint 4: AI Operating System ---
+  getOverview: (signal?: AbortSignal) => apiGet<MentorOverview>('/ai/overview', signal),
+  getWorkflows: (signal?: AbortSignal) => apiGet<WorkflowsResponse>('/ai/workflows', signal),
+  generateWorkflow: (key: WorkflowKey, save = false) => apiSend<Workflow>('POST', '/ai/workflows', { key, save }),
+  updateWorkflow: (id: string, status: WorkflowStatus) => apiSend<Workflow>('PATCH', `/ai/workflows/${id}`, { status }),
+  getRecommendations: (status?: RecommendationStatus, signal?: AbortSignal) =>
+    apiGet<RecommendationsResponse>(`/ai/recommendations${status ? `?status=${status}` : ''}`, signal),
+  updateRecommendation: (id: string, status: RecommendationStatus) =>
+    apiSend<Recommendation>('PATCH', `/ai/recommendations/${id}`, { status }),
+  getMentorBrief: (kind: BriefKind = 'daily', signal?: AbortSignal) => apiGet<MentorBrief>(`/ai/mentor-brief?kind=${kind}`, signal),
+  getActions: (signal?: AbortSignal) => apiGet<MentorAction[]>('/ai/actions', signal),
+  getTimeline: (params: { q?: string; types?: TimelineEntryType[]; limit?: number } = {}, signal?: AbortSignal) => {
+    const q = new URLSearchParams();
+    if (params.q) q.set('q', params.q);
+    if (params.types?.length) q.set('types', params.types.join(','));
+    if (params.limit) q.set('limit', String(params.limit));
+    const qs = q.toString();
+    return apiGet<TimelineEntry[]>(`/ai/timeline${qs ? `?${qs}` : ''}`, signal);
+  },
+  summarizeConversation: (id: string) => apiSend<import('@/types').Conversation>('POST', `/ai/conversations/${id}/summary`, {}),
 
   listConversations: (includeArchived = false, signal?: AbortSignal) =>
     apiGet<Conversation[]>(`/ai/conversations${includeArchived ? '?archived=true' : ''}`, signal),

@@ -30,3 +30,5 @@ export { GamificationDashboardCard } from './GamificationDashboardCard';
 export { AiMentorCard } from './AiMentorCard';
 // Module 7 · Sprint 3 — specialized coaches entry point (self-fetches from the coach registry).
 export { CoachEntryCard } from './CoachEntryCard';
+// Module 7 · Sprint 4 — AI Operating System entry point (brief + top recommendation + workflow).
+export { MentorOSCard } from './MentorOSCard';

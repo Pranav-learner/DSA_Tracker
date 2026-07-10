@@ -16,6 +16,7 @@ import {
   Trophy,
   Bot,
   Users,
+  Cpu,
 } from 'lucide-react';
 import { useDashboard } from '@/hooks/useDashboard';
 import { ContestSummaryCard } from '@/components/contest';
@@ -40,6 +41,7 @@ import {
   GamificationDashboardCard,
   AiMentorCard,
   CoachEntryCard,
+  MentorOSCard,
 } from '@/components/dashboard';
 import { greeting } from '@/lib/utils';
 
@@ -224,6 +226,21 @@ export function DashboardPage() {
 
         {/* Right insight panel */}
         <aside className="space-y-8 xl:sticky xl:top-24 xl:self-start">
+          <DashboardSection
+            title="AI Operating System"
+            description="Today's brief & workflows"
+            icon={<Cpu className="size-4" />}
+            action={
+              <Button variant="link" size="sm" asChild>
+                <Link to="/ai/os">
+                  Open <ArrowRight className="size-4" />
+                </Link>
+              </Button>
+            }
+          >
+            <MentorOSCard />
+          </DashboardSection>
+
           <DashboardSection
             title="AI Mentor"
             description="Context-aware coaching"

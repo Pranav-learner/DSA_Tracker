@@ -20,6 +20,8 @@ function toConversationDTO(doc: ConversationDocument): ConversationDTO {
     lastProvider: doc.lastProvider,
     lastModel: doc.lastModel,
     totalTokens: doc.totalTokens,
+    tags: doc.tags ?? [],
+    summary: doc.summary ?? null,
     createdAt: doc.createdAt.toISOString(),
     updatedAt: doc.updatedAt.toISOString(),
   };
@@ -76,18 +78,39 @@ export const conversationService = {
     return this.update(userId, id, { title: title.trim() || 'New conversation' });
   },
 
-  /** Patch a conversation: rename, pin/unpin, archive/unarchive. */
+  /** Patch a conversation: rename, pin/unpin, archive/unarchive, tag. */
   async update(
     userId: string,
     id: string,
-    patch: { title?: string; pinned?: boolean; archived?: boolean },
+    patch: { title?: string; pinned?: boolean; archived?: boolean; tags?: string[] },
   ): Promise<ConversationDTO> {
     await this.requireOwned(userId, id);
     const clean: Record<string, unknown> = {};
     if (patch.title !== undefined) clean.title = patch.title.trim() || 'New conversation';
     if (patch.pinned !== undefined) clean.pinned = patch.pinned;
     if (patch.archived !== undefined) clean.archived = patch.archived;
+    if (patch.tags !== undefined) clean.tags = [...new Set(patch.tags.map((t) => t.trim().toLowerCase()).filter(Boolean))].slice(0, 12);
     const doc = await conversationRepository.update(userId, id, clean);
+    return toConversationDTO(doc!);
+  },
+
+  /**
+   * Compress a conversation into a short, learning-scoped summary (Sprint 4).
+   * Deterministic and rule-based (no LLM) — the opening question, the turn count
+   * and the dominant intent — so it's always available and cheap. Persisted so the
+   * ConversationSummaryCard and relevant-history retrieval can reuse it.
+   */
+  async summarize(userId: string, id: string): Promise<ConversationDTO> {
+    const conv = await this.requireOwned(userId, id);
+    const messages = await conversationRepository.findMessages(id);
+    const firstUser = messages.find((m) => m.role === 'user')?.content ?? '';
+    const opening = firstUser.replace(/\s+/g, ' ').trim().slice(0, 140);
+    const turns = messages.filter((m) => m.role === 'user' || m.role === 'assistant').length;
+    const summary =
+      [opening ? `Started with: “${opening}”.` : '', `${turns} turns${conv.lastIntent ? ` · focus: ${conv.lastIntent}` : ''}.`]
+        .filter(Boolean)
+        .join(' ') || 'Empty conversation.';
+    const doc = await conversationRepository.update(userId, id, { summary });
     return toConversationDTO(doc!);
   },
 

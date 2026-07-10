@@ -18,6 +18,16 @@ import {
   postCoach,
   getCoaches,
   getCoach,
+  getMentorOverview,
+  postWorkflow,
+  getWorkflows,
+  patchWorkflow,
+  getRecommendations,
+  patchRecommendation,
+  getMentorBrief,
+  getTimeline,
+  getActions,
+  summarizeConversation,
 } from '../controllers/ai.controller.js';
 import { aiRateLimit } from '../middleware/rateLimit.js';
 
@@ -33,6 +43,17 @@ aiRouter.post('/coach', aiRateLimit, postCoach);
 aiRouter.get('/coaches', getCoaches);
 aiRouter.get('/coaches/:coachId', getCoach);
 
+// Sprint 4 — AI Operating System (workflows, recommendations, briefs, timeline, actions).
+aiRouter.get('/overview', getMentorOverview);
+aiRouter.post('/workflows', postWorkflow);
+aiRouter.get('/workflows', getWorkflows);
+aiRouter.patch('/workflows/:id', patchWorkflow);
+aiRouter.get('/recommendations', getRecommendations);
+aiRouter.patch('/recommendations/:id', patchRecommendation);
+aiRouter.get('/mentor-brief', getMentorBrief);
+aiRouter.get('/timeline', getTimeline);
+aiRouter.get('/actions', getActions);
+
 // Sprint 2 — workspace, context intelligence & suggestions.
 aiRouter.get('/workspace', getWorkspace);
 aiRouter.get('/suggestions', getSuggestions);
@@ -46,6 +67,7 @@ aiRouter.get('/conversations', getConversations);
 aiRouter.post('/conversations', createConversation);
 aiRouter.get('/conversations/:id', getConversation);
 aiRouter.patch('/conversations/:id', patchConversation);
+aiRouter.post('/conversations/:id/summary', summarizeConversation);
 aiRouter.delete('/conversations/:id', deleteConversation);
 
 aiRouter.get('/settings', getSettings);

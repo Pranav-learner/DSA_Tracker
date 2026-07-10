@@ -12,6 +12,10 @@ import {
   BarChart3,
   Map as MapIcon,
   Layers,
+  Lightbulb,
+  Route,
+  MessageSquare,
+  Trophy,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -46,4 +50,27 @@ const ACTION_ICONS: Record<string, LucideIcon> = {
 
 export function actionIcon(kind: string): LucideIcon {
   return ACTION_ICONS[kind] ?? ArrowRight;
+}
+
+/** Map a timeline entry icon name / workflow module to a lucide component. */
+const TIMELINE_ICONS: Record<string, LucideIcon> = {
+  lightbulb: Lightbulb,
+  route: Route,
+  'message-square': MessageSquare,
+  trophy: Trophy,
+  // module icons (workflow steps)
+  learning: GraduationCap,
+  revision: CalendarClock,
+  contest: Swords,
+  analytics: BarChart3,
+  knowledge: NotebookPen,
+};
+
+export function timelineIcon(name: string): LucideIcon {
+  return TIMELINE_ICONS[name] ?? Lightbulb;
+}
+
+/** Icon for a CP-OS module name (workflow step badges). */
+export function moduleIcon(module: string): LucideIcon {
+  return TIMELINE_ICONS[module] ?? Layers;
 }

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { ApiError } from '../../utils/ApiError.js';
 import { PROVIDER_IDS, AI_INTENTS, CONTEXT_PROFILES } from '../types/ai.types.js';
+import { WORKFLOW_KEYS, RECOMMENDATION_STATUSES, BRIEF_KINDS } from '../os/types.js';
 import { AI_LIMITS } from '../../config/ai.js';
 import { isValidObjectId } from 'mongoose';
 
@@ -28,12 +29,13 @@ export const chatSchema = z
   })
   .strict();
 
-/** PATCH /conversations/:id body (rename / pin / archive). */
+/** PATCH /conversations/:id body (rename / pin / archive / tag). */
 export const patchConversationSchema = z
   .object({
     title: z.string().trim().min(1).max(200).optional(),
     pinned: z.boolean().optional(),
     archived: z.boolean().optional(),
+    tags: z.array(z.string().trim().max(30)).max(12).optional(),
   })
   .strict()
   .refine((o) => Object.keys(o).length > 0, { message: 'Provide at least one field to update' });
@@ -89,6 +91,38 @@ export const coachSchema = z
   })
   .strict();
 
+/* ---- Sprint 4: AI Operating System ---- */
+
+/** POST /workflows body — generate (and optionally save) a workflow. */
+export const workflowGenerateSchema = z
+  .object({ key: z.enum(WORKFLOW_KEYS), save: z.boolean().optional() })
+  .strict();
+
+/** PATCH /recommendations/:id body — a lifecycle transition. */
+export const recommendationPatchSchema = z
+  .object({ status: z.enum(RECOMMENDATION_STATUSES) })
+  .strict();
+
+/** GET /recommendations query. */
+export const recommendationsQuerySchema = z.object({ status: z.enum(RECOMMENDATION_STATUSES).optional() }).strip();
+
+/** GET /mentor-brief query. */
+export const briefQuerySchema = z.object({ kind: z.enum(BRIEF_KINDS).default('daily') }).strip();
+
+/** GET /timeline query. */
+export const timelineQuerySchema = z
+  .object({
+    q: z.string().trim().max(200).optional(),
+    types: csv,
+    limit: z.coerce.number().int().min(1).max(200).optional(),
+  })
+  .strip();
+
+/** PATCH /workflows/:id body — a workflow status transition. */
+export const workflowStatusSchema = z
+  .object({ status: z.enum(['generated', 'started', 'completed', 'dismissed']) })
+  .strict();
+
 function parse<S extends z.ZodTypeAny>(schema: S, data: unknown, label: string): z.infer<S> {
   const result = schema.safeParse(data);
   if (!result.success) {
@@ -108,6 +142,12 @@ export const parseExport = (b: unknown) => parse(exportSchema, b, 'Invalid expor
 export const parseSearchQuery = (q: unknown) => parse(searchQuerySchema, q, 'Invalid search query');
 export const parseContextQuery = (q: unknown) => parse(contextQuerySchema, q, 'Invalid context query');
 export const parseCoach = (b: unknown) => parse(coachSchema, b, 'Invalid coach request');
+export const parseWorkflowGenerate = (b: unknown) => parse(workflowGenerateSchema, b, 'Invalid workflow request');
+export const parseWorkflowStatus = (b: unknown) => parse(workflowStatusSchema, b, 'Invalid workflow status');
+export const parseRecommendationPatch = (b: unknown) => parse(recommendationPatchSchema, b, 'Invalid recommendation update');
+export const parseRecommendationsQuery = (q: unknown) => parse(recommendationsQuerySchema, q, 'Invalid recommendations query');
+export const parseBriefQuery = (q: unknown) => parse(briefQuerySchema, q, 'Invalid brief query');
+export const parseTimelineQuery = (q: unknown) => parse(timelineQuerySchema, q, 'Invalid timeline query');
 
 /** Resolve context-preview options from a parsed query (profiles as ContextProfileName[]). */
 export function contextOptionsFromQuery(q: z.infer<typeof contextQuerySchema>) {

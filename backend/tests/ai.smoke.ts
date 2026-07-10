@@ -16,6 +16,7 @@ import { contextComposerService } from '../src/ai/context/contextComposer.servic
 import { workspaceService } from '../src/ai/services/workspace.service.js';
 import { suggestionService } from '../src/ai/services/suggestion.service.js';
 import { coachRegistry } from '../src/ai/coaches/index.js';
+import { aiOperatingSystem } from '../src/ai/os/aiOperatingSystem.js';
 import { promptBuilderService } from '../src/ai/prompts/promptBuilder.service.js';
 import { aiOrchestratorService } from '../src/ai/orchestrator/aiOrchestrator.service.js';
 import { conversationService } from '../src/ai/services/conversation.service.js';
@@ -210,6 +211,57 @@ async function main(): Promise<void> {
     let coachTokens = 0;
     const coachStreamed = await coachRegistry.get('revision')!.handle(USER, { message: 'Summarize my revision backlog' }, { onToken: () => { coachTokens += 1; } });
     check('coach streaming emits tokens and a final structured result', coachTokens > 0 && coachStreamed.explanation.length > 0 && coachStreamed.coachId === 'revision');
+
+    // ── 15. Sprint 4: AI Operating System ──
+    const actions = await aiOperatingSystem.actions(USER);
+    check('action generator produces deep-linked CP-OS actions', actions.length > 0 && actions.every((a) => a.to.startsWith('/') || Boolean(a.intent)));
+
+    const previews = await aiOperatingSystem.previewWorkflows(USER);
+    check('workflow engine builds all six workflows', previews.length === 6);
+    const study = previews.find((w) => w.key === 'study-session')!;
+    check('a workflow is a sequence of suggested steps with modules', study.steps.length > 0 && study.modules.length > 0 && study.estimatedMinutes > 0);
+    check('workflow steps carry deep-link actions or coach intents', study.steps.every((s) => (s.action ? s.action.to.startsWith('/') : true)));
+
+    const savedWf = await aiOperatingSystem.generateWorkflow(USER, 'revision-session', { save: true });
+    check('a generated workflow can be saved (persisted)', Boolean(savedWf.id) && savedWf.status === 'generated');
+    const wfList = await aiOperatingSystem.listWorkflows(USER);
+    check('saved workflows are listed', wfList.some((w) => w.id === savedWf.id));
+    const startedWf = await aiOperatingSystem.updateWorkflowStatus(USER, savedWf.id, 'started');
+    check('workflow status transitions (learner-driven)', startedWf.status === 'started');
+
+    const recs = await aiOperatingSystem.recommendations(USER);
+    check('recommendations are generated with a stable key + status', recs.length > 0 && recs.every((r) => Boolean(r.key)) && recs.every((r) => r.status === 'generated' || r.status === 'viewed' || r.status === 'accepted'));
+    // Regenerating does NOT duplicate (upsert by key).
+    const recs2 = await aiOperatingSystem.recommendations(USER);
+    check('regenerating recommendations does not duplicate (upsert by key)', recs2.length === recs.length);
+
+    const target = recs[0];
+    const accepted = await aiOperatingSystem.updateRecommendation(USER, target.id, 'accepted');
+    check('recommendation lifecycle: accepted stamps acceptedAt', accepted.status === 'accepted' && Boolean(accepted.acceptedAt));
+    const completed = await aiOperatingSystem.updateRecommendation(USER, target.id, 'completed');
+    check('recommendation lifecycle: completed stamps completedAt', completed.status === 'completed' && Boolean(completed.completedAt));
+    const stats = await aiOperatingSystem.recommendationStats(USER);
+    check('recommendation effectiveness stats roll up', typeof stats.total === 'number' && stats.completed >= 1);
+
+    const brief = await aiOperatingSystem.brief(USER, 'daily');
+    check('mentor brief is generated on demand with focus + sections', Boolean(brief.headline) && Boolean(brief.todaysFocus) && brief.sections.length > 0);
+    check('mentor brief suggests a workflow + quick-start actions', Boolean(brief.suggestedWorkflow) && brief.quickStart.length > 0);
+    const revBrief = await aiOperatingSystem.brief(USER, 'revision');
+    check('briefs vary by kind', revBrief.kind === 'revision' && revBrief.title.includes('Revision'));
+
+    const timeline = await aiOperatingSystem.timeline(USER, {});
+    check('mentor timeline aggregates recommendations + sessions + workflows', timeline.length > 0 && timeline.some((e) => e.type === 'workflow') && timeline.some((e) => e.type === 'recommendation'));
+    const searched = await aiOperatingSystem.timeline(USER, { q: 'revision' });
+    check('mentor timeline is searchable', searched.every((e) => `${e.title} ${e.description}`.toLowerCase().includes('revision')));
+
+    const overview = await aiOperatingSystem.overview(USER);
+    check('AI OS overview bundles brief + workflows + recommendations + actions', Boolean(overview.brief) && overview.workflows.length === 6 && overview.actions.length > 0);
+
+    // Conversation continuity: summary + tags.
+    const summarized = await conversationService.summarize(USER, chatForExport.conversationId);
+    check('conversation can be compressed into a summary', Boolean(summarized.summary));
+    const tagged = await conversationService.update(USER, chatForExport.conversationId, { tags: ['DP', 'graphs', 'dp'] });
+    check('conversation tags are normalised + deduped', tagged.tags.includes('dp') && tagged.tags.includes('graphs') && tagged.tags.length === 2);
 
     console.log(`\n✅ AI platform smoke test passed — ${pass} checks.`);
   } finally {

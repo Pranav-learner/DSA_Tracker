@@ -2175,6 +2175,9 @@ export interface Conversation {
   lastProvider: string | null;
   lastModel: string | null;
   totalTokens: number;
+  /** Sprint 4 — conversation continuity. */
+  tags: string[];
+  summary: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -2266,6 +2269,7 @@ export interface UpdateConversationInput {
   title?: string;
   pinned?: boolean;
   archived?: boolean;
+  tags?: string[];
 }
 
 export interface AISettings {
@@ -2357,6 +2361,149 @@ export type CoachStreamEvent =
   | { type: 'token'; delta: string }
   | { type: 'done'; result: CoachResponse }
   | { type: 'error'; code: string; message: string };
+
+/* ---- Module 7 · Sprint 4: AI Operating System ---- */
+
+/** A deep-link action into a CP-OS module (the learner clicks to execute). */
+export interface MentorAction {
+  id: string;
+  label: string;
+  kind: string;
+  to: string;
+  intent?: AiIntent;
+  module?: string;
+  primary?: boolean;
+}
+
+export type WorkflowKey =
+  | 'study-session'
+  | 'revision-session'
+  | 'contest-prep'
+  | 'contest-review'
+  | 'interview-prep'
+  | 'phase-completion';
+export type WorkflowDifficulty = 'light' | 'moderate' | 'intense';
+export type WorkflowStatus = 'generated' | 'started' | 'completed' | 'dismissed';
+
+export interface WorkflowStep {
+  id: string;
+  order: number;
+  title: string;
+  description: string;
+  module: string;
+  action: MentorAction | null;
+  coachIntent: AiIntent | null;
+  estimatedMinutes: number;
+  optional: boolean;
+}
+
+export interface Workflow {
+  id: string;
+  key: WorkflowKey;
+  name: string;
+  description: string;
+  category: string;
+  difficulty: WorkflowDifficulty;
+  estimatedMinutes: number;
+  modules: string[];
+  steps: WorkflowStep[];
+  expectedOutcome: string;
+  generatedAt: string;
+  status: WorkflowStatus | null;
+}
+
+/** GET /ai/workflows payload. */
+export interface WorkflowsResponse {
+  saved: Workflow[];
+  available: Workflow[];
+}
+
+export type RecommendationStatus = 'generated' | 'viewed' | 'accepted' | 'dismissed' | 'completed' | 'archived';
+export type RecommendationPriority = 'high' | 'medium' | 'low';
+export type RecommendationSource = 'coach' | 'workflow' | 'brief' | 'analytics' | 'system';
+
+export interface Recommendation {
+  id: string;
+  key: string;
+  title: string;
+  reason: string;
+  priority: RecommendationPriority;
+  source: RecommendationSource;
+  action: MentorAction | null;
+  status: RecommendationStatus;
+  intent: AiIntent | null;
+  coachId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  viewedAt: string | null;
+  acceptedAt: string | null;
+  dismissedAt: string | null;
+  completedAt: string | null;
+  archivedAt: string | null;
+}
+
+export interface RecommendationStats {
+  total: number;
+  active: number;
+  accepted: number;
+  completed: number;
+  dismissed: number;
+  acceptanceRate: number;
+  completionRate: number;
+}
+
+/** GET /ai/recommendations payload. */
+export interface RecommendationsResponse {
+  recommendations: Recommendation[];
+  stats: RecommendationStats;
+}
+
+export type BriefKind = 'daily' | 'weekly' | 'contest' | 'revision' | 'learning-health' | 'phase-completion';
+
+export interface BriefSection {
+  title: string;
+  body: string;
+}
+
+export interface MentorBrief {
+  kind: BriefKind;
+  title: string;
+  periodLabel: string;
+  generatedAt: string;
+  headline: string;
+  todaysFocus: string;
+  highestPriorityTask: string | null;
+  revisionDue: number;
+  contestReadiness: number | null;
+  learningHealth: { score: number; status: string } | null;
+  estimatedStudyMinutes: number;
+  suggestedWorkflow: { key: WorkflowKey; name: string } | null;
+  quickStart: MentorAction[];
+  sections: BriefSection[];
+  recommendations: Recommendation[];
+}
+
+export type TimelineEntryType = 'recommendation' | 'coaching-session' | 'workflow' | 'milestone';
+
+export interface TimelineEntry {
+  id: string;
+  type: TimelineEntryType;
+  title: string;
+  description: string;
+  at: string;
+  icon: string;
+  to: string | null;
+  status: string | null;
+}
+
+/** GET /ai/overview payload — the AI OS dashboard header. */
+export interface MentorOverview {
+  brief: MentorBrief;
+  workflows: Workflow[];
+  recommendations: Recommendation[];
+  stats: RecommendationStats;
+  actions: MentorAction[];
+}
 
 /** Success envelope returned by every backend endpoint. */
 export interface ApiEnvelope<T> {

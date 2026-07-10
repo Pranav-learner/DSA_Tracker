@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Map, LibraryBig, BrainCircuit, CalendarClock, Brain, BarChart3, Gauge, FileText, Swords, Trophy, Sparkles, Award, Bot, Lock } from 'lucide-react';
+import { LayoutDashboard, Map, LibraryBig, BrainCircuit, CalendarClock, Brain, BarChart3, Gauge, FileText, Swords, Trophy, Sparkles, Award, Bot, Cpu, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface NavItem {
@@ -7,6 +7,8 @@ interface NavItem {
   label: string;
   icon: typeof Map;
   disabled?: boolean;
+  /** Exact-match highlighting (so a parent route doesn't stay active on children). */
+  end?: boolean;
 }
 
 /** Primary navigation. Locked items are Sprint 2+ modules, shown for context. */
@@ -20,7 +22,8 @@ const NAV: NavItem[] = [
   { to: '/progression', label: 'Progression', icon: Sparkles },
   { to: '/gamification', label: 'Gamification', icon: Trophy },
   { to: '/achievements', label: 'Achievements', icon: Award },
-  { to: '/ai', label: 'AI Mentor', icon: Bot },
+  { to: '/ai', label: 'AI Mentor', icon: Bot, end: true },
+  { to: '/ai/os', label: 'AI Operating System', icon: Cpu },
   { to: '/analytics', label: 'Analytics', icon: BarChart3 },
   { to: '/analytics/executive', label: 'Executive', icon: Gauge },
   { to: '/reports', label: 'Reports', icon: FileText },
@@ -49,10 +52,11 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           <p className="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
             Learn
           </p>
-          {NAV.map(({ to, label, icon: IconCmp }) => (
+          {NAV.map(({ to, label, icon: IconCmp, end }) => (
             <NavLink
               key={to}
               to={to}
+              end={end}
               onClick={onNavigate}
               className={({ isActive }) =>
                 cn(

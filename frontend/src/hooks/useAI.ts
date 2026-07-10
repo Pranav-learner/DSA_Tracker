@@ -346,3 +346,104 @@ export function useMentor() {
   const active = mode === 'coach' ? coach : chat;
   return { send: active.send, stop: active.stop, mode };
 }
+
+/* ------------------------------------------------------------------ *
+ *  Sprint 4 — AI Operating System
+ * ------------------------------------------------------------------ */
+
+/** The AI OS dashboard header (brief + workflows + recommendations + actions). */
+export function useMentorOverview() {
+  return useQuery({
+    queryKey: queryKeys.aiOverview,
+    queryFn: ({ signal }) => aiApi.getOverview(signal),
+    staleTime: 60_000,
+  });
+}
+
+export function useWorkflows() {
+  return useQuery({
+    queryKey: queryKeys.aiWorkflows,
+    queryFn: ({ signal }) => aiApi.getWorkflows(signal),
+    staleTime: 60_000,
+  });
+}
+
+export function useGenerateWorkflow() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ key, save }: { key: import('@/types').WorkflowKey; save?: boolean }) => aiApi.generateWorkflow(key, save),
+    onSuccess: (_data, { save }) => {
+      if (save) {
+        qc.invalidateQueries({ queryKey: queryKeys.aiWorkflows });
+        qc.invalidateQueries({ queryKey: queryKeys.aiOverview });
+      }
+    },
+  });
+}
+
+export function useUpdateWorkflow() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: import('@/types').WorkflowStatus }) => aiApi.updateWorkflow(id, status),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.aiWorkflows });
+      qc.invalidateQueries({ queryKey: queryKeys.aiOverview });
+    },
+  });
+}
+
+/** The recommendation center. `status` filters; omit to generate + list active. */
+export function useRecommendations(status?: import('@/types').RecommendationStatus) {
+  return useQuery({
+    queryKey: queryKeys.aiRecommendations(status),
+    queryFn: ({ signal }) => aiApi.getRecommendations(status, signal),
+    staleTime: 30_000,
+  });
+}
+
+export function useUpdateRecommendation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: import('@/types').RecommendationStatus }) => aiApi.updateRecommendation(id, status),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ai', 'recommendations'] });
+      qc.invalidateQueries({ queryKey: queryKeys.aiOverview });
+    },
+  });
+}
+
+export function useMentorBrief(kind: import('@/types').BriefKind = 'daily') {
+  return useQuery({
+    queryKey: queryKeys.aiMentorBrief(kind),
+    queryFn: ({ signal }) => aiApi.getMentorBrief(kind, signal),
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useTimeline(params: { q?: string; types?: import('@/types').TimelineEntryType[]; limit?: number } = {}) {
+  return useQuery({
+    queryKey: queryKeys.aiTimeline(params),
+    queryFn: ({ signal }) => aiApi.getTimeline(params, signal),
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useMentorActions() {
+  return useQuery({
+    queryKey: queryKeys.aiActions,
+    queryFn: ({ signal }) => aiApi.getActions(signal),
+    staleTime: 60_000,
+  });
+}
+
+export function useSummarizeConversation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => aiApi.summarizeConversation(id),
+    onSuccess: (_data, id) => {
+      qc.invalidateQueries({ queryKey: queryKeys.aiConversation(id) });
+      qc.invalidateQueries({ queryKey: queryKeys.aiConversationsRoot });
+    },
+  });
+}

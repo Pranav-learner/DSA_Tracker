@@ -1,8 +1,13 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import type { AiIntent, ContextProfileName, CoachResponse } from '@/types';
+import type { AiIntent, ContextProfileName, CoachResponse, RecommendationStatus, TimelineEntryType, WorkflowKey } from '@/types';
 
 /** Whether the workspace talks to the generic mentor (chat) or a specialized coach. */
 export type ConversationMode = 'chat' | 'coach';
+
+/** Recommendation-center filter (a lifecycle status or all active). */
+export type RecommendationFilter = RecommendationStatus | 'all';
+/** Timeline type filter. */
+export type TimelineFilter = TimelineEntryType | 'all';
 
 /** The context sections attached to the in-flight / latest turn (for the badge). */
 export interface ActiveContext {
@@ -67,6 +72,17 @@ export interface AiUiState {
   lastCoachResponse: CoachResponse | null;
   /** Expanded/collapsed state of coach-response card sections. */
   expandedSections: Record<string, boolean>;
+
+  /* --- Sprint 4: AI Operating System (UI state only) --- */
+  /** Workflow key open in the preview modal (null = closed). */
+  selectedWorkflow: WorkflowKey | null;
+  /** Recommendation-center filter. */
+  recommendationFilter: RecommendationFilter;
+  /** Expanded workflow/recommendation cards. */
+  expandedCards: Record<string, boolean>;
+  /** Timeline search + type filter. */
+  timelineQuery: string;
+  timelineFilter: TimelineFilter;
 }
 
 const initialState: AiUiState = {
@@ -93,6 +109,12 @@ const initialState: AiUiState = {
   selectedCoachId: null,
   lastCoachResponse: null,
   expandedSections: {},
+
+  selectedWorkflow: null,
+  recommendationFilter: 'all',
+  expandedCards: {},
+  timelineQuery: '',
+  timelineFilter: 'all',
 };
 
 const aiSlice = createSlice({
@@ -220,6 +242,24 @@ const aiSlice = createSlice({
       const key = action.payload;
       state.expandedSections[key] = !state.expandedSections[key];
     },
+
+    /* --- Sprint 4: AI Operating System UI --- */
+    setSelectedWorkflow(state, action: PayloadAction<WorkflowKey | null>) {
+      state.selectedWorkflow = action.payload;
+    },
+    setRecommendationFilter(state, action: PayloadAction<RecommendationFilter>) {
+      state.recommendationFilter = action.payload;
+    },
+    toggleCard(state, action: PayloadAction<string>) {
+      const key = action.payload;
+      state.expandedCards[key] = !state.expandedCards[key];
+    },
+    setTimelineQuery(state, action: PayloadAction<string>) {
+      state.timelineQuery = action.payload;
+    },
+    setTimelineFilter(state, action: PayloadAction<TimelineFilter>) {
+      state.timelineFilter = action.payload;
+    },
   },
 });
 
@@ -250,5 +290,10 @@ export const {
   useMentorChat,
   setCoachResponse,
   toggleExpandedSection,
+  setSelectedWorkflow,
+  setRecommendationFilter,
+  toggleCard,
+  setTimelineQuery,
+  setTimelineFilter,
 } = aiSlice.actions;
 export default aiSlice.reducer;

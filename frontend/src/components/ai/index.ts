@@ -43,3 +43,17 @@ export { SuggestedActionPanel } from './SuggestedActionPanel';
 export { ContextUsageCard } from './ContextUsageCard';
 export { FollowUpQuestionList } from './FollowUpQuestionList';
 export { ConfidenceIndicator } from './ConfidenceIndicator';
+
+// Sprint 4 — AI Operating System
+export { AIOperatingDashboard } from './AIOperatingDashboard';
+export { MentorOverview } from './MentorOverview';
+export { MentorBriefCard } from './MentorBriefCard';
+export { WorkflowCard } from './WorkflowCard';
+export { WorkflowStepCard } from './WorkflowStepCard';
+export { WorkflowPreviewModal } from './WorkflowPreviewModal';
+export { RecommendationCard } from './RecommendationCard';
+export { RecommendationTimeline } from './RecommendationTimeline';
+export { ActionButtonGrid } from './ActionButtonGrid';
+export { MentorInsightCard } from './MentorInsightCard';
+export { ConversationSummaryCard } from './ConversationSummaryCard';
+export { LearningHealthSummary } from './LearningHealthSummary';

@@ -7,6 +7,7 @@ import { suggestionService } from '../services/suggestion.service.js';
 import { contextComposerService } from '../context/contextComposer.service.js';
 import { coachRegistry } from '../coaches/index.js';
 import { intentRouterService } from '../router/intentRouter.service.js';
+import { aiOperatingSystem } from '../os/aiOperatingSystem.js';
 import { AI_DEFAULTS } from '../../config/ai.js';
 import {
   parseChat,
@@ -17,8 +18,15 @@ import {
   parseSearchQuery,
   parseContextQuery,
   parseCoach,
+  parseWorkflowGenerate,
+  parseWorkflowStatus,
+  parseRecommendationPatch,
+  parseRecommendationsQuery,
+  parseBriefQuery,
+  parseTimelineQuery,
   contextOptionsFromQuery,
 } from '../validators/ai.validator.js';
+import type { TimelineEntryType } from '../os/types.js';
 import { sanitizePrompt } from '../middleware/sanitize.js';
 import { AIError } from '../types/ai.types.js';
 import { currentUserId } from '../../utils/currentUser.js';
@@ -190,6 +198,88 @@ export const getCoach = asyncHandler(async (req: Request, res: Response) => {
   const coach = coachRegistry.get(req.params.coachId);
   if (!coach) throw ApiError.notFound(`Coach '${req.params.coachId}' not found`);
   res.status(200).json(ok(coach.meta()));
+});
+
+/* ------------------------------------------------------------------ *
+ *  Sprint 4 — AI Operating System (workflows, recommendations, briefs, timeline)
+ * ------------------------------------------------------------------ */
+
+/** GET /api/ai/overview — the AI OS dashboard header (brief + workflows + recs + actions). */
+export const getMentorOverview = asyncHandler(async (req: Request, res: Response) => {
+  const overview = await aiOperatingSystem.overview(currentUserId(req));
+  res.status(200).json(ok(overview));
+});
+
+/** POST /api/ai/workflows — generate (optionally save) a structured workflow. */
+export const postWorkflow = asyncHandler(async (req: Request, res: Response) => {
+  const { key, save } = parseWorkflowGenerate(req.body);
+  const workflow = await aiOperatingSystem.generateWorkflow(currentUserId(req), key, { save });
+  res.status(save ? 201 : 200).json(ok(workflow));
+});
+
+/** GET /api/ai/workflows — saved workflows + the available context-populated templates. */
+export const getWorkflows = asyncHandler(async (req: Request, res: Response) => {
+  const userId = currentUserId(req);
+  const [saved, available] = await Promise.all([
+    aiOperatingSystem.listWorkflows(userId),
+    aiOperatingSystem.previewWorkflows(userId),
+  ]);
+  res.status(200).json(ok({ saved, available }, { savedCount: saved.length }));
+});
+
+/** PATCH /api/ai/workflows/:id — a workflow status transition (learner-driven). */
+export const patchWorkflow = asyncHandler(async (req: Request, res: Response) => {
+  const { status } = parseWorkflowStatus(req.body);
+  const workflow = await aiOperatingSystem.updateWorkflowStatus(currentUserId(req), req.params.id, status);
+  res.status(200).json(ok(workflow));
+});
+
+/** GET /api/ai/recommendations — the recommendation center (generate+list, or by status). */
+export const getRecommendations = asyncHandler(async (req: Request, res: Response) => {
+  const userId = currentUserId(req);
+  const { status } = parseRecommendationsQuery(req.query);
+  const recommendations = status
+    ? await aiOperatingSystem.listRecommendations(userId, status)
+    : await aiOperatingSystem.recommendations(userId);
+  const stats = await aiOperatingSystem.recommendationStats(userId);
+  res.status(200).json(ok({ recommendations, stats }, { count: recommendations.length }));
+});
+
+/** PATCH /api/ai/recommendations/:id — a lifecycle transition (viewed/accepted/…). */
+export const patchRecommendation = asyncHandler(async (req: Request, res: Response) => {
+  const { status } = parseRecommendationPatch(req.body);
+  const recommendation = await aiOperatingSystem.updateRecommendation(currentUserId(req), req.params.id, status);
+  res.status(200).json(ok(recommendation));
+});
+
+/** GET /api/ai/mentor-brief — an on-demand mentor brief (?kind=daily|weekly|…). */
+export const getMentorBrief = asyncHandler(async (req: Request, res: Response) => {
+  const { kind } = parseBriefQuery(req.query);
+  const brief = await aiOperatingSystem.brief(currentUserId(req), kind);
+  res.status(200).json(ok(brief));
+});
+
+/** GET /api/ai/timeline — the searchable mentor timeline (?q=&types=&limit=). */
+export const getTimeline = asyncHandler(async (req: Request, res: Response) => {
+  const { q, types, limit } = parseTimelineQuery(req.query);
+  const timeline = await aiOperatingSystem.timeline(currentUserId(req), {
+    q,
+    types: types as TimelineEntryType[] | undefined,
+    limit,
+  });
+  res.status(200).json(ok(timeline, { count: timeline.length }));
+});
+
+/** GET /api/ai/actions — the contextual deep-link actions the learner can take now. */
+export const getActions = asyncHandler(async (req: Request, res: Response) => {
+  const actions = await aiOperatingSystem.actions(currentUserId(req));
+  res.status(200).json(ok(actions, { count: actions.length }));
+});
+
+/** POST /api/ai/conversations/:id/summary — compress a conversation into a summary. */
+export const summarizeConversation = asyncHandler(async (req: Request, res: Response) => {
+  const conversation = await conversationService.summarize(currentUserId(req), req.params.id);
+  res.status(200).json(ok(conversation));
 });
 
 /** GET /api/ai/conversations — the user's conversation list (?archived=true includes archived). */

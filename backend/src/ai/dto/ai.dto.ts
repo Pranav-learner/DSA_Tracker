@@ -12,6 +12,9 @@ export interface ConversationDTO {
   lastProvider: string | null;
   lastModel: string | null;
   totalTokens: number;
+  /** Sprint 4 — conversation continuity. */
+  tags: string[];
+  summary: string | null;
   createdAt: string;
   updatedAt: string;
 }

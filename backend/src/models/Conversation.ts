@@ -22,6 +22,9 @@ export interface IConversation {
   lastModel: string | null;
   /** Cumulative tokens across the whole conversation. */
   totalTokens: number;
+  /** Sprint 4 — conversation continuity: learner tags + a compressed summary. */
+  tags: string[];
+  summary: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -38,6 +41,8 @@ const conversationSchema = new Schema<IConversation>(
     lastProvider: { type: String, default: null },
     lastModel: { type: String, default: null },
     totalTokens: { type: Number, default: 0, min: 0 },
+    tags: { type: [String], default: [] },
+    summary: { type: String, default: null },
   },
   {
     timestamps: true,
