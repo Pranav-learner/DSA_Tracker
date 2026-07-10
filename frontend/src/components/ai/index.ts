@@ -31,3 +31,15 @@ export { ConversationMetadataCard } from './ConversationMetadataCard';
 export { SlashCommandMenu } from './SlashCommandMenu';
 export { MessageToolbar } from './MessageToolbar';
 export { ConversationExportDialog } from './ConversationExportDialog';
+
+// Sprint 3 — specialized coaching framework
+export { CoachSelector } from './CoachSelector';
+export { CoachCard } from './CoachCard';
+export { CoachResponse } from './CoachResponse';
+export { CoachMetadata } from './CoachMetadata';
+export { CoachCapabilityCard } from './CoachCapabilityCard';
+export { CoachRegistryPanel } from './CoachRegistryPanel';
+export { SuggestedActionPanel } from './SuggestedActionPanel';
+export { ContextUsageCard } from './ContextUsageCard';
+export { FollowUpQuestionList } from './FollowUpQuestionList';
+export { ConfidenceIndicator } from './ConfidenceIndicator';

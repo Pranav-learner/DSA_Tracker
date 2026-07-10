@@ -1,5 +1,8 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import type { AiIntent, ContextProfileName } from '@/types';
+import type { AiIntent, ContextProfileName, CoachResponse } from '@/types';
+
+/** Whether the workspace talks to the generic mentor (chat) or a specialized coach. */
+export type ConversationMode = 'chat' | 'coach';
 
 /** The context sections attached to the in-flight / latest turn (for the badge). */
 export interface ActiveContext {
@@ -54,6 +57,16 @@ export interface AiUiState {
   rightRailOpen: boolean;
   /** Mobile: which rail panel is expanded. */
   contextPreviewOpen: boolean;
+
+  /* --- Sprint 3: coaching --- */
+  /** Generic mentor chat vs a specialized coach. */
+  conversationMode: ConversationMode;
+  /** Active coach id (null = Auto — the backend resolves by intent). */
+  selectedCoachId: string | null;
+  /** The latest structured coach response (drives the CoachResponse card). */
+  lastCoachResponse: CoachResponse | null;
+  /** Expanded/collapsed state of coach-response card sections. */
+  expandedSections: Record<string, boolean>;
 }
 
 const initialState: AiUiState = {
@@ -75,6 +88,11 @@ const initialState: AiUiState = {
   excludedSections: [],
   rightRailOpen: true,
   contextPreviewOpen: false,
+
+  conversationMode: 'chat',
+  selectedCoachId: null,
+  lastCoachResponse: null,
+  expandedSections: {},
 };
 
 const aiSlice = createSlice({
@@ -99,6 +117,8 @@ const aiSlice = createSlice({
       state.activeCommand = null;
       state.previewIntent = 'general';
       state.excludedSections = [];
+      // Reset the coach response (mode + selected coach persist across threads).
+      state.lastCoachResponse = null;
     },
     setInput(state, action: PayloadAction<string>) {
       state.input = action.payload;
@@ -177,6 +197,29 @@ const aiSlice = createSlice({
     setContextPreviewOpen(state, action: PayloadAction<boolean>) {
       state.contextPreviewOpen = action.payload;
     },
+
+    /* --- Sprint 3: coaching --- */
+    setConversationMode(state, action: PayloadAction<ConversationMode>) {
+      state.conversationMode = action.payload;
+      if (action.payload === 'chat') state.selectedCoachId = null;
+    },
+    /** Select a coach → switch to coach mode; null id keeps coach mode on 'Auto'. */
+    selectCoach(state, action: PayloadAction<string | null>) {
+      state.selectedCoachId = action.payload;
+      state.conversationMode = 'coach';
+    },
+    /** Return to generic mentor chat. */
+    useMentorChat(state) {
+      state.conversationMode = 'chat';
+      state.selectedCoachId = null;
+    },
+    setCoachResponse(state, action: PayloadAction<CoachResponse | null>) {
+      state.lastCoachResponse = action.payload;
+    },
+    toggleExpandedSection(state, action: PayloadAction<string>) {
+      const key = action.payload;
+      state.expandedSections[key] = !state.expandedSections[key];
+    },
   },
 });
 
@@ -202,5 +245,10 @@ export const {
   toggleRightRail,
   setRightRailOpen,
   setContextPreviewOpen,
+  setConversationMode,
+  selectCoach,
+  useMentorChat,
+  setCoachResponse,
+  toggleExpandedSection,
 } = aiSlice.actions;
 export default aiSlice.reducer;

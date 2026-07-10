@@ -28,3 +28,5 @@ export { ProgressionDashboardCard } from './ProgressionDashboardCard';
 export { GamificationDashboardCard } from './GamificationDashboardCard';
 // Module 7 · Sprint 2 — AI Mentor entry point (self-fetches from the AI workspace API).
 export { AiMentorCard } from './AiMentorCard';
+// Module 7 · Sprint 3 — specialized coaches entry point (self-fetches from the coach registry).
+export { CoachEntryCard } from './CoachEntryCard';

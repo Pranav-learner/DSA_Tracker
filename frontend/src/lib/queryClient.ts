@@ -133,4 +133,7 @@ export const queryKeys = {
   aiSuggestions: ['ai', 'suggestions'] as const,
   aiContextPreview: (params: object) => ['ai', 'context', 'preview', params] as const,
   aiConversationSearch: (q: string) => ['ai', 'conversations', 'search', q] as const,
+  // --- Module 7 · Sprint 3: coaching framework ---
+  aiCoaches: ['ai', 'coaches'] as const,
+  aiCoach: (id: string) => ['ai', 'coaches', id] as const,
 };

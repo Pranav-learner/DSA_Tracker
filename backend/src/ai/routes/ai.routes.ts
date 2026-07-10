@@ -15,6 +15,9 @@ import {
   getContextPreview,
   getSuggestions,
   getWorkspace,
+  postCoach,
+  getCoaches,
+  getCoach,
 } from '../controllers/ai.controller.js';
 import { aiRateLimit } from '../middleware/rateLimit.js';
 
@@ -23,6 +26,12 @@ export const aiRouter = Router();
 
 // Chat is the only expensive/abusable route → rate-limited per user.
 aiRouter.post('/chat', aiRateLimit, postChat);
+
+// Sprint 3 — specialized coaching (rate-limited like chat). Static /coaches
+// routes are declared before the parameterized one.
+aiRouter.post('/coach', aiRateLimit, postCoach);
+aiRouter.get('/coaches', getCoaches);
+aiRouter.get('/coaches/:coachId', getCoach);
 
 // Sprint 2 — workspace, context intelligence & suggestions.
 aiRouter.get('/workspace', getWorkspace);

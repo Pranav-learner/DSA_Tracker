@@ -1,4 +1,4 @@
-import { Sparkles, Zap } from 'lucide-react';
+import { Sparkles, Zap, Users } from 'lucide-react';
 import { ConversationSidebar } from './ConversationSidebar';
 import { ChatWindow } from './ChatWindow';
 import { SettingsDrawer } from './SettingsDrawer';
@@ -6,6 +6,7 @@ import { LearningSnapshotCard } from './LearningSnapshotCard';
 import { ContextProfileSelector } from './ContextProfileSelector';
 import { ContextPreviewPanel } from './ContextPreviewPanel';
 import { QuickActionPanel } from './QuickActionPanel';
+import { CoachSelector } from './CoachSelector';
 import { useAIWorkspace, useChatStream } from '@/hooks/useAI';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setActiveCommand } from '@/store/slices/aiSlice';
@@ -51,6 +52,13 @@ export function AIMentorWorkspace({ className }: { className?: string }) {
       {rightRailOpen && (
         <aside className="hidden w-80 shrink-0 flex-col overflow-y-auto border-l border-border bg-surface/40 p-3 xl:flex">
           <div className="space-y-4">
+            <div className="space-y-2">
+              <p className="flex items-center gap-1.5 px-1 text-xs font-semibold text-foreground">
+                <Users className="size-3.5 text-primary" /> Coach
+              </p>
+              <CoachSelector layout="grid" />
+            </div>
+
             <LearningSnapshotCard snapshot={workspace?.snapshot} isLoading={isLoading} />
 
             <div className="space-y-2">

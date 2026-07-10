@@ -9,6 +9,7 @@ import {
   finishStreaming,
   streamError,
   setActiveContext,
+  setCoachResponse,
 } from '@/store/slices/aiSlice';
 import type { UpdateAISettingsInput, UpdateConversationInput, AiIntent, ContextProfileName } from '@/types';
 
@@ -145,6 +146,28 @@ export interface SendOptions {
   intent?: AiIntent;
   profiles?: ContextProfileName[];
   excludeSections?: string[];
+  /** Coach mode: pin the turn to a specific coach (else resolved by intent). */
+  coachId?: string;
+}
+
+/** Coach registry metadata (cached — rarely changes). */
+export function useCoaches() {
+  return useQuery({
+    queryKey: queryKeys.aiCoaches,
+    queryFn: ({ signal }) => aiApi.listCoaches(signal),
+    staleTime: 10 * 60_000,
+    gcTime: 30 * 60_000,
+  });
+}
+
+/** A single coach's metadata. */
+export function useCoach(id: string | null) {
+  return useQuery({
+    queryKey: id ? queryKeys.aiCoach(id) : ['ai', 'coaches', 'none'],
+    queryFn: ({ signal }) => aiApi.getCoach(id as string, signal),
+    enabled: Boolean(id),
+    staleTime: 10 * 60_000,
+  });
 }
 
 /**
@@ -229,4 +252,97 @@ export function useChatStream() {
   }, [conversationId, dispatch, qc]);
 
   return { send, stop };
+}
+
+/**
+ * useCoachStream — a streaming turn against a SPECIALIZED coach (POST /ai/coach).
+ * Mirrors useChatStream (same Redux streaming state), but on completion it also
+ * stores the STRUCTURED coach response (recommendations, actions, confidence, …)
+ * so the CoachResponse card can render it. The coach is pinned by `selectedCoachId`
+ * (or the `coachId` override), else the backend resolves it by intent.
+ */
+export function useCoachStream() {
+  const dispatch = useAppDispatch();
+  const qc = useQueryClient();
+  const conversationId = useAppSelector((s) => s.ai.currentConversationId);
+  const isStreaming = useAppSelector((s) => s.ai.isStreaming);
+  const selectedCoachId = useAppSelector((s) => s.ai.selectedCoachId);
+  const excludedSections = useAppSelector((s) => s.ai.excludedSections);
+  const controllerRef = useRef<AbortController | null>(null);
+
+  const send = useCallback(
+    async (message: string, override: SendOptions = {}) => {
+      const trimmed = message.trim();
+      if (!trimmed || isStreaming) return;
+
+      dispatch(startStreaming(trimmed));
+      dispatch(setCoachResponse(null));
+      const controller = new AbortController();
+      controllerRef.current = controller;
+
+      const coachId = override.coachId ?? selectedCoachId ?? undefined;
+      const excludeSections = override.excludeSections ?? (excludedSections.length ? excludedSections : undefined);
+
+      try {
+        await aiApi.streamCoach(
+          {
+            message: trimmed,
+            coachId,
+            intent: override.intent,
+            conversationId: conversationId ?? undefined,
+            provider: override.provider,
+            model: override.model,
+            excludeSections,
+          },
+          (event) => {
+            if (event.type === 'token') dispatch(appendStreamToken(event.delta));
+            else if (event.type === 'done') {
+              dispatch(
+                setActiveContext({
+                  intent: event.result.intent,
+                  sections: event.result.contextSections.map((s) => ({ key: s.key, title: s.title })),
+                }),
+              );
+              dispatch(setCoachResponse(event.result));
+              dispatch(finishStreaming({ conversationId: event.result.conversationId }));
+              qc.invalidateQueries({ queryKey: queryKeys.aiConversationsRoot });
+              qc.invalidateQueries({ queryKey: queryKeys.aiConversation(event.result.conversationId) });
+              qc.invalidateQueries({ queryKey: queryKeys.aiWorkspace });
+            } else if (event.type === 'error') {
+              dispatch(streamError(event.message));
+            }
+          },
+          controller.signal,
+        );
+      } catch (err) {
+        dispatch(streamError(err instanceof Error ? err.message : 'Coach request failed'));
+      } finally {
+        controllerRef.current = null;
+      }
+    },
+    [conversationId, dispatch, isStreaming, qc, selectedCoachId, excludedSections],
+  );
+
+  const stop = useCallback(() => {
+    controllerRef.current?.abort();
+    controllerRef.current = null;
+    dispatch(finishStreaming(undefined));
+    qc.invalidateQueries({ queryKey: queryKeys.aiConversationsRoot });
+    if (conversationId) qc.invalidateQueries({ queryKey: queryKeys.aiConversation(conversationId) });
+  }, [conversationId, dispatch, qc]);
+
+  return { send, stop };
+}
+
+/**
+ * useMentor — the single send/stop entry point the workspace uses. Routes to the
+ * specialized coach pipeline when the workspace is in coach mode, else the generic
+ * mentor chat. Both share the same Redux streaming state, so the UI is identical.
+ */
+export function useMentor() {
+  const mode = useAppSelector((s) => s.ai.conversationMode);
+  const chat = useChatStream();
+  const coach = useCoachStream();
+  const active = mode === 'coach' ? coach : chat;
+  return { send: active.send, stop: active.stop, mode };
 }

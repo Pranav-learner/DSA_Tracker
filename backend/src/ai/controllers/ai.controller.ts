@@ -5,6 +5,8 @@ import { aiSettingsService } from '../services/aiSettings.service.js';
 import { workspaceService } from '../services/workspace.service.js';
 import { suggestionService } from '../services/suggestion.service.js';
 import { contextComposerService } from '../context/contextComposer.service.js';
+import { coachRegistry } from '../coaches/index.js';
+import { intentRouterService } from '../router/intentRouter.service.js';
 import { AI_DEFAULTS } from '../../config/ai.js';
 import {
   parseChat,
@@ -14,6 +16,7 @@ import {
   parseExport,
   parseSearchQuery,
   parseContextQuery,
+  parseCoach,
   contextOptionsFromQuery,
 } from '../validators/ai.validator.js';
 import { sanitizePrompt } from '../middleware/sanitize.js';
@@ -101,6 +104,92 @@ export const postChat = asyncHandler(async (req: Request, res: Response) => {
   } finally {
     res.end();
   }
+});
+
+/**
+ * POST /api/ai/coach — a specialized coaching turn. Resolves a Coach (by explicit
+ * coachId, else by intent, else by classifying the message), then runs the shared
+ * BaseCoach pipeline and returns a STRUCTURED coach response. Streams the
+ * explanation as SSE when `stream: true` (the structured scaffolding arrives with
+ * the final `done` event); otherwise returns one JSON result. Abortable.
+ */
+export const postCoach = asyncHandler(async (req: Request, res: Response) => {
+  const body = parseCoach(req.body);
+  const userId = currentUserId(req);
+  const message = sanitizePrompt(body.message);
+  if (!message) throw ApiError.badRequest('Message is empty after sanitization');
+
+  // Coach availability: an explicit coachId must exist.
+  if (body.coachId && !coachRegistry.has(body.coachId)) {
+    throw ApiError.notFound(`Coach '${body.coachId}' not found`);
+  }
+  const intent = body.intent ?? (body.coachId ? undefined : intentRouterService.classify(message));
+  const coach = coachRegistry.resolve({ coachId: body.coachId, intent });
+  if (!coach) throw ApiError.badRequest('No coach is available for this request');
+
+  const input = {
+    conversationId: body.conversationId,
+    message,
+    provider: body.provider,
+    model: body.model,
+    excludeSections: body.excludeSections,
+  };
+
+  if (!body.stream) {
+    try {
+      const result = await coach.handle(userId, input);
+      res.status(200).json(ok(result));
+    } catch (err) {
+      if (err instanceof AIError) throw aiErrorToApi(err);
+      throw err;
+    }
+    return;
+  }
+
+  // Streaming (SSE) — only the explanation streams; the structured result is sent on 'done'.
+  res.status(200);
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders?.();
+
+  const send = (event: string, data: unknown) => {
+    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  };
+
+  const controller = new AbortController();
+  res.on('close', () => {
+    if (!res.writableEnded) controller.abort();
+  });
+
+  send('start', { conversationId: input.conversationId ?? null, coachId: coach.id, intent: coach.intent });
+  try {
+    const result = await coach.handle(userId, input, {
+      onToken: (delta) => send('token', { delta }),
+      signal: controller.signal,
+    });
+    send('done', result);
+  } catch (err) {
+    const code = err instanceof AIError ? err.code : 'provider_error';
+    logger.warn('AI coach stream failed', err);
+    send('error', { code, message: err instanceof Error ? err.message : 'Coach request failed' });
+  } finally {
+    res.end();
+  }
+});
+
+/** GET /api/ai/coaches — every registered coach with capabilities + supported intents. */
+export const getCoaches = asyncHandler(async (_req: Request, res: Response) => {
+  const coaches = coachRegistry.all().map((c) => c.meta());
+  res.status(200).json(ok({ coaches, supportedIntents: coachRegistry.supportedIntents() }, { count: coaches.length }));
+});
+
+/** GET /api/ai/coaches/:coachId — one coach's metadata / features / prompt version. */
+export const getCoach = asyncHandler(async (req: Request, res: Response) => {
+  const coach = coachRegistry.get(req.params.coachId);
+  if (!coach) throw ApiError.notFound(`Coach '${req.params.coachId}' not found`);
+  res.status(200).json(ok(coach.meta()));
 });
 
 /** GET /api/ai/conversations — the user's conversation list (?archived=true includes archived). */

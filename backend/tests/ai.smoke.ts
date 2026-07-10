@@ -15,6 +15,7 @@ import { contextBuilderService } from '../src/ai/context/contextBuilder.service.
 import { contextComposerService } from '../src/ai/context/contextComposer.service.js';
 import { workspaceService } from '../src/ai/services/workspace.service.js';
 import { suggestionService } from '../src/ai/services/suggestion.service.js';
+import { coachRegistry } from '../src/ai/coaches/index.js';
 import { promptBuilderService } from '../src/ai/prompts/promptBuilder.service.js';
 import { aiOrchestratorService } from '../src/ai/orchestrator/aiOrchestrator.service.js';
 import { conversationService } from '../src/ai/services/conversation.service.js';
@@ -180,6 +181,35 @@ async function main(): Promise<void> {
     check('json export is valid + excludes internal context', !json.content.includes('contextSnapshot') && JSON.parse(json.content).messages.length === 2);
     const metaConv = (await conversationService.list(USER)).find((c) => c.id === chatForExport.conversationId);
     check('conversation metadata (lastIntent/tokens) is recorded', Boolean(metaConv?.lastIntent) && (metaConv?.totalTokens ?? 0) > 0);
+
+    // ── 14. Sprint 3: Specialized Coaching Framework ──
+    check('registry resolves study intent → StudyCoach', coachRegistry.resolve({ intent: 'study-plan' })?.id === 'study');
+    check('registry resolves revision intent → RevisionCoach', coachRegistry.resolveByIntent('revision')?.id === 'revision');
+    check('registry resolves contest/pattern/notebook/interview', ['contest', 'pattern', 'notebook', 'interview'].every((i) => coachRegistry.resolveByIntent(i as never)?.id === i));
+    check('StudyCoach is the fallback for general/unknown/analytics', ['general', 'unknown', 'analytics'].every((i) => coachRegistry.resolveByIntent(i as never)?.id === 'study'));
+    check('all six coaches are registered', coachRegistry.all().length === 6);
+    check('every coach exposes a prompt version from an external template', coachRegistry.all().every((c) => /^v1-[0-9a-f]{8}$/.test(c.promptVersion)));
+    check('coach metadata lists outputs + supported intents', coachRegistry.all().every((c) => c.meta().outputs.length > 0 && c.meta().supportedIntents.length > 0));
+
+    const studyCoach = coachRegistry.get('study')!;
+    const coachRes = await studyCoach.handle(USER, { message: 'What should I study today?' });
+    check('coach returns a structured response (summary + explanation)', coachRes.summary.length > 0 && coachRes.explanation.length > 0);
+    check('coach response is typed with confidence 0-100', coachRes.confidence >= 0 && coachRes.confidence <= 100);
+    check('coach records sources used (context section titles)', Array.isArray(coachRes.sourcesUsed) && coachRes.sourcesUsed.length > 0);
+    check('coach suggested actions deep-link into CP-OS', coachRes.suggestedActions.length > 0 && coachRes.suggestedActions.every((a) => a.to.startsWith('/') || Boolean(a.intent)));
+    check('coach exposes follow-up questions', coachRes.followUpQuestions.length > 0);
+    check('coach persisted a conversation with a coach-tagged turn', Boolean(coachRes.conversationId) && coachRes.assistantMessage.role === 'assistant');
+    check('coach carries provider + model + prompt version', Boolean(coachRes.provider) && Boolean(coachRes.model) && coachRes.promptVersion === studyCoach.promptVersion);
+
+    // Context spec is honoured: study coach draws on the learning profile.
+    const studyCtx = await studyCoach.buildContext(USER, {});
+    check('coach buildContext includes the required learner-profile section', studyCtx.sections.some((s) => s.key === 'learner-profile'));
+    check('coach context stays within its token budget', studyCtx.tokenEstimate <= studyCoach.contextSpec.maxContextTokens);
+
+    // Streaming coach turn.
+    let coachTokens = 0;
+    const coachStreamed = await coachRegistry.get('revision')!.handle(USER, { message: 'Summarize my revision backlog' }, { onToken: () => { coachTokens += 1; } });
+    check('coach streaming emits tokens and a final structured result', coachTokens > 0 && coachStreamed.explanation.length > 0 && coachStreamed.coachId === 'revision');
 
     console.log(`\n✅ AI platform smoke test passed — ${pass} checks.`);
   } finally {

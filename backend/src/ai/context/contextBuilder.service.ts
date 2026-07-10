@@ -143,7 +143,21 @@ const BUILDERS: Record<string, (s: ContextSources) => AIContextSection | null> =
       if (d.currentTopic) lines.push(`Current topic: ${d.currentTopic.title} (mastery ${d.currentMastery}%).`);
       lines.push(`Overall completion ${d.overall.completionPercent}%, ${d.overall.topicsCompleted}/${d.overall.topicsTotal} topics.`);
     }
-    return { key: 'learner-profile', title: 'Learner Profile', summary: lines.join(' ') };
+    return {
+      key: 'learner-profile',
+      title: 'Learner Profile',
+      summary: lines.join(' '),
+      data: {
+        currentTopicId: d?.currentTopic?.id ?? null,
+        currentTopicTitle: d?.currentTopic?.title ?? null,
+        currentPhaseTitle: d?.currentPhase?.title ?? null,
+        mastery: d?.currentMastery ?? 0,
+        completionPercent: d?.overall.completionPercent ?? 0,
+        topicsRemaining: d?.overall.topicsRemaining ?? 0,
+        level: p?.progression.level ?? null,
+        streak: p?.progression.currentStreak ?? 0,
+      },
+    };
   },
 
   progression: ({ profile: p }) => {
@@ -167,6 +181,16 @@ const BUILDERS: Record<string, (s: ContextSources) => AIContextSection | null> =
       key: 'learning-plan',
       title: 'Recommended Next Step',
       summary: `${r.title}: ${r.message} (suggested action: ${r.actionLabel}). ${d.overall.topicsRemaining} topics remaining.`,
+      data: {
+        title: r.title,
+        message: r.message,
+        actionLabel: r.actionLabel,
+        actionTo: r.actionTo,
+        topicId: r.topicId,
+        phaseId: r.phaseId,
+        topicsRemaining: d.overall.topicsRemaining,
+        estimatedStudyMinutes: d.todayPlan?.estimatedStudyMinutes ?? null,
+      },
     };
   },
 
@@ -178,6 +202,15 @@ const BUILDERS: Record<string, (s: ContextSources) => AIContextSection | null> =
       key: 'revision',
       title: 'Revision & Retention',
       summary: `${rev.dueTodayCount} reviews due today, ${rev.overdueCount} overdue, ${rev.completedToday} done today. Average retention ${ret.averageRetention}%, ${ret.atRiskCount} items at risk.`,
+      data: {
+        dueTodayCount: rev.dueTodayCount,
+        overdueCount: rev.overdueCount,
+        completedToday: rev.completedToday,
+        estimatedReviewMinutes: rev.estimatedReviewMinutes,
+        averageRetention: ret.averageRetention,
+        atRiskCount: ret.atRiskCount,
+        hasActiveSession: Boolean(rev.activeSession),
+      },
     };
   },
 
@@ -188,25 +221,72 @@ const BUILDERS: Record<string, (s: ContextSources) => AIContextSection | null> =
       key: 'knowledge',
       title: 'Knowledge Base',
       summary: `${k.knowledgeEntries} notebook entries covering ${k.topicsCovered} topics; ${k.patternsLearned} patterns learned, ${k.patternsPending} pending. Coverage ${k.notebookCoveragePercent}%.`,
+      data: {
+        knowledgeEntries: k.knowledgeEntries,
+        topicsCovered: k.topicsCovered,
+        patternsLearned: k.patternsLearned,
+        patternsPending: k.patternsPending,
+        coveragePercent: k.notebookCoveragePercent,
+      },
     };
   },
 
   'notebook-entries': ({ notebook: n }) => {
     if (!n || n.items.length === 0) return null;
     const items = n.items.slice(0, 5).map((e) => `• ${e.title} — ${e.pattern} (confidence ${e.confidence}%)`);
-    return { key: 'notebook-entries', title: 'Recent Notebook Entries', summary: items.join('\n') };
+    return {
+      key: 'notebook-entries',
+      title: 'Recent Notebook Entries',
+      summary: items.join('\n'),
+      data: {
+        items: n.items.slice(0, 5).map((e) => ({
+          id: e.id,
+          title: e.title,
+          pattern: e.pattern,
+          confidence: e.confidence,
+          topicId: e.topicId,
+        })),
+      },
+    };
   },
 
   'weak-patterns': ({ weaknesses: w }) => {
     if (!w || w.length === 0) return null;
     const items = w.slice(0, 4).map((x) => `• ${x.title} (${x.metric} ${x.value})`);
-    return { key: 'weak-patterns', title: 'Weak Areas', summary: items.join('\n') };
+    return {
+      key: 'weak-patterns',
+      title: 'Weak Areas',
+      summary: items.join('\n'),
+      data: {
+        items: w.slice(0, 4).map((x) => ({
+          id: x.id,
+          title: x.title,
+          entityType: x.entityType,
+          entityId: x.entityId,
+          metric: x.metric,
+          value: x.value,
+          hint: x.recommendationHint,
+        })),
+      },
+    };
   },
 
   'strong-patterns': ({ strengths: s }) => {
     if (!s || s.length === 0) return null;
     const items = s.slice(0, 4).map((x) => `• ${x.title} (${x.metric} ${x.value})`);
-    return { key: 'strong-patterns', title: 'Strengths', summary: items.join('\n') };
+    return {
+      key: 'strong-patterns',
+      title: 'Strengths',
+      summary: items.join('\n'),
+      data: {
+        items: s.slice(0, 4).map((x) => ({
+          id: x.id,
+          title: x.title,
+          entityType: x.entityType,
+          entityId: x.entityId,
+        })),
+      },
+    };
   },
 
   'analytics-health': ({ dashboard: d }) => {
@@ -216,17 +296,33 @@ const BUILDERS: Record<string, (s: ContextSources) => AIContextSection | null> =
       key: 'analytics-health',
       title: 'Learning Health',
       summary: `Health score ${h.overallScore}/100 (${h.overallStatus}). ${h.masteredTopics} topics mastered, ${h.topicsAtRisk} at risk, ${h.upcomingReviews} upcoming reviews.`,
+      data: {
+        overallScore: h.overallScore,
+        overallStatus: h.overallStatus,
+        masteredTopics: h.masteredTopics,
+        topicsAtRisk: h.topicsAtRisk,
+        upcomingReviews: h.upcomingReviews,
+      },
     };
   },
 
   contest: ({ dashboard: d }) => {
     if (!d) return null;
     const c = d.contest;
-    if (c.totalContests === 0) return { key: 'contest', title: 'Contests', summary: 'No contests recorded yet.' };
+    if (c.totalContests === 0)
+      return { key: 'contest', title: 'Contests', summary: 'No contests recorded yet.', data: { totalContests: 0, pendingUpsolve: 0 } };
     return {
       key: 'contest',
       title: 'Contests',
       summary: `${c.totalContests} contests, current rating ${c.currentRating ?? 'n/a'} (peak ${c.highestRating ?? 'n/a'}). Latest change ${c.recentRatingChange ?? 0}. ${c.pendingUpsolve} pending upsolve.`,
+      data: {
+        totalContests: c.totalContests,
+        currentRating: c.currentRating,
+        highestRating: c.highestRating,
+        recentRatingChange: c.recentRatingChange,
+        pendingUpsolve: c.pendingUpsolve,
+        latestContestId: c.latestContest?.id ?? null,
+      },
     };
   },
 
@@ -236,6 +332,12 @@ const BUILDERS: Record<string, (s: ContextSources) => AIContextSection | null> =
       key: 'contest-readiness',
       title: 'Contest Readiness',
       summary: `Readiness ${r.overall}/100 (${r.status}). Strong: ${r.strongAreas.slice(0, 3).join(', ') || 'n/a'}. Weak: ${r.weakAreas.slice(0, 3).join(', ') || 'n/a'}.`,
+      data: {
+        overall: r.overall,
+        status: r.status,
+        strongAreas: r.strongAreas.slice(0, 3),
+        weakAreas: r.weakAreas.slice(0, 3),
+      },
     };
   },
 

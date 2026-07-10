@@ -73,6 +73,22 @@ export const createConversationSchema = z.object({ title: z.string().trim().max(
 /** PATCH /conversations/:id body (rename). */
 export const renameConversationSchema = z.object({ title: z.string().trim().min(1).max(200) }).strict();
 
+/** POST /coach body — a specialized coaching turn. */
+export const coachSchema = z
+  .object({
+    message: z.string().trim().min(1, 'message is required').max(AI_LIMITS.maxMessageChars),
+    /** Explicit coach id (from the coach selector); else resolved from intent. */
+    coachId: z.string().trim().min(1).max(40).optional(),
+    /** Intent hint (else the IntentRouter classifies the message). */
+    intent: z.enum(AI_INTENTS).optional(),
+    conversationId: objectId.optional(),
+    provider: z.enum(PROVIDER_IDS).optional(),
+    model: z.string().trim().min(1).max(100).optional(),
+    excludeSections: z.array(z.string().max(60)).max(20).optional(),
+    stream: z.boolean().optional(),
+  })
+  .strict();
+
 function parse<S extends z.ZodTypeAny>(schema: S, data: unknown, label: string): z.infer<S> {
   const result = schema.safeParse(data);
   if (!result.success) {
@@ -91,6 +107,7 @@ export const parsePatchConversation = (b: unknown) => parse(patchConversationSch
 export const parseExport = (b: unknown) => parse(exportSchema, b, 'Invalid export request');
 export const parseSearchQuery = (q: unknown) => parse(searchQuerySchema, q, 'Invalid search query');
 export const parseContextQuery = (q: unknown) => parse(contextQuerySchema, q, 'Invalid context query');
+export const parseCoach = (b: unknown) => parse(coachSchema, b, 'Invalid coach request');
 
 /** Resolve context-preview options from a parsed query (profiles as ContextProfileName[]). */
 export function contextOptionsFromQuery(q: z.infer<typeof contextQuerySchema>) {

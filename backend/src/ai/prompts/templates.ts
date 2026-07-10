@@ -46,6 +46,15 @@ export function buildSystemMessage(context: AIContext): string {
   return [systemPersona(), '', intentDirective(context.intent), '', renderContext(context)].join('\n');
 }
 
+/**
+ * Assemble a COACH system message (Sprint 3): the coach's external template body
+ * (persona + role + output guidance) followed by the shared CONTEXT block. Reuses
+ * `renderContext` so context serialization is never duplicated per coach.
+ */
+export function buildCoachSystemMessage(templateBody: string, context: AIContext): string {
+  return [templateBody, '', renderContext(context)].join('\n');
+}
+
 /** Placeholder title generator (Sprint 1) — first few words of the opening message. */
 export function generateTitle(firstMessage: string): string {
   const cleaned = firstMessage.replace(/\s+/g, ' ').trim();

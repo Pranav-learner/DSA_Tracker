@@ -2286,6 +2286,78 @@ export type ChatStreamEvent =
   | { type: 'done'; result: ChatResult }
   | { type: 'error'; code: string; message: string };
 
+/* ---- Module 7 · Sprint 3: Specialized Coaching Framework ---- */
+
+/** A deep-link action button attached to a coach response. */
+export interface CoachAction {
+  id: string;
+  label: string;
+  kind: string;
+  /** In-app route to navigate to (empty when `intent` switches coach instead). */
+  to: string;
+  intent?: AiIntent;
+  primary?: boolean;
+}
+
+/** A related topic/pattern reference (optionally deep-linkable). */
+export interface CoachRelatedTopic {
+  id: string | null;
+  title: string;
+  to: string | null;
+}
+
+/** Public metadata for a coach (from GET /ai/coaches). */
+export interface CoachMeta {
+  id: string;
+  title: string;
+  description: string;
+  /** lucide-style icon name (mapped to a component on the client). */
+  icon: string;
+  intent: AiIntent;
+  supportedIntents: AiIntent[];
+  outputs: string[];
+  usesProfiles: ContextProfileName[];
+  promptVersion: string;
+  followUps: string[];
+}
+
+/** GET /ai/coaches payload. */
+export interface CoachesResponse {
+  coaches: CoachMeta[];
+  supportedIntents: AiIntent[];
+}
+
+/** The structured response returned by a coach turn (POST /ai/coach). */
+export interface CoachResponse {
+  coachId: string;
+  intent: AiIntent;
+  promptVersion: string;
+  provider: ProviderId;
+  model: string;
+  fellBack: boolean;
+  summary: string;
+  explanation: string;
+  recommendations: string[];
+  suggestedActions: CoachAction[];
+  relatedTopics: CoachRelatedTopic[];
+  confidence: number;
+  sourcesUsed: string[];
+  followUpQuestions: string[];
+  conversationId: string;
+  contextSections: AIContextSection[];
+  usage: TokenUsage;
+  responseTime: number;
+  userMessage: ChatMessage;
+  assistantMessage: ChatMessage;
+}
+
+/** A streaming coach event (parsed from the SSE stream). */
+export type CoachStreamEvent =
+  | { type: 'start'; conversationId: string | null; coachId: string; intent: AiIntent }
+  | { type: 'token'; delta: string }
+  | { type: 'done'; result: CoachResponse }
+  | { type: 'error'; code: string; message: string };
+
 /** Success envelope returned by every backend endpoint. */
 export interface ApiEnvelope<T> {
   success: true;

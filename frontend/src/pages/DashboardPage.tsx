@@ -15,6 +15,7 @@ import {
   Swords,
   Trophy,
   Bot,
+  Users,
 } from 'lucide-react';
 import { useDashboard } from '@/hooks/useDashboard';
 import { ContestSummaryCard } from '@/components/contest';
@@ -38,6 +39,7 @@ import {
   ProgressionDashboardCard,
   GamificationDashboardCard,
   AiMentorCard,
+  CoachEntryCard,
 } from '@/components/dashboard';
 import { greeting } from '@/lib/utils';
 
@@ -235,6 +237,21 @@ export function DashboardPage() {
             }
           >
             <AiMentorCard />
+          </DashboardSection>
+
+          <DashboardSection
+            title="Coaching"
+            description="Specialized AI coaches"
+            icon={<Users className="size-4" />}
+            action={
+              <Button variant="link" size="sm" asChild>
+                <Link to="/ai">
+                  Open coaches <ArrowRight className="size-4" />
+                </Link>
+              </Button>
+            }
+          >
+            <CoachEntryCard />
           </DashboardSection>
 
           <DashboardSection title="Quick Actions" icon={<Zap className="size-4" />}>

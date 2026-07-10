@@ -13,6 +13,12 @@ export interface BuildPromptInput {
   context: AIContext;
   history: HistoryTurn[];
   userMessage: string;
+  /**
+   * Optional pre-built system message (Sprint 3 coaches supply their own, built
+   * from an external template). When omitted the default mentor system message is
+   * assembled from the context.
+   */
+  systemMessage?: string;
 }
 
 /**
@@ -23,8 +29,8 @@ export interface BuildPromptInput {
  * to stay within the context budget.
  */
 export const promptBuilderService = {
-  build({ context, history, userMessage }: BuildPromptInput): LLMMessage[] {
-    const messages: LLMMessage[] = [{ role: 'system', content: buildSystemMessage(context) }];
+  build({ context, history, userMessage, systemMessage }: BuildPromptInput): LLMMessage[] {
+    const messages: LLMMessage[] = [{ role: 'system', content: systemMessage ?? buildSystemMessage(context) }];
 
     // Keep only the most recent turns (window), preserving order.
     const trimmed = history.slice(-AI_LIMITS.historyWindow);
