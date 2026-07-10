@@ -15,6 +15,7 @@ import { RevisionPage } from '@/pages/RevisionPage';
 import { RevisionWorkspacePage } from '@/pages/RevisionWorkspacePage';
 import { RevisionHistoryPage } from '@/pages/RevisionHistoryPage';
 import { RetentionPage } from '@/pages/RetentionPage';
+import { ProgressionPage } from '@/pages/ProgressionPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 
 // Analytics pages are lazy-loaded so the heavy charting library (Recharts) is
@@ -99,6 +100,7 @@ export const router = createBrowserRouter([
       { path: 'revision/session', element: <RevisionWorkspacePage /> },
       { path: 'revision/history', element: <RevisionHistoryPage /> },
       { path: 'retention', element: <RetentionPage /> },
+      { path: 'progression', element: <ProgressionPage /> },
       { path: 'analytics', element: analyticsLazy(<AnalyticsHome />) },
       { path: 'analytics/learning', element: analyticsLazy(<LearningAnalytics />) },
       { path: 'analytics/problems', element: analyticsLazy(<ProblemAnalytics />) },

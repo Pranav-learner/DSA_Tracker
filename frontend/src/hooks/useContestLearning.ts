@@ -42,6 +42,8 @@ function useInvalidateLearning(contestId?: string) {
     }
     qc.invalidateQueries({ queryKey: queryKeys.upsolve });
     qc.invalidateQueries({ queryKey: queryKeys.dashboard });
+    // Completing an upsolve earns XP — refresh all progression surfaces.
+    qc.invalidateQueries({ queryKey: queryKeys.gamification });
   };
 }
 

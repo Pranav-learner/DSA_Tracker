@@ -14,6 +14,12 @@ import retentionRoutes, { confidenceRouter } from './retention.routes.js';
 import analyticsRoutes from '../analytics/routes/analytics.routes.js';
 import reportRoutes from '../reports/routes/report.routes.js';
 import { contestRouter, ratingRouter, upsolveRouter, competitiveRouter } from '../contests/routes/contest.routes.js';
+import { gamificationRouter, initGamification } from '../gamification/index.js';
+
+// Module 6 · Sprint 1 — subscribe the Reward Engine to the activity bus. Done at
+// router-construction time so it is active for both the server and integration
+// tests (which build the app via createApp → this module). Idempotent.
+initGamification();
 
 /** Root API router — mounts every feature router under /api. */
 const api = Router();
@@ -116,6 +122,11 @@ api.get('/', (_req, res) => {
         'GET /api/ratings',
         'GET /api/ratings/history',
         'GET /api/ratings/current',
+        'GET /api/gamification/progression',
+        'GET /api/gamification/rewards',
+        'GET /api/gamification/rewards/history',
+        'GET /api/gamification/levels',
+        'GET /api/gamification/streaks',
       ],
     },
   });
@@ -140,5 +151,6 @@ api.use('/contests', contestRouter);
 api.use('/ratings', ratingRouter);
 api.use('/upsolve', upsolveRouter);
 api.use('/contest', competitiveRouter);
+api.use('/gamification', gamificationRouter);
 
 export default api;

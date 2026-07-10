@@ -13,6 +13,7 @@ import {
   Zap,
   ArrowRight,
   Swords,
+  Trophy,
 } from 'lucide-react';
 import { useDashboard } from '@/hooks/useDashboard';
 import { ContestSummaryCard } from '@/components/contest';
@@ -33,6 +34,7 @@ import {
   ProgressOverviewCard,
   RetentionSummaryCard,
   QuickActionsPanel,
+  ProgressionDashboardCard,
 } from '@/components/dashboard';
 import { greeting } from '@/lib/utils';
 
@@ -105,6 +107,21 @@ export function DashboardPage() {
                 <TodaysLearningCard recommendation={recommendation} topic={data.recommendedTopic} />
               </div>
             </div>
+          </DashboardSection>
+
+          <DashboardSection
+            title="Progression"
+            description="Level, XP and learning streak"
+            icon={<Trophy className="size-4" />}
+            action={
+              <Button variant="link" size="sm" asChild>
+                <Link to="/progression">
+                  View progression <ArrowRight className="size-4" />
+                </Link>
+              </Button>
+            }
+          >
+            <ProgressionDashboardCard />
           </DashboardSection>
 
           <DashboardSection

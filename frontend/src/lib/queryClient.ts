@@ -106,4 +106,11 @@ export const queryKeys = {
   competitiveCorrelation: ['competitive', 'correlation'] as const,
   competitiveInsights: ['competitive', 'insights'] as const,
   competitiveRating: ['competitive', 'rating-analysis'] as const,
+  // --- Module 6 · Sprint 1: gamification / progression ---
+  gamification: ['gamification'] as const,
+  progression: ['gamification', 'progression'] as const,
+  rewards: (limit: number) => ['gamification', 'rewards', limit] as const,
+  rewardHistory: (query: object) => ['gamification', 'rewards', 'history', query] as const,
+  levels: ['gamification', 'levels'] as const,
+  streaks: ['gamification', 'streaks'] as const,
 };

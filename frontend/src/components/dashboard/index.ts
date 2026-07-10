@@ -22,3 +22,5 @@ export { KnowledgeSummaryCard } from './KnowledgeSummaryCard';
 export { ProgressOverviewCard } from './ProgressOverviewCard';
 export { RetentionSummaryCard } from './RetentionSummaryCard';
 export { QuickActionsPanel } from './QuickActionsPanel';
+// Module 6 · Sprint 1 — progression widget (self-fetches from the gamification API).
+export { ProgressionDashboardCard } from './ProgressionDashboardCard';

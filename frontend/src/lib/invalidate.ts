@@ -24,6 +24,9 @@ export function invalidateProblemLearning(qc: QueryClient, problemId: string): v
     queryKeys.progress,
     queryKeys.learningState,
     queryKeys.recommendation,
+    // Module 6 — a learning mutation may have earned XP; refresh all progression
+    // surfaces (progression summary, rewards, levels, streaks share this prefix).
+    queryKeys.gamification,
   ];
   for (const queryKey of keys) qc.invalidateQueries({ queryKey });
 }

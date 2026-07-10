@@ -1882,6 +1882,115 @@ export interface CompetitiveIntelligence {
   ratingAnalysis: RatingAnalysis;
 }
 
+/* ---- Module 6 · Sprint 1: Gamification / Progression Engine ---- */
+
+export type RewardType = 'xp' | 'badge' | 'achievement';
+export type RewardSourceModule = 'learning' | 'revision' | 'knowledge' | 'contest';
+export type LevelFormulaName = 'exponential' | 'linear';
+
+/** The activity types that earn a reward (mirrors REWARDABLE_ACTIVITY_TYPES). */
+export type RewardableActivityType =
+  | 'problem-solved'
+  | 'topic-completed'
+  | 'phase-completed'
+  | 'revision-completed'
+  | 'notebook-created'
+  | 'contest-finished'
+  | 'upsolve-completed'
+  | 'notebook-updated';
+
+/** GET /api/gamification/progression */
+export interface ProgressionSummary {
+  level: number;
+  tier: string;
+  totalXP: number;
+  currentXP: number;
+  currentLevelXP: number;
+  nextLevelXP: number;
+  xpRemaining: number;
+  levelProgress: number;
+  isMaxLevel: boolean;
+  currentStreak: number;
+  longestStreak: number;
+  totalDaysActive: number;
+  streakActive: boolean;
+  lastActivityDate: string | null;
+  todaysXP: number;
+  updatedAt: string | null;
+}
+
+export interface Reward {
+  id: string;
+  activityId: string;
+  rewardType: RewardType;
+  rewardSource: string;
+  xpAwarded: number;
+  reason: string;
+  module: RewardSourceModule | null;
+  entityType: string | null;
+  entityId: string | null;
+  title: string | null;
+  createdAt: string;
+}
+
+export interface RewardHistoryPage {
+  items: Reward[];
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+}
+
+export type RewardSortOrder = 'newest' | 'oldest';
+
+/** Query params for GET /rewards/history (all optional). */
+export interface RewardHistoryQuery {
+  rewardType?: RewardType;
+  rewardSource?: string;
+  from?: string;
+  to?: string;
+  sort?: RewardSortOrder;
+  limit?: number;
+  offset?: number;
+}
+
+export interface LevelLadderRow {
+  level: number;
+  xpForLevel: number;
+  totalXpToReach: number;
+  tier: string;
+  isCurrent: boolean;
+}
+
+export interface Levels {
+  formula: LevelFormulaName;
+  baseXP: number;
+  exponent: number;
+  maxLevel: number;
+  currentLevel: number;
+  currentXP: number;
+  nextLevelXP: number;
+  levelProgress: number;
+  ladder: LevelLadderRow[];
+}
+
+export interface DailyActivity {
+  date: string;
+  xp: number;
+  rewards: number;
+  active: boolean;
+}
+
+export interface Streaks {
+  currentStreak: number;
+  longestStreak: number;
+  totalDaysActive: number;
+  streakActive: boolean;
+  lastActivityDate: string | null;
+  daysSinceLastActivity: number | null;
+  daily: DailyActivity[];
+}
+
 /** Success envelope returned by every backend endpoint. */
 export interface ApiEnvelope<T> {
   success: true;

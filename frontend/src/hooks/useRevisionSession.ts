@@ -57,6 +57,8 @@ function useInvalidateSession() {
   return () => {
     qc.invalidateQueries({ queryKey: queryKeys.revision });
     qc.invalidateQueries({ queryKey: queryKeys.dashboard });
+    // Completing a revision earns XP — refresh all progression surfaces.
+    qc.invalidateQueries({ queryKey: queryKeys.gamification });
   };
 }
 
