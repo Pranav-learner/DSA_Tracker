@@ -1991,6 +1991,110 @@ export interface Streaks {
   daily: DailyActivity[];
 }
 
+/* ---- Module 6 · Sprint 2: Achievement System ---- */
+
+export type AchievementRarity = 'Common' | 'Rare' | 'Epic' | 'Legendary';
+export type ChallengeType = 'Daily' | 'Weekly' | 'Monthly' | 'Phase' | 'Custom';
+export type ChallengeStatus = 'Active' | 'Completed' | 'Expired';
+export type CelebrationType =
+  | 'level-up'
+  | 'achievement-unlocked'
+  | 'badge-earned'
+  | 'challenge-completed'
+  | 'milestone-reached';
+
+export interface Achievement {
+  id: string;
+  achievementKey: string;
+  title: string;
+  description: string;
+  category: string;
+  rarity: AchievementRarity;
+  icon: string;
+  unlocked: boolean;
+  unlockedAt: string | null;
+  progress: number;
+  maxProgress: number;
+  percent: number;
+  metadata: Record<string, unknown>;
+}
+
+export interface Badge {
+  id: string;
+  badgeKey: string;
+  title: string;
+  description: string;
+  category: string;
+  icon: string;
+  unlockedAt: string;
+}
+
+export interface Challenge {
+  id: string;
+  challengeKey: string;
+  title: string;
+  description: string;
+  challengeType: ChallengeType;
+  activityType: string;
+  targetValue: number;
+  currentProgress: number;
+  remaining: number;
+  percent: number;
+  rewardXP: number;
+  rewardBadge: string | null;
+  status: ChallengeStatus;
+  expiresAt: string;
+  secondsRemaining: number;
+  completedAt: string | null;
+}
+
+export interface ChallengesGrouped {
+  active: Challenge[];
+  completed: Challenge[];
+  byType: Record<ChallengeType, Challenge[]>;
+}
+
+export interface Celebration {
+  id: string;
+  type: CelebrationType;
+  title: string;
+  description: string;
+  icon: string;
+  rarity: string | null;
+  xp: number;
+  metadata: Record<string, unknown>;
+  seen: boolean;
+  createdAt: string;
+}
+
+export interface GamificationProfile {
+  progression: ProgressionSummary;
+  achievements: {
+    unlocked: number;
+    total: number;
+    recent: Achievement[];
+    inProgress: Achievement[];
+  };
+  badges: {
+    count: number;
+    recent: Badge[];
+  };
+  challenges: {
+    active: Challenge[];
+    completedCount: number;
+  };
+  celebrations: {
+    unseen: number;
+    recent: Celebration[];
+  };
+}
+
+export interface AchievementsQuery {
+  category?: string;
+  rarity?: AchievementRarity;
+  unlocked?: boolean;
+}
+
 /** Success envelope returned by every backend endpoint. */
 export interface ApiEnvelope<T> {
   success: true;

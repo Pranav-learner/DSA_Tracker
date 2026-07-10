@@ -1,4 +1,13 @@
-import type { RewardType, ActivityType, RewardSourceModule, LevelFormulaName } from '../../types/domain.js';
+import type {
+  RewardType,
+  ActivityType,
+  RewardSourceModule,
+  LevelFormulaName,
+  AchievementRarity,
+  ChallengeType,
+  ChallengeStatus,
+  CelebrationType,
+} from '../../types/domain.js';
 
 /**
  * API DTOs for the Gamification / Progression Engine. These are the frozen
@@ -99,4 +108,98 @@ export interface StreaksDTO {
   lastActivityDate: string | null;
   daysSinceLastActivity: number | null;
   daily: DailyActivityDTO[];
+}
+
+/* ------------------------------------------------------------------ *
+ *  Sprint 2 — Achievements · Badges · Challenges · Celebrations
+ * ------------------------------------------------------------------ */
+
+export interface AchievementDTO {
+  id: string;
+  achievementKey: string;
+  title: string;
+  description: string;
+  category: string;
+  rarity: AchievementRarity;
+  icon: string;
+  unlocked: boolean;
+  unlockedAt: string | null;
+  progress: number;
+  maxProgress: number;
+  /** 0–1 progress ratio (clamped). */
+  percent: number;
+  metadata: Record<string, unknown>;
+}
+
+export interface BadgeDTO {
+  id: string;
+  badgeKey: string;
+  title: string;
+  description: string;
+  category: string;
+  icon: string;
+  unlockedAt: string;
+}
+
+export interface ChallengeDTO {
+  id: string;
+  challengeKey: string;
+  title: string;
+  description: string;
+  challengeType: ChallengeType;
+  activityType: ActivityType;
+  targetValue: number;
+  currentProgress: number;
+  remaining: number;
+  percent: number;
+  rewardXP: number;
+  rewardBadge: string | null;
+  status: ChallengeStatus;
+  expiresAt: string;
+  /** Seconds until expiry (0 once expired). */
+  secondsRemaining: number;
+  completedAt: string | null;
+}
+
+/** Challenges grouped by cadence for the Challenges page. */
+export interface ChallengesDTO {
+  active: ChallengeDTO[];
+  completed: ChallengeDTO[];
+  byType: Record<ChallengeType, ChallengeDTO[]>;
+}
+
+export interface CelebrationDTO {
+  id: string;
+  type: CelebrationType;
+  title: string;
+  description: string;
+  icon: string;
+  rarity: string | null;
+  xp: number;
+  metadata: Record<string, unknown>;
+  seen: boolean;
+  createdAt: string;
+}
+
+/** GET /api/gamification/profile — the unified gamification profile. */
+export interface GamificationProfileDTO {
+  progression: ProgressionSummaryDTO;
+  achievements: {
+    unlocked: number;
+    total: number;
+    recent: AchievementDTO[];
+    inProgress: AchievementDTO[];
+  };
+  badges: {
+    count: number;
+    recent: BadgeDTO[];
+  };
+  challenges: {
+    active: ChallengeDTO[];
+    completedCount: number;
+  };
+  celebrations: {
+    unseen: number;
+    recent: CelebrationDTO[];
+  };
 }

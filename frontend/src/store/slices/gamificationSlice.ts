@@ -1,25 +1,40 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import type { RewardType, RewardSortOrder } from '@/types';
+import type { RewardType, RewardSortOrder, AchievementRarity, ChallengeType, Celebration } from '@/types';
+
+export type AchievementView = 'all' | 'unlocked' | 'locked';
+export type AchievementSort = 'default' | 'progress' | 'rarity' | 'recent';
 
 /**
- * Gamification UI state — the reward-history filters, sort order, date range and
- * dashboard preferences. **UI state only**; all progression figures are
- * server-owned by React Query. Mirrors the analytics slice's split.
+ * Gamification UI state — reward-history filters, achievement filters/sort, the
+ * challenge filter and the celebration queue/modal visibility. **UI state only**;
+ * every figure is server-owned by React Query. Mirrors the analytics slice split.
  */
 export interface GamificationUiState {
   /** Reward-history filters. */
   rewardTypeFilter: RewardType | null;
-  /** Filter by originating activity type (rewardSource); null = all. */
   activityTypeFilter: string | null;
   sort: RewardSortOrder;
   from: string | null;
   to: string | null;
-  /** Reward-history page size. */
   pageSize: number;
-  /** Reward-history current page (0-based). */
   page: number;
-  /** Whether the dashboard progression widgets are shown. */
   showDashboardWidgets: boolean;
+
+  /** Achievements page. */
+  achievementCategory: string | null;
+  achievementRarity: AchievementRarity | null;
+  achievementView: AchievementView;
+  achievementSort: AchievementSort;
+  achievementSearch: string;
+
+  /** Challenges page. */
+  challengeTypeFilter: ChallengeType | null;
+
+  /** Celebration system — the queue to show and the active modal. */
+  celebrationQueue: Celebration[];
+  activeCelebration: Celebration | null;
+  /** Ids already surfaced this session (dedupes the queue). */
+  shownCelebrationIds: string[];
 }
 
 const initialState: GamificationUiState = {
@@ -31,6 +46,18 @@ const initialState: GamificationUiState = {
   pageSize: 20,
   page: 0,
   showDashboardWidgets: true,
+
+  achievementCategory: null,
+  achievementRarity: null,
+  achievementView: 'all',
+  achievementSort: 'default',
+  achievementSearch: '',
+
+  challengeTypeFilter: null,
+
+  celebrationQueue: [],
+  activeCelebration: null,
+  shownCelebrationIds: [],
 };
 
 const gamificationSlice = createSlice({
@@ -68,6 +95,63 @@ const gamificationSlice = createSlice({
     toggleDashboardWidgets(state) {
       state.showDashboardWidgets = !state.showDashboardWidgets;
     },
+
+    // --- Achievements page ---
+    setAchievementCategory(state, action: PayloadAction<string | null>) {
+      state.achievementCategory = state.achievementCategory === action.payload ? null : action.payload;
+    },
+    setAchievementRarity(state, action: PayloadAction<AchievementRarity | null>) {
+      state.achievementRarity = state.achievementRarity === action.payload ? null : action.payload;
+    },
+    setAchievementView(state, action: PayloadAction<AchievementView>) {
+      state.achievementView = action.payload;
+    },
+    setAchievementSort(state, action: PayloadAction<AchievementSort>) {
+      state.achievementSort = action.payload;
+    },
+    setAchievementSearch(state, action: PayloadAction<string>) {
+      state.achievementSearch = action.payload;
+    },
+    resetAchievementFilters(state) {
+      state.achievementCategory = null;
+      state.achievementRarity = null;
+      state.achievementView = 'all';
+      state.achievementSort = 'default';
+      state.achievementSearch = '';
+    },
+
+    // --- Challenges page ---
+    setChallengeTypeFilter(state, action: PayloadAction<ChallengeType | null>) {
+      state.challengeTypeFilter = state.challengeTypeFilter === action.payload ? null : action.payload;
+    },
+
+    // --- Celebration queue ---
+    /** Enqueue freshly-fetched celebrations not already shown this session. */
+    enqueueCelebrations(state, action: PayloadAction<Celebration[]>) {
+      const known = new Set([
+        ...state.shownCelebrationIds,
+        ...state.celebrationQueue.map((c) => c.id),
+        ...(state.activeCelebration ? [state.activeCelebration.id] : []),
+      ]);
+      for (const c of action.payload) {
+        if (!known.has(c.id)) state.celebrationQueue.push(c);
+      }
+    },
+    /** Pop the next queued celebration into the active-modal slot. */
+    advanceCelebration(state) {
+      if (state.activeCelebration || state.celebrationQueue.length === 0) return;
+      const next = state.celebrationQueue.shift()!;
+      state.activeCelebration = next;
+      state.shownCelebrationIds.push(next.id);
+    },
+    /** Dismiss the active celebration modal. */
+    dismissCelebration(state) {
+      state.activeCelebration = null;
+    },
+    clearCelebrations(state) {
+      state.celebrationQueue = [];
+      state.activeCelebration = null;
+    },
   },
 });
 
@@ -79,5 +163,16 @@ export const {
   setPage,
   resetFilters,
   toggleDashboardWidgets,
+  setAchievementCategory,
+  setAchievementRarity,
+  setAchievementView,
+  setAchievementSort,
+  setAchievementSearch,
+  resetAchievementFilters,
+  setChallengeTypeFilter,
+  enqueueCelebrations,
+  advanceCelebration,
+  dismissCelebration,
+  clearCelebrations,
 } = gamificationSlice.actions;
 export default gamificationSlice.reducer;

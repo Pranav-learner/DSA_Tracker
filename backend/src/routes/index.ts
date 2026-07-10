@@ -127,6 +127,12 @@ api.get('/', (_req, res) => {
         'GET /api/gamification/rewards/history',
         'GET /api/gamification/levels',
         'GET /api/gamification/streaks',
+        'GET /api/gamification/profile',
+        'GET /api/gamification/achievements',
+        'GET /api/gamification/achievements/:id',
+        'GET /api/gamification/badges',
+        'GET|PATCH /api/gamification/challenges',
+        'GET|POST /api/gamification/celebrations',
       ],
     },
   });

@@ -35,6 +35,7 @@ import {
   RetentionSummaryCard,
   QuickActionsPanel,
   ProgressionDashboardCard,
+  GamificationDashboardCard,
 } from '@/components/dashboard';
 import { greeting } from '@/lib/utils';
 
@@ -122,6 +123,21 @@ export function DashboardPage() {
             }
           >
             <ProgressionDashboardCard />
+          </DashboardSection>
+
+          <DashboardSection
+            title="Achievements & Challenges"
+            description="What you've earned and what's next"
+            icon={<Trophy className="size-4" />}
+            action={
+              <Button variant="link" size="sm" asChild>
+                <Link to="/gamification">
+                  Open gamification <ArrowRight className="size-4" />
+                </Link>
+              </Button>
+            }
+          >
+            <GamificationDashboardCard />
           </DashboardSection>
 
           <DashboardSection

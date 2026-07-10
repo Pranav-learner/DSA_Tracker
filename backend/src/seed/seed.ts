@@ -43,8 +43,16 @@ import { DEMO_ACTIVITY } from './activity.js';
 import { DEMO_REWARD_EVENTS } from './gamification.js';
 import { UserProgression } from '../models/UserProgression.js';
 import { RewardHistory } from '../models/RewardHistory.js';
-import { rewardEngine } from '../gamification/services/rewardEngine.service.js';
+import { Achievement } from '../models/Achievement.js';
+import { Badge } from '../models/Badge.js';
+import { Challenge } from '../models/Challenge.js';
+import { Celebration } from '../models/Celebration.js';
 import { userProgressionRepository } from '../gamification/repositories/userProgression.repository.js';
+import { achievementRepository } from '../gamification/repositories/achievement.repository.js';
+import { badgeRepository } from '../gamification/repositories/badge.repository.js';
+import { challengeService } from '../gamification/services/challenge.service.js';
+import { initGamification } from '../gamification/index.js';
+import { activityService } from '../services/activity.service.js';
 import type { ActivityDocument } from '../models/Activity.js';
 import type { ActivityEvent } from '../services/activity.service.js';
 import {
@@ -140,24 +148,44 @@ async function seed(): Promise<void> {
     `Seed complete — ${roadmapSeed.length} phases, ${totalTopics} topics, ${problemCount} problems, ` +
       `${notebookCount} notebook entries, ${revisionCount} revision schedules, ${sessionCount} revision sessions, ` +
       `${retentionCount} retention profiles, ${contestCount} contests, ` +
-      `${gamification.rewards} rewards (${gamification.xp} XP → level ${gamification.level}).`,
+      `${gamification.rewards} rewards (${gamification.xp} XP → level ${gamification.level}), ` +
+      `${gamification.achievements} achievements, ${gamification.badges} badges, ${gamification.celebrations} celebrations.`,
   );
   await disconnectDatabase();
 }
 
 /**
- * Module 6 · Sprint 1: seed the Progression Engine by REPLAYING back-dated
- * rewardable activities through the real Reward Engine. Nothing is hand-faked —
- * XP, levels, streaks and reward history are all engine output, which both
- * populates the dashboard and exercises the full reward flow end-to-end.
+ * Module 6 · Sprint 1+2: seed the whole Gamification Engine by REPLAYING
+ * back-dated activities through the REAL pipeline. `initGamification()` wires the
+ * Reward Engine + ProgressionRulesEngine to the activity bus, then each event is
+ * dispatched exactly as it would be at runtime — so XP, levels, streaks,
+ * achievements, badges, challenges and celebrations are all genuine engine
+ * output, never hand-faked. This both populates the dashboard and exercises the
+ * full flow end-to-end.
  */
-async function seedGamification(): Promise<{ xp: number; level: number; rewards: number }> {
+async function seedGamification(): Promise<{
+  xp: number;
+  level: number;
+  rewards: number;
+  achievements: number;
+  badges: number;
+  celebrations: number;
+}> {
   const userId = env.demoUserId;
-  logger.info(`Seeding gamification / progression for '${userId}'…`);
+  logger.info(`Seeding gamification (progression + achievements) for '${userId}'…`);
 
-  await Promise.all([UserProgression.deleteOne({ userId }), RewardHistory.deleteMany({ userId })]);
+  await Promise.all([
+    UserProgression.deleteOne({ userId }),
+    RewardHistory.deleteMany({ userId }),
+    Achievement.deleteMany({ userId }),
+    Badge.deleteMany({ userId }),
+    Challenge.deleteMany({ userId }),
+    Celebration.deleteMany({ userId }),
+  ]);
 
-  // Attach a couple of real entity ids for authenticity (best-effort).
+  // Subscribe the reward + rules engines to the bus, then dispatch events for real.
+  initGamification();
+
   const [topics, problems] = await Promise.all([Topic.find().limit(5).exec(), Problem.find().limit(5).exec()]);
   const someTopic = topics[0] ? String(topics[0]._id) : 'seed';
   const someProblem = problems[0] ? String(problems[0]._id) : 'seed';
@@ -189,22 +217,38 @@ async function seedGamification(): Promise<{ xp: number; level: number; rewards:
     }))
     .sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime());
 
-  let xp = 0;
-  let rewards = 0;
-  for (const event of events) {
-    const outcome = await rewardEngine.processActivityEvent(event);
-    if (outcome.awarded) {
-      xp += outcome.xp;
-      rewards += 1;
-    }
-  }
+  // Replay history through the full pipeline (reward + rules engines).
+  for (const event of events) await activityService.dispatch(event);
 
-  const progression = await userProgressionRepository.getOrCreate(userId);
+  // Generate the current period's challenges, then record a handful of "today"
+  // activities so a couple of daily challenges progress/complete (celebrations).
+  await challengeService.ensureActive(userId);
+  await activityService.record(userId, { type: 'notebook-created', entityType: 'problem', entityId: someProblem, title: 'Documented Union-Find', description: 'A fresh pattern write-up.' });
+  await activityService.record(userId, { type: 'revision-completed', entityType: 'revision', entityId: 'seed', title: 'Revised Graphs', description: "Today's review." });
+  await activityService.record(userId, { type: 'revision-completed', entityType: 'revision', entityId: 'seed', title: 'Revised DP basics', description: "Today's review." });
+  await activityService.record(userId, { type: 'problem-solved', entityType: 'problem', entityId: someProblem, title: 'Solved Min Path Sum', description: 'Grid DP.' });
+
+  const [progression, achievementCount, badgeCount, celebrationCount, rewardCount] = await Promise.all([
+    userProgressionRepository.getOrCreate(userId),
+    achievementRepository.countUnlocked(userId),
+    badgeRepository.findByUser(userId).then((b) => b.length),
+    Celebration.countDocuments({ userId }).exec(),
+    RewardHistory.countDocuments({ userId }).exec(),
+  ]);
+
   logger.info(
-    `  ✓ Gamification seeded (${rewards} rewards · ${xp} XP · level ${progression.currentLevel} · ` +
-      `streak ${progression.currentStreak}, longest ${progression.longestStreak}).`,
+    `  ✓ Gamification seeded (${rewardCount} rewards · ${progression.totalXP} XP · level ${progression.currentLevel} · ` +
+      `streak ${progression.currentStreak}/${progression.longestStreak} · ${achievementCount} achievements · ` +
+      `${badgeCount} badges · ${celebrationCount} celebrations).`,
   );
-  return { xp, level: progression.currentLevel, rewards };
+  return {
+    xp: progression.totalXP,
+    level: progression.currentLevel,
+    rewards: rewardCount,
+    achievements: achievementCount,
+    badges: badgeCount,
+    celebrations: celebrationCount,
+  };
 }
 
 /**

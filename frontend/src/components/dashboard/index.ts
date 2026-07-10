@@ -24,3 +24,5 @@ export { RetentionSummaryCard } from './RetentionSummaryCard';
 export { QuickActionsPanel } from './QuickActionsPanel';
 // Module 6 · Sprint 1 — progression widget (self-fetches from the gamification API).
 export { ProgressionDashboardCard } from './ProgressionDashboardCard';
+// Module 6 · Sprint 2 — achievements / challenges / celebrations widget.
+export { GamificationDashboardCard } from './GamificationDashboardCard';

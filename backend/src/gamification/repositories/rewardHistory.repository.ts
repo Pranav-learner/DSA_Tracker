@@ -81,6 +81,24 @@ export const rewardHistoryRepository = {
     return row?.total ?? 0;
   },
 
+  /** Lifetime reward counts grouped by activity type (rewardSource). */
+  async countsBySource(userId: string): Promise<Record<string, number>> {
+    const rows = await RewardHistory.aggregate<{ _id: string; count: number }>([
+      { $match: { userId } },
+      { $group: { _id: '$rewardSource', count: { $sum: 1 } } },
+    ]).exec();
+    return Object.fromEntries(rows.map((r) => [r._id, r.count]));
+  },
+
+  /** Distinct earned titles per source (for keyword/category rules). */
+  async titlesBySource(userId: string, sources: string[]): Promise<Record<string, string[]>> {
+    const rows = await RewardHistory.aggregate<{ _id: string; titles: string[] }>([
+      { $match: { userId, rewardSource: { $in: sources } } },
+      { $group: { _id: '$rewardSource', titles: { $addToSet: '$metadata.title' } } },
+    ]).exec();
+    return Object.fromEntries(rows.map((r) => [r._id, r.titles.filter((t): t is string => typeof t === 'string')]));
+  },
+
   /** Per-day XP + reward counts at or after `since`, for the streak breakdown. */
   dailyTotalsSince(
     userId: string,

@@ -1,12 +1,13 @@
 import { rewardRuleService } from './rewardRule.service.js';
-import { levelService } from './level.service.js';
-import { streakService } from './streak.service.js';
+import { levelService, type LevelState } from './level.service.js';
+import { streakService, type StreakAdvance } from './streak.service.js';
 import { gamificationActivity } from './gamificationActivity.js';
 import { userProgressionRepository } from '../repositories/userProgression.repository.js';
 import { rewardHistoryRepository } from '../repositories/rewardHistory.repository.js';
 import { progressionCache } from './progressionCache.js';
 import { logger } from '../../utils/logger.js';
 import type { ActivityEvent } from '../../services/activity.service.js';
+import type { ActivityType } from '../../types/domain.js';
 
 /** Outcome of processing one activity event (mostly for tests/seed reporting). */
 export interface RewardOutcome {
@@ -19,6 +20,14 @@ export interface RewardOutcome {
   skipped?: 'not-rewardable' | 'duplicate';
 }
 
+/** Result of committing XP (shared by rule awards and bonus awards). */
+export interface CommitResult {
+  level: LevelState;
+  prevLevel: number;
+  leveledUp: boolean;
+  streak: StreakAdvance;
+}
+
 const NO_REWARD = (skipped: RewardOutcome['skipped']): RewardOutcome => ({
   awarded: false,
   xp: 0,
@@ -29,24 +38,21 @@ const NO_REWARD = (skipped: RewardOutcome['skipped']): RewardOutcome => ({
 });
 
 /**
- * RewardEngine — the ONLY place XP is ever awarded. It subscribes to the
- * Activity bus and turns rewardable events into progression changes, following
- * the canonical flow:
- *
- *   validate event → check duplicate → resolve rule → award XP → update level →
- *   update streak → store reward history → emit gamification activity events.
+ * RewardEngine — the ONLY place XP is ever minted. It subscribes to the Activity
+ * bus (rule-based awards) and also exposes `awardBonus` so the Sprint 2
+ * ProgressionRulesEngine can grant achievement/challenge XP through the SAME
+ * code path — reward logic is never duplicated.
  *
  * Idempotency & ordering (exactly-once without a DB transaction):
  *   1. RewardHistory is written FIRST as an idempotency lock — its unique
- *      {userId, activityId} index makes a duplicate insert impossible, so a
- *      re-delivered event can never double-award. On a duplicate we stop before
- *      touching XP.
- *   2. XP is then applied via an atomic `$inc` (safe under concurrency).
+ *      {userId, activityId} index makes a duplicate insert impossible. Bonus
+ *      awards use a synthetic activityId (e.g. `achievement:<key>`) so each
+ *      bonus is granted at most once.
+ *   2. XP is then applied via an atomic `$inc`.
  *   3. Level + streak are derived from the post-award total and persisted.
- * If the process died between (1) and (2) the effect is an under-count (a logged
- * reward with unapplied XP), never a double-count — the safe failure direction,
- * and fully recoverable by replaying from the logs. A real DB transaction is a
- * drop-in upgrade once the deployment runs a replica set (see docs).
+ * A crash between (1) and (2) under-counts (recoverable by replay), never
+ * double-counts — the safe failure direction. Upgrades to a real transaction
+ * once a replica set is available.
  */
 export const rewardEngine = {
   /** Activity-bus entry point. Best-effort; never throws back to the recorder. */
@@ -60,15 +66,14 @@ export const rewardEngine = {
   },
 
   async award(event: ActivityEvent): Promise<RewardOutcome> {
-    // 1. Validate + resolve rule. Non-rewardable types (including the engine's
-    //    own emitted gamification events) short-circuit here — the loop-breaker.
+    // 1. Validate + resolve rule. Non-rewardable types (including gamification
+    //    events) short-circuit here — the loop-breaker.
     const rule = rewardRuleService.getRule(event.type);
     if (!rule) return NO_REWARD('not-rewardable');
 
     const { userId } = event;
 
-    // 2. Duplicate lock: write the reward row FIRST. A second event for the same
-    //    activity loses the unique-index race and returns null → no double XP.
+    // 2. Duplicate lock: write the reward row FIRST.
     const reward = await rewardHistoryRepository.create({
       userId,
       activityId: event.id,
@@ -86,16 +91,65 @@ export const rewardEngine = {
     });
     if (!reward) return NO_REWARD('duplicate');
 
-    // 3. Award XP atomically; the returned doc has the NEW total but PRE-award
-    //    level/streak fields — exactly what we need to detect transitions.
-    const bumped = await userProgressionRepository.incrementXP(userId, rule.xp);
-    const prevLevel = levelService.levelForXP(bumped.totalXP - rule.xp);
+    // 3–6. Commit XP → level → streak, then emit events.
+    const commit = await this.commit(userId, rule.xp, event.occurredAt);
+    await this.emit(userId, rule.xp, event.title, commit);
 
-    // 4. Update level from the new lifetime total.
+    return {
+      awarded: true,
+      xp: rule.xp,
+      leveledUp: commit.leveledUp,
+      newLevel: commit.level.level,
+      streakTransition: commit.streak.transition,
+    };
+  },
+
+  /**
+   * Grant bonus XP for a non-activity source (achievement / challenge / badge).
+   * Deduped by `sourceKey` so a bonus is minted at most once. Returns the commit
+   * result (or null if the bonus was already granted / amount is 0).
+   */
+  async awardBonus(
+    userId: string,
+    opts: {
+      amount: number;
+      /** Gamification activity type recorded as the reward source. */
+      source: ActivityType;
+      /** Stable dedup key, e.g. `achievement:first-accepted` or `challenge:<id>`. */
+      sourceKey: string;
+      reason: string;
+      title: string;
+      metadata?: Record<string, unknown>;
+      occurredAt?: Date;
+    },
+  ): Promise<CommitResult | null> {
+    if (opts.amount <= 0) return null;
+    const occurredAt = opts.occurredAt ?? new Date();
+
+    const reward = await rewardHistoryRepository.create({
+      userId,
+      activityId: opts.sourceKey,
+      rewardType: 'xp',
+      rewardSource: opts.source,
+      xpAwarded: opts.amount,
+      reason: opts.reason,
+      metadata: { bonus: true, ...opts.metadata },
+      createdAt: occurredAt,
+    });
+    if (!reward) return null; // already granted
+
+    const commit = await this.commit(userId, opts.amount, occurredAt);
+    await this.emit(userId, opts.amount, opts.title, commit);
+    return commit;
+  },
+
+  /** Apply XP atomically, then derive + persist level & streak. */
+  async commit(userId: string, xp: number, occurredAt: Date): Promise<CommitResult> {
+    const bumped = await userProgressionRepository.incrementXP(userId, xp);
+    const prevLevel = levelService.levelForXP(bumped.totalXP - xp);
     const level = levelService.compute(bumped.totalXP);
     const leveledUp = level.level > prevLevel;
 
-    // 5. Update streak, dated by when the activity actually occurred.
     const streak = streakService.advance(
       {
         currentStreak: bumped.currentStreak,
@@ -103,10 +157,9 @@ export const rewardEngine = {
         totalDaysActive: bumped.totalDaysActive,
         lastActivityDate: bumped.lastActivityDate,
       },
-      event.occurredAt,
+      occurredAt,
     );
 
-    // 6. Persist the derived level + streak fields.
     await userProgressionRepository.applyDerived(userId, {
       currentLevel: level.level,
       currentXP: level.currentXP,
@@ -115,25 +168,14 @@ export const rewardEngine = {
       ...streak.fields,
     });
 
-    // Progression summary is cached; a change invalidates it.
     progressionCache.invalidate(userId);
+    return { level, prevLevel, leveledUp, streak };
+  },
 
-    // 7. Emit gamification events back onto the Activity feed (best-effort).
-    //    These are non-rewardable, so they no-op when the bus routes them here.
-    await gamificationActivity.xpAwarded(userId, {
-      xp: rule.xp,
-      sourceTitle: event.title,
-      level: level.level,
-    });
-    if (leveledUp) await gamificationActivity.levelUp(userId, level);
-    if (streak.isNewDay) await gamificationActivity.streakChanged(userId, streak);
-
-    return {
-      awarded: true,
-      xp: rule.xp,
-      leveledUp,
-      newLevel: level.level,
-      streakTransition: streak.transition,
-    };
+  /** Emit gamification activity events (best-effort, non-rewardable → no loop). */
+  async emit(userId: string, xp: number, sourceTitle: string, commit: CommitResult): Promise<void> {
+    await gamificationActivity.xpAwarded(userId, { xp, sourceTitle, level: commit.level.level });
+    if (commit.leveledUp) await gamificationActivity.levelUp(userId, commit.level);
+    if (commit.streak.isNewDay) await gamificationActivity.streakChanged(userId, commit.streak);
   },
 };

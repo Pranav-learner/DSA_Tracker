@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Sidebar } from './Sidebar';
 import { Navbar } from './Navbar';
+import { CelebrationProvider } from '@/components/gamification/CelebrationProvider';
 
 /**
  * App shell: fixed sidebar (collapsible on mobile) + top navbar + routed
@@ -50,6 +51,9 @@ export function AppLayout() {
           </div>
         </main>
       </div>
+
+      {/* Module 6 · Sprint 2 — celebration toasts/modals, driven app-wide. */}
+      <CelebrationProvider />
     </div>
   );
 }

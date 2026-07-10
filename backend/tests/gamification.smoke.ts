@@ -9,7 +9,6 @@
 import assert from 'node:assert/strict';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { connectDatabase, disconnectDatabase } from '../src/config/db.js';
-import { initGamification } from '../src/gamification/index.js';
 import { activityService } from '../src/services/activity.service.js';
 import { progressionService } from '../src/gamification/services/progression.service.js';
 import { levelService } from '../src/gamification/services/level.service.js';
@@ -41,7 +40,10 @@ async function reset(): Promise<void> {
 async function main(): Promise<void> {
   const mongo = await MongoMemoryServer.create();
   await connectDatabase(mongo.getUri('cp_os_test'));
-  initGamification(); // subscribe the Reward Engine to the activity bus
+  // Subscribe ONLY the Reward Engine — this test exercises XP/level/streak math
+  // in isolation, so it deliberately excludes the Sprint 2 rules engine (whose
+  // achievement bonuses would perturb the exact-XP assertions below).
+  activityService.subscribe((event) => rewardEngine.processActivityEvent(event) as unknown as void);
 
   try {
     // ── 1. A rewardable activity awards XP through the bus ──────────────

@@ -180,6 +180,14 @@ export const ACTIVITY_TYPES = [
   'streak-increased',
   'streak-broken',
   'progression-updated',
+  // Module 6 · Sprint 2 — achievement system. Emitted by the ProgressionRulesEngine;
+  // like the Sprint 1 events these are non-rewardable and are ignored by both
+  // engines' evaluation paths (used only for the timeline + celebrations).
+  'achievement-unlocked',
+  'badge-earned',
+  'challenge-completed',
+  'milestone-reached',
+  'celebration-generated',
 ] as const;
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];
 
@@ -205,13 +213,22 @@ export const REWARDABLE_ACTIVITY_TYPES = [
 ] as const;
 export type RewardableActivityType = (typeof REWARDABLE_ACTIVITY_TYPES)[number];
 
-/** The gamification events the Reward Engine emits back into the Activity feed. */
+/**
+ * The gamification events the engines emit back into the Activity feed. These
+ * are ignored by the reward/rules evaluation paths (they only drive the timeline
+ * and celebrations), which is what keeps the event bus from recursing.
+ */
 export const GAMIFICATION_ACTIVITY_TYPES = [
   'xp-awarded',
   'level-up',
   'streak-increased',
   'streak-broken',
   'progression-updated',
+  'achievement-unlocked',
+  'badge-earned',
+  'challenge-completed',
+  'milestone-reached',
+  'celebration-generated',
 ] as const;
 export type GamificationActivityType = (typeof GAMIFICATION_ACTIVITY_TYPES)[number];
 
@@ -230,6 +247,45 @@ export type RewardSourceModule = (typeof REWARD_SOURCE_MODULES)[number];
 /** Registered level-progression formulas (new curves plug in here, no schema change). */
 export const LEVEL_FORMULAS = ['exponential', 'linear'] as const;
 export type LevelFormulaName = (typeof LEVEL_FORMULAS)[number];
+
+/* ---- Module 6 · Sprint 2 — Achievement System ---- */
+
+/** Achievement rarity tiers (drive colour/weighting in the UI). */
+export const ACHIEVEMENT_RARITIES = ['Common', 'Rare', 'Epic', 'Legendary'] as const;
+export type AchievementRarity = (typeof ACHIEVEMENT_RARITIES)[number];
+
+/**
+ * Categories an achievement/badge belongs to. Used for grouping & filtering;
+ * kept open (validated as a string on read) so new categories need no migration.
+ */
+export const GAMIFICATION_CATEGORIES = [
+  'Problems',
+  'Contests',
+  'Knowledge',
+  'Revision',
+  'Progression',
+  'Streak',
+  'Mastery',
+] as const;
+export type GamificationCategory = (typeof GAMIFICATION_CATEGORIES)[number];
+
+/** Challenge cadence / scope. */
+export const CHALLENGE_TYPES = ['Daily', 'Weekly', 'Monthly', 'Phase', 'Custom'] as const;
+export type ChallengeType = (typeof CHALLENGE_TYPES)[number];
+
+/** Challenge lifecycle status. */
+export const CHALLENGE_STATUSES = ['Active', 'Completed', 'Expired'] as const;
+export type ChallengeStatus = (typeof CHALLENGE_STATUSES)[number];
+
+/** Frontend-facing celebration event kinds. */
+export const CELEBRATION_TYPES = [
+  'level-up',
+  'achievement-unlocked',
+  'badge-earned',
+  'challenge-completed',
+  'milestone-reached',
+] as const;
+export type CelebrationType = (typeof CELEBRATION_TYPES)[number];
 
 /**
  * Derived, workspace-level problem status (richer than the stored 3-state
@@ -297,7 +353,17 @@ export const DECAY_STRATEGIES = ['default'] as const;
 export type DecayStrategyName = (typeof DECAY_STRATEGIES)[number];
 
 /** The entity an activity refers to. Kept generic so future modules can extend. */
-export const ACTIVITY_ENTITY_TYPES = ['topic', 'phase', 'problem', 'revision', 'contest', 'progression'] as const;
+export const ACTIVITY_ENTITY_TYPES = [
+  'topic',
+  'phase',
+  'problem',
+  'revision',
+  'contest',
+  'progression',
+  'achievement',
+  'badge',
+  'challenge',
+] as const;
 export type ActivityEntityType = (typeof ACTIVITY_ENTITY_TYPES)[number];
 
 /* ---- Module 5 · Sprint 1: Competitive Programming Engine ---- */

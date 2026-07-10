@@ -16,6 +16,12 @@ import { RevisionWorkspacePage } from '@/pages/RevisionWorkspacePage';
 import { RevisionHistoryPage } from '@/pages/RevisionHistoryPage';
 import { RetentionPage } from '@/pages/RetentionPage';
 import { ProgressionPage } from '@/pages/ProgressionPage';
+import { GamificationDashboard } from '@/pages/GamificationDashboard';
+import { AchievementsPage } from '@/pages/AchievementsPage';
+import { BadgesPage } from '@/pages/BadgesPage';
+import { ChallengesPage } from '@/pages/ChallengesPage';
+import { ProgressProfilePage } from '@/pages/ProgressProfilePage';
+import { CelebrationCenterPage } from '@/pages/CelebrationCenterPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 
 // Analytics pages are lazy-loaded so the heavy charting library (Recharts) is
@@ -101,6 +107,13 @@ export const router = createBrowserRouter([
       { path: 'revision/history', element: <RevisionHistoryPage /> },
       { path: 'retention', element: <RetentionPage /> },
       { path: 'progression', element: <ProgressionPage /> },
+      // Module 6 · Sprint 2 — achievement system.
+      { path: 'gamification', element: <GamificationDashboard /> },
+      { path: 'achievements', element: <AchievementsPage /> },
+      { path: 'badges', element: <BadgesPage /> },
+      { path: 'challenges', element: <ChallengesPage /> },
+      { path: 'profile', element: <ProgressProfilePage /> },
+      { path: 'celebrations', element: <CelebrationCenterPage /> },
       { path: 'analytics', element: analyticsLazy(<AnalyticsHome />) },
       { path: 'analytics/learning', element: analyticsLazy(<LearningAnalytics />) },
       { path: 'analytics/problems', element: analyticsLazy(<ProblemAnalytics />) },

@@ -113,4 +113,11 @@ export const queryKeys = {
   rewardHistory: (query: object) => ['gamification', 'rewards', 'history', query] as const,
   levels: ['gamification', 'levels'] as const,
   streaks: ['gamification', 'streaks'] as const,
+  // --- Module 6 · Sprint 2: achievement system (all under the 'gamification' prefix) ---
+  gamificationProfile: ['gamification', 'profile'] as const,
+  achievements: (query: object) => ['gamification', 'achievements', query] as const,
+  achievement: (id: string) => ['gamification', 'achievements', 'detail', id] as const,
+  badges: ['gamification', 'badges'] as const,
+  challenges: ['gamification', 'challenges'] as const,
+  celebrations: (query: object) => ['gamification', 'celebrations', query] as const,
 };

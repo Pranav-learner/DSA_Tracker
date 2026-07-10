@@ -1,4 +1,4 @@
-import { apiGet } from './client';
+import { apiGet, apiSend } from './client';
 import type {
   ProgressionSummary,
   Reward,
@@ -6,6 +6,13 @@ import type {
   RewardHistoryQuery,
   Levels,
   Streaks,
+  Achievement,
+  AchievementsQuery,
+  Badge,
+  Challenge,
+  ChallengesGrouped,
+  Celebration,
+  GamificationProfile,
 } from '@/types';
 
 function toQueryString(query: object): string {
@@ -27,4 +34,19 @@ export const gamificationApi = {
     apiGet<RewardHistoryPage>(`/gamification/rewards/history${toQueryString(query)}`, signal),
   levels: (signal?: AbortSignal) => apiGet<Levels>('/gamification/levels', signal),
   streaks: (signal?: AbortSignal) => apiGet<Streaks>('/gamification/streaks', signal),
+
+  // --- Sprint 2: achievement system ---
+  profile: (signal?: AbortSignal) => apiGet<GamificationProfile>('/gamification/profile', signal),
+  achievements: (query: AchievementsQuery = {}, signal?: AbortSignal) =>
+    apiGet<Achievement[]>(`/gamification/achievements${toQueryString(query)}`, signal),
+  achievement: (id: string, signal?: AbortSignal) =>
+    apiGet<Achievement>(`/gamification/achievements/${id}`, signal),
+  badges: (signal?: AbortSignal) => apiGet<Badge[]>('/gamification/badges', signal),
+  challenges: (signal?: AbortSignal) => apiGet<ChallengesGrouped>('/gamification/challenges', signal),
+  patchChallenge: (id: string, action: 'refresh' | 'dismiss') =>
+    apiSend<Challenge>('PATCH', `/gamification/challenges/${id}`, { action }),
+  celebrations: (query: { unseen?: boolean; limit?: number } = {}, signal?: AbortSignal) =>
+    apiGet<Celebration[]>(`/gamification/celebrations${toQueryString(query)}`, signal),
+  markCelebrationsSeen: (ids?: string[]) =>
+    apiSend<{ modified: number }>('POST', '/gamification/celebrations/seen', { ids }),
 };
